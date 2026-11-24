@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"github.com/qoefi/api/internal/eligibility"
 	"strings"
 	"time"
 
@@ -61,11 +62,16 @@ type ReplyItem struct {
 	Content   string  `json:"content"`
 	// Tombstone : la place de la réponse est conservée (structure du fil et
 	// compteur) mais ni le contenu ni l'auteur ne sortent.
-	Tombstone   bool         `json:"tombstone"`
-	ReplyCount  int          `json:"replyCount"`
-	LikeCount   int          `json:"likeCount"`
-	RepostCount int          `json:"repostCount"`
-	Author      *ReplyAuthor `json:"author"`
+	Tombstone bool `json:"tombstone"`
+	// TombstoneReason est le code machine de l'exclusion (deleted, moderated,
+	// blocked, muted_word, ...), Why sa version lisible. L'interface explique
+	// la place vide sans jamais révéler le contenu (L43).
+	TombstoneReason string       `json:"tombstoneReason,omitempty"`
+	Why             string       `json:"why,omitempty"`
+	ReplyCount      int          `json:"replyCount"`
+	LikeCount       int          `json:"likeCount"`
+	RepostCount     int          `json:"repostCount"`
+	Author          *ReplyAuthor `json:"author"`
 }
 
 // ReplyPage est une page de fil.
@@ -128,6 +134,11 @@ func ReplyItemFromRow(row db.ListThreadPageRow) ReplyItem {
 		ReplyCount: int(row.ReplyCount),
 		Content:    row.Content,
 		Tombstone:  row.Tombstone,
+	}
+	if row.Tombstone {
+		reason := eligibility.Reason(row.TombstoneReason)
+		item.TombstoneReason = string(reason)
+		item.Why = eligibility.WhyFor(reason, eligibility.SurfaceThread)
 	}
 	if !row.Tombstone {
 		item.LikeCount = int(row.LikeCount)

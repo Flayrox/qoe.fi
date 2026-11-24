@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/qoefi/api/internal/eligibility"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/modules/posts"
 	"github.com/qoefi/api/internal/response"
@@ -32,6 +33,10 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 	r.Route("/v1/feed", func(r chi.Router) {
 		r.Get("/", h.following)
 		r.Get("/personalized", h.personalized)
+		// Décisions d'éligibilité par surface (L43) : ids, raisons, scores —
+		// jamais de contenu. Protégé : une explication d'exclusion nomme des
+		// posts que le viewer ne voit pas.
+		r.Get("/eligibility", h.surfaceEligibility)
 	})
 }
 
@@ -59,6 +64,25 @@ func (h *Handler) homeFeed(w http.ResponseWriter, r *http.Request) {
 	result, err := h.svc.HomeFeed(r.Context(), userID)
 	if err != nil {
 		log.Printf("[feed] homeFeed: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, result)
+}
+
+// surfaceEligibility — décisions d'éligibilité d'une surface (GET /v1/feed/eligibility).
+// `surface` est validée strictement : une valeur inconnue rend 400 plutôt qu'un
+// défaut silencieux qui expliquerait la mauvaise politique.
+func (h *Handler) surfaceEligibility(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	result, err := h.svc.SurfaceEligibility(r.Context(), r.URL.Query().Get("surface"), userID, limit)
+	if err != nil {
+		if errors.Is(err, eligibility.ErrUnknownSurface) {
+			response.BadRequest(w, "Surface inconnue")
+			return
+		}
+		log.Printf("[feed] surfaceEligibility: %v", err)
 		response.Internal(w)
 		return
 	}

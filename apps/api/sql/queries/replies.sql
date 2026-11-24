@@ -22,8 +22,9 @@ SELECT p.id,
        p."replyCount",
        p."likeCount",
        p."repostCount",
-       t.tombstone,
-       CASE WHEN t.tombstone THEN ''::text ELSE p."content"::text END AS content,
+       (t.reason <> '')                     AS tombstone,
+       t.reason                             AS tombstone_reason,
+       CASE WHEN t.reason <> '' THEN ''::text ELSE p."content"::text END AS content,
        u.id::text       AS author_id,
        u.name           AS author_name,
        u.username       AS author_username,
@@ -32,15 +33,21 @@ SELECT p.id,
 FROM "Post" p
 JOIN "User" u ON u.id = p."authorId"
 CROSS JOIN LATERAL (
-    SELECT (p."deletedAt" IS NOT NULL
-            OR p."isHiddenByModerator"
-            OR p."isHiddenByAuthor"
-            OR u."isShadowbanned"
-            OR u."isSuspended"
-            OR is_blocked_bidirectional(sqlc.arg('viewer_id')::uuid, p."authorId")
-            OR NOT can_view_profile(sqlc.arg('viewer_id')::uuid, u.id)
-            OR is_muted_by(sqlc.arg('viewer_id')::uuid, p."authorId")
-            OR contains_muted_word(sqlc.arg('viewer_id')::uuid, p."content"))::boolean AS tombstone
+    -- La raison est calculée dans le MÊME LATERAL que la visibilité : une seule
+    -- expression décide et explique (L43), jamais deux listes de prédicats qui
+    -- divergent. L'ordre est significatif : la cause la plus factuelle gagne.
+    SELECT COALESCE(CASE
+             WHEN p."deletedAt" IS NOT NULL THEN 'deleted'
+             WHEN p."isHiddenByModerator" THEN 'moderated'
+             WHEN p."isHiddenByAuthor" THEN 'hidden_by_author'
+             WHEN u."isSuspended" THEN 'suspended'
+             WHEN u."isShadowbanned" THEN 'restricted'
+             WHEN is_blocked_bidirectional(sqlc.arg('viewer_id')::uuid, p."authorId") THEN 'blocked'
+             WHEN NOT can_view_profile(sqlc.arg('viewer_id')::uuid, u.id) THEN 'private_profile'
+             WHEN is_muted_by(sqlc.arg('viewer_id')::uuid, p."authorId") THEN 'muted'
+             WHEN contains_muted_word(sqlc.arg('viewer_id')::uuid, p."content") THEN 'muted_word'
+             ELSE ''
+           END, '')::text AS reason
 ) t
 WHERE (
         (sqlc.arg('scope')::text = 'children' AND p."parentId" = sqlc.arg('parent_id')::text)

@@ -817,6 +817,10 @@ export interface ArticleCommentPayload {
   updatedAt?: string;
   /** Place conservée dans le fil, contenu et auteur effacés. */
   tombstone?: boolean;
+  /** Raison machine de l'exclusion (deleted, moderated, blocked, ...). */
+  tombstoneReason?: string;
+  /** Raison lisible de l'exclusion, servie par le serveur (L43). */
+  why?: string;
   /** Réponses vivantes directes (le fil se charge par la pagination). */
   replyCount?: number;
   likeCount?: number;

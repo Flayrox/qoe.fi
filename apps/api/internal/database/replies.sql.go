@@ -82,8 +82,9 @@ SELECT p.id,
        p."replyCount",
        p."likeCount",
        p."repostCount",
-       t.tombstone,
-       CASE WHEN t.tombstone THEN ''::text ELSE p."content"::text END AS content,
+       (t.reason <> '')                     AS tombstone,
+       t.reason                             AS tombstone_reason,
+       CASE WHEN t.reason <> '' THEN ''::text ELSE p."content"::text END AS content,
        u.id::text       AS author_id,
        u.name           AS author_name,
        u.username       AS author_username,
@@ -92,15 +93,21 @@ SELECT p.id,
 FROM "Post" p
 JOIN "User" u ON u.id = p."authorId"
 CROSS JOIN LATERAL (
-    SELECT (p."deletedAt" IS NOT NULL
-            OR p."isHiddenByModerator"
-            OR p."isHiddenByAuthor"
-            OR u."isShadowbanned"
-            OR u."isSuspended"
-            OR is_blocked_bidirectional($1::uuid, p."authorId")
-            OR NOT can_view_profile($1::uuid, u.id)
-            OR is_muted_by($1::uuid, p."authorId")
-            OR contains_muted_word($1::uuid, p."content"))::boolean AS tombstone
+    -- La raison est calculée dans le MÊME LATERAL que la visibilité : une seule
+    -- expression décide et explique (L43), jamais deux listes de prédicats qui
+    -- divergent. L'ordre est significatif : la cause la plus factuelle gagne.
+    SELECT COALESCE(CASE
+             WHEN p."deletedAt" IS NOT NULL THEN 'deleted'
+             WHEN p."isHiddenByModerator" THEN 'moderated'
+             WHEN p."isHiddenByAuthor" THEN 'hidden_by_author'
+             WHEN u."isSuspended" THEN 'suspended'
+             WHEN u."isShadowbanned" THEN 'restricted'
+             WHEN is_blocked_bidirectional($1::uuid, p."authorId") THEN 'blocked'
+             WHEN NOT can_view_profile($1::uuid, u.id) THEN 'private_profile'
+             WHEN is_muted_by($1::uuid, p."authorId") THEN 'muted'
+             WHEN contains_muted_word($1::uuid, p."content") THEN 'muted_word'
+             ELSE ''
+           END, '')::text AS reason
 ) t
 WHERE (
         ($2::text = 'children' AND p."parentId" = $3::text)
@@ -136,6 +143,7 @@ type ListThreadPageRow struct {
 	LikeCount       int32            `json:"likeCount"`
 	RepostCount     int32            `json:"repostCount"`
 	Tombstone       bool             `json:"tombstone"`
+	TombstoneReason string           `json:"tombstone_reason"`
 	Content         string           `json:"content"`
 	AuthorID        string           `json:"author_id"`
 	AuthorName      pgtype.Text      `json:"author_name"`
@@ -186,6 +194,7 @@ func (q *Queries) ListThreadPage(ctx context.Context, arg ListThreadPageParams) 
 			&i.LikeCount,
 			&i.RepostCount,
 			&i.Tombstone,
+			&i.TombstoneReason,
 			&i.Content,
 			&i.AuthorID,
 			&i.AuthorName,

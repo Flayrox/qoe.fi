@@ -348,7 +348,9 @@ function CommentNode({ comment, articleId, currentUserId, depth, onTombstone }: 
         )}
         <div className="min-w-0 flex-1">
           {isTombstone ? (
-            <p className="mt-1 text-xs italic text-muted-foreground">{t`Message supprimé`}</p>
+            <p className="mt-1 text-xs italic text-muted-foreground">
+              {comment.why || t`Message supprimé`}
+            </p>
           ) : (
             <>
               <div className="flex flex-wrap items-baseline gap-x-2">

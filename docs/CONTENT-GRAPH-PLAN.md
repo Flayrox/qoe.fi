@@ -120,11 +120,13 @@ fichier de migration).
 
 ## 4. Contrat de lecture — `FeedItem` (cible L43, **non livré**)
 
-> État réel au 2026-11-24 : aucune structure `FeedItem` n'existe dans le code. Les fils
-> rendent `posts.ReplyItem` (`id`, `parentId`, `rootId`, `createdAt`, `updatedAt`,
-> `content`, `tombstone`, `replyCount`, `likeCount`, `repostCount`, `author` nullable) ou,
-> pour le feed et le profil, `posts.FeedSlice`. Le contrat ci-dessous décrit la cible de
-> L43.
+> État réel au 2026-11-24 : aucune structure `FeedItem` unique n'existe. Les fils rendent
+> `posts.ReplyItem` (`id`, `parentId`, `rootId`, `createdAt`, `updatedAt`, `content`,
+> `tombstone`, `tombstoneReason`, `why`, `replyCount`, `likeCount`, `repostCount`,
+> `author` nullable) ou, pour le feed et le profil, `posts.FeedSlice`. Le `why` est livré
+> en L43 via les décisions d'éligibilité (`eligibility.Decision`) et les tombstones de fil ;
+> l'enveloppe complète `FeedItem { post, reply, reason, why }` reste la cible du lot de
+> rendu du contexte d'article, pas un contrat déjà exposé.
 
 ```ts
 interface FeedItem {
@@ -168,8 +170,16 @@ plus de deux niveaux de contexte.
 
 Un commentaire d'article n'est **jamais** éligible à « Pour toi » aujourd'hui : le garde
 réel est le prédicat SQL `p."rootArticleId" IS NULL`, présent dans `FindFollowingFeed`,
-`FindTrending` et `FindPostsByAuthor`. Aucun drapeau `comments_in_discover` n'existe ; son
-remplacement par une éligibilité par surface est justement le travail de L43.
+`FindTrending` et `FindPostsByAuthor`. Aucun drapeau `comments_in_discover` n'existe.
+
+Depuis L43, ces politiques ont une forme exécutable et explicable :
+`internal/eligibility` expose `Surface` (`following`, `discover`, `recommended`, `thread`,
+`profile`, `replies`), `ParseSurface`, `Candidate`, `Weights`, `Decide`, `Rank` et
+`WhyFor`. Chaque décision porte `reason` (machine) et `why` (lisible) ; le serveur rend
+les retenus classés et les exclus motivés via `GET /v1/feed/eligibility?surface=…`. Le
+critère de langue n'est **pas** appliqué : `Post` n'a pas de colonne de langue (seul
+`User."languageCode"` existe) — le jour où la colonne arrive, la règle entre dans
+`Decide`, pas dans une seconde liste.
 
 ## 6. Recommandation (L43)
 
@@ -181,7 +191,11 @@ Pipeline en deux étapes, pas de ML avant les logs :
    thématique, vélocité d'engagement, fraîcheur avec demi-vie **par surface**, diversité
    auteur/fil, atténuation par profondeur, pénalité « déjà vu ».
 3. **Score** — somme pondérée transparente, poids en `SystemConfig` (éditables en admin,
-   sans redéploiement). Pas de réseau de neurones avant d'avoir une semaine d'expositions.
+   sans redéploiement). Côté L43 : `feed.rank_fresh`, `feed.rank_engagement`,
+   `feed.rank_affinity`, `feed.rank_min_score`, `feed.rank_max_age_days`, lus une seule
+   fois par `eligibility.WeightsFromConfig` (défauts sûrs, config partielle ou invalide
+   ignorée). Le moteur personnalisé garde ses poids historiques `feed.rerank_*`. Pas de
+   réseau de neurones avant d'avoir une semaine d'expositions.
 4. **Réordonnancement** — plafond 2 items par auteur et 1 par fil et par page.
 5. **Explication** — `why` obligatoire (« parce que vous suivez X », « populaire cette
    semaine »), journalisé avec l'item.
@@ -215,7 +229,7 @@ classement.
 | ---- | ------- | ---------------- |
 | **L41** — graphe de contenu ✅ | colonne `Post.rootArticleId` + index partiel, backfill 225 commentaires (ids conservés), FK `Notification."commentId"` repointée, service `articles/comments.go` branché sur `Post`, compteurs (`fetchCommentsBatch`, `publishers`, `analytics`) sur `parentId IS NULL AND deletedAt IS NULL`, seed adapté. **Non livré** : table `Interaction`, assembleur `FeedItem`, like/repost génériques (cible L43). | dry-run transactionnel 00097 (225 → 225, 0 orphelin, FK OK) ; `pnpm guard:sqlc` (38 fichiers) ; `go build ./...` ; `go test` articles/feed/posts/publishers/analytics/seed |
 | **L42** — fils paginés ✅ | une requête `ListThreadPage` à trois portées (`roots`, `children`, `thread`), curseur opaque `(createdAt, id)`, `{ items, nextCursor, hasMore }`, tombstones, `Thread()` = première page (≤ `MaxReplyLimit` = 50) + `repliesCursor`/`repliesTruncated`, UI récursive (core, studio) + onglet profil paginé + surfaces `tenants`, fil de pensée paginé côté web | dry-run transactionnel : pages 3/3/1 sans doublon, insertion concurrente, antidatée non ressuscitée, tombstone + enfants + profondeur 3, deux viewers, compteurs, profil 2/2/2/1 ; `guard:sqlc` 39 fichiers ; `go build`/`go vet`/`go test` posts/articles/feed ; vitest core / studio / tenants + `threadRepliesPagination.test.ts` (6) et `thought-thread-load-more.test.tsx` (2) ; absorbe **R134** et **R314** |
-| **L43** — éligibilité + ranking | politiques par surface, features, score pondéré, `why`, logs d'exposition, métriques | tableau de bord + test : un commentaire hors seuil n'apparaît pas ; un compte suivi qui répond apparaît dans Abonnement ; NDCG mesuré sur 7 jours ; `pnpm arch:audit` 0 |
+| **L43** — éligibilité + explication ✅ (périmètre 2026-11-24) | `eligibility.Decide`/`Rank` par surface, `WeightsFromConfig` sur `feed.rank_*`, `GET /v1/feed/eligibility`, `tombstoneReason`/`why` sur `ReplyItem` (LATERAL unique de `ListThreadPage`), SDK `parseEligibilitySurface`/`sortEligibilityDecisions`/`getSurfaceEligibilityAction`, tombstone d'article qui affiche `why` | `go test ./internal/eligibility` (nominal, modération, seuil 0, config partielle, égalités, surface inconnue) ; `go build`/`go vet` ; `go test` posts/feed/articles ; `guard:sqlc` 40 fichiers ; vitest sdk 34 fichiers / 233 tests ; core tsc 0. **Non livré** : contexte d'article dans les feeds, `Interaction`, NDCG hors ligne, métriques `feed_items_total` |
 
 Risques nommés :
 
@@ -354,3 +368,62 @@ articles, les pensées et les commentaires.
   mais le code Go contre une vraie base reste à prouver en CI.
 - **Compteur total** : l'API de fil ne renvoie pas de total ; l'en-tête « Discussion (n) »
   affiche les commentaires chargés, pas ceux de l'article.
+
+### 2026-11-24 — L43 livré (éligibilité par surface, `why`, ranking configurable)
+
+| Étape | État | Preuve |
+| --- | --- | --- |
+| `internal/eligibility/decision.go` | ✅ | `Surface`/`ParseSurface` (6 surfaces réelles, inconnue refusée), `Candidate`, `Weights`, `Decide`, `Rank`, `WhyFor` — aucune requête, aucune règle métier dupliquée |
+| Poids `SystemConfig` | ✅ | `KeyFreshWeight`…`KeyMaxAgeDays` (`feed.rank_*`), `WeightsFromConfig` : défauts sûrs, config partielle/invalide ignorée, zéro explicite conservé |
+| `GET /v1/feed/eligibility?surface=…` | ✅ | `feed.Service.SurfaceEligibility` + `ListEligibilityCandidates` (faits seuls, aucun contenu) ; surface inconnue → 400 ; route protégée |
+| Tombstone motivé | ✅ | LATERAL unique de `ListThreadPage` calcule `reason` (deleted, moderated, hidden_by_author, suspended, restricted, blocked, private_profile, muted, muted_word) ; `ReplyItem.TombstoneReason` + `Why` |
+| SDK | ✅ | `ELIGIBILITY_SURFACES`, `parseEligibilitySurface`, `sortEligibilityDecisions`, `filterEligibleDecisions`, `getSurfaceEligibilityAction` ; `ArticleCommentPayload.tombstoneReason`/`why` |
+| Web | ✅ | `ArticleComments` affiche `comment.why` à la place du « Message supprimé » générique — la raison vient du serveur, pas d'une devinette locale |
+
+**Décisions prises pendant L43.**
+
+- *Une seule expression décide et explique* : la raison du tombstone est calculée dans le
+  même `LATERAL` que la visibilité (ordre significatif, la cause la plus factuelle gagne).
+  Aucune seconde liste de prédicats à maintenir.
+- *Décision en Go, pas en SQL* : `Decide` tranche et motive à partir de faits déjà
+  filtrés ; le SQL reste la source des faits. Les flux publics gardent leurs prédicats
+  actuels — L43 ajoute la décision explicable, elle ne réécrit pas les flux en silence.
+- *Ordre total* : `Rank` trie score décroissant, puis date, puis id ; deux contenus de
+  même score gardent donc un ordre déterministe. Une pondération nulle rend un score nul
+  (et laisse le tri à la date/l'id) — c'est un choix de config, pas une panne.
+- *Surface stricte* : une surface inconnue rend `ErrUnknownSurface` (400 côté HTTP, `null`
+  côté SDK). Jamais de repli silencieux sur « following ».
+- *Pas de critère de langue* : `Post` n'a pas de colonne de langue. Rien n'a été inventé ;
+  la règle entrera dans `Decide` le jour où la colonne existe.
+
+**Limites mesurées.**
+
+- Le contexte d'article dans les feeds n'est **pas** livré : `rootArticleId IS NULL` reste
+  le garde de `FindFollowingFeed`, `FindTrending` et `FindPostsByAuthor`. `Decide` sait
+  déjà refuser un commentaire hors surface (`out_of_surface`), mais le rendu du contexte
+  d'article manque encore.
+- `Thread()` assemble ses réponses via `GetPostsByIDs` (`posts.FeedPost`) : ces lignes ne
+  portent pas encore de raison de tombstone. Seule la pagination `ListThreadPage`
+  (`ReplyItem`) l'expose.
+- Les tests d'intégration Go (`articles`, `feed`) exigent Docker/testcontainers,
+  indisponibles en local ; `SurfaceEligibility` lit la base et n'est donc prouvé que par
+  ses règles pures (`eligibility`) et la compilation, pas par un test bout en bout.
+
+### Reste à faire après L43
+
+- **Contexte d'article dans les feeds** : assembler `rootPost`/article et lever le prédicat
+  `rootArticleId IS NULL`, en réutilisant `Decide` (la règle `out_of_surface` existe déjà).
+- **`Interaction`** : table générique (like/repost/bookmark article et commentaire) et
+  compteurs associés — toujours non livrée, ne pas l'annoncer.
+- **`FeedItem`** : enveloppe unique `{post, reply, reason, why}` côté Go et SDK ; le `why`
+  existe aujourd'hui sur les décisions et les tombstones, pas sur les items de feed.
+- **Raison de tombstone dans `Thread()`** : passer `GetPostsByIDs` par la même expression
+  motivée que `ListThreadPage`, ou faire lire la première page par `ReplyPageFor`.
+- **Compteur total de discussion**, **métriques `feed_items_total`** et **NDCG hors ligne** :
+  non livrés (le rang est transparent, l'évaluation ne l'est pas encore).
+- **Langue** : ajouter `Post.language` (migration) puis la règle dans `Decide`, jamais dans
+  un flux isolé.
+- **Suppression de la table `ArticleComment`** : migration `00099`, après un cycle de
+  déploiement.
+- **Mobile (en pause)** : dette du contrat `Thread()` + pagination, à traiter à sa reprise.
+- **Tests d'intégration Go** : Docker/testcontainers requis, à exécuter en CI.

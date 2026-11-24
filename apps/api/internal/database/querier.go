@@ -588,6 +588,20 @@ type Querier interface {
 	// filtres `published` (défaut true) et `category` (slug ou UUID ou catégorie parente), catégorie embarquée.
 	ListCreatorArticles(ctx context.Context, arg ListCreatorArticlesParams) ([]ListCreatorArticlesRow, error)
 	ListDevtoolsUsers(ctx context.Context) ([]ListDevtoolsUsersRow, error)
+	// =====================================================================
+	// 🧭 Décisions d'éligibilité par surface (lot L43)
+	// =====================================================================
+	// Une seule lecture renvoie les faits nécessaires pour décider ET expliquer :
+	// l'état du post, celui de son auteur, et le lien du viewer avec lui. Les
+	// prédicats sont les mêmes fonctions STABLE que les flux (aucune seconde
+	// politique) ; la décision finale est prise en Go par le package eligibility
+	// (Decide/Rank), avec les poids `feed.rank_*` de SystemConfig.
+	//
+	// La requête ne renvoie AUCUN contenu : uniquement des ids, des dates, des
+	// compteurs et des booléens. Elle sert les surfaces d'explication (admin,
+	// debug) et les états vides motivés, jamais un flux public.
+	// =====================================================================
+	ListEligibilityCandidates(ctx context.Context, arg ListEligibilityCandidatesParams) ([]ListEligibilityCandidatesRow, error)
 	// Abonnés d'une publication (profil), paginés — avec état follow du viewer.
 	ListFollowersByPublisher(ctx context.Context, arg ListFollowersByPublisherParams) ([]ListFollowersByPublisherRow, error)
 	// Abonnements d'un utilisateur (profil), résolus vers les propriétaires des

@@ -43,6 +43,9 @@ import {
   mapGoThreadToWebThread,
   mapProfileSlice,
 } from './mappers';
+import type { EligibilitySurface, SurfaceEligibilityResult } from './eligibility';
+
+export * from './eligibility';
 
 /** Résultat du découpage paywall (shape Go GET /v1/articles/{slug}). */
 export interface PaywallCutResult {
@@ -350,6 +353,23 @@ export const getPostThreadRepliesAction = safeAction<
     };
   },
   { requireAuth: false }
+);
+
+/**
+ * 🧭 Décisions d'éligibilité d'une surface (L43). Réservé aux écrans
+ * d'explication (admin, debug) : la réponse ne contient aucun contenu, mais
+ * des ids que le viewer ne voit pas forcément — d'où l'authentification requise.
+ */
+export const getSurfaceEligibilityAction = safeAction<
+  { surface: EligibilitySurface; limit?: number },
+  SurfaceEligibilityResult
+>(
+  async ({ surface, limit = 50 }) => {
+    return goFetch<SurfaceEligibilityResult>(
+      `/v1/feed/eligibility?surface=${encodeURIComponent(surface)}&limit=${Math.min(limit, 100)}`
+    );
+  },
+  { requireAuth: true }
 );
 
 export const getArticleThreadAction = safeAction<
