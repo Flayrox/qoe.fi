@@ -136,38 +136,6 @@ func (q *Queries) GetUserWithCollabPrefsByID(ctx context.Context, id string) (Ge
 	return i, err
 }
 
-const insertArticleContributorNotification = `-- name: InsertArticleContributorNotification :exec
-INSERT INTO "Notification" (id, "recipientId", "senderId", type, "articleId")
-SELECT gen_random_uuid()::text, $1::uuid, $2::uuid, $3::"NotificationType", $4::text
-WHERE $1::uuid <> $2::uuid
-  AND NOT EXISTS (
-    SELECT 1 FROM "Notification" n
-    WHERE n."recipientId" = $1::uuid AND n."senderId" = $2::uuid
-      AND n.type = $3::"NotificationType" AND n."articleId" = $4::text
-      AND n."isRead" = false
-  )
-`
-
-type InsertArticleContributorNotificationParams struct {
-	Column1 pgtype.UUID      `json:"column_1"`
-	Column2 pgtype.UUID      `json:"column_2"`
-	Column3 NotificationType `json:"column_3"`
-	Column4 string           `json:"column_4"`
-}
-
-// Notification in-app (jamais perdue) : dédup par (recipient, sender, type,
-// articleId, non-lue) + pas d'auto-notification. Casts explicites : évite
-// l'ambiguïté uuid/text en protocole étendu (operator does not exist).
-func (q *Queries) InsertArticleContributorNotification(ctx context.Context, arg InsertArticleContributorNotificationParams) error {
-	_, err := q.db.Exec(ctx, insertArticleContributorNotification,
-		arg.Column1,
-		arg.Column2,
-		arg.Column3,
-		arg.Column4,
-	)
-	return err
-}
-
 const isActiveMediaMember = `-- name: IsActiveMediaMember :one
 SELECT EXISTS (
   SELECT 1 FROM "MediaMember" mm

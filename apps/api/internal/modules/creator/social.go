@@ -17,6 +17,7 @@ import (
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/identity"
 	"github.com/qoefi/api/internal/middleware"
+	"github.com/qoefi/api/internal/notifications"
 	"github.com/qoefi/api/internal/response"
 	"github.com/qoefi/api/internal/secguard"
 	"github.com/qoefi/api/internal/slug"
@@ -601,7 +602,7 @@ func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 			response.Internal(w)
 			return
 		}
-		if err := notifyFollowRequest(ctx, h.q, pubID, userID); err != nil {
+		if err := notifyFollowRequest(ctx, h.q, h.pool, pubID, userID); err != nil {
 			log.Printf("[creator] follow request notification: %v", err)
 		}
 		h.sec.TrackFollowAction(ctx, userID, targetID)
@@ -615,7 +616,7 @@ func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 		response.Internal(w)
 		return
 	}
-	if err := notifyFollow(ctx, h.q, pubID, userID); err != nil {
+	if err := notifyFollow(ctx, h.q, h.pool, pubID, userID); err != nil {
 		log.Printf("[creator] follow notification: %v", err)
 	}
 	h.sec.TrackFollowAction(ctx, userID, targetID)
@@ -636,9 +637,8 @@ func (h *Handler) followPayload(ctx context.Context, pubID string, following, re
 }
 
 // notifyFollow crée la notification FOLLOW au propriétaire d'une publication
-// (PERSONAL → créateur, MEDIA → membre owner). Best-effort, respecte les
-// préférences du destinataire et déduplique les suivis non lus.
-func notifyFollow(ctx context.Context, tq ServiceQuerier, publisherID, senderID string) error {
+// (PERSONAL → créateur, MEDIA → membre owner) via notifications.Dispatch.
+func notifyFollow(ctx context.Context, tq ServiceQuerier, notifDB notifications.DB, publisherID, senderID string) error {
 	ownerID, err := tq.GetPublisherOwner(ctx, publisherID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -650,38 +650,11 @@ func notifyFollow(ctx context.Context, tq ServiceQuerier, publisherID, senderID 
 		return nil
 	}
 
-	ownerUUID := toUUID(ownerID)
-	senderUUID := toUUID(senderID)
-
-	prefs, err := tq.GetFollowPrefs(ctx, ownerUUID)
-	if err == nil {
-		if !prefs.EmailFollows && !prefs.PushFollows {
-			return nil
-		}
-	} else if !errors.Is(err, pgx.ErrNoRows) {
-		return err
-	}
-
-	exists, err := tq.ExistsUnreadFollowNotification(ctx, db.ExistsUnreadFollowNotificationParams{
-		RecipientId: ownerUUID,
-		SenderId:    senderUUID,
-		PublisherId: pgtype.Text{String: publisherID, Valid: true},
-	})
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			exists = 0
-		} else {
-			return err
-		}
-	}
-	if exists == 1 {
-		return nil
-	}
-
-	return tq.InsertFollowNotification(ctx, db.InsertFollowNotificationParams{
-		RecipientId: ownerUUID,
-		SenderId:    senderUUID,
-		PublisherId: pgtype.Text{String: publisherID, Valid: true},
+	return notifications.Dispatch(ctx, notifDB, notifications.DispatchInput{
+		RecipientID: ownerID,
+		SenderID:    senderID,
+		Type:        "FOLLOW",
+		PublisherID: &publisherID,
 	})
 }
 

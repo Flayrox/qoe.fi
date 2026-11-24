@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/notifications"
 )
 
 var (
@@ -168,11 +169,11 @@ func (s *Service) authorizeArticle(ctx context.Context, userID, articleID string
 }
 
 func (s *Service) notify(ctx context.Context, recipientID, senderID, notifType, articleID string) {
-	_ = s.q.InsertArticleContributorNotification(ctx, db.InsertArticleContributorNotificationParams{
-		Column1: toUUID(recipientID),
-		Column2: toUUID(senderID),
-		Column3: db.NotificationType(notifType),
-		Column4: articleID,
+	_ = notifications.Dispatch(ctx, s.pool, notifications.DispatchInput{
+		RecipientID: recipientID,
+		SenderID:    senderID,
+		Type:        notifType,
+		ArticleID:   &articleID,
 	})
 }
 

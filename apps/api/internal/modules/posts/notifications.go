@@ -2,13 +2,12 @@ package posts
 
 import (
 	"context"
-	"errors"
 	"log"
 	"regexp"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/notifications"
 )
 
 // mentionRe extrait les @usernames du contenu (même règle que threadgate).
@@ -46,7 +45,7 @@ func (s *Service) ensurePostNotBlocked(ctx context.Context, q db.Querier, postID
 
 // notifyMentionsInContent notifie les @mentionnés d'un post (standalone OU réponse).
 // Best-effort : ignore les erreurs de résolution de username.
-func notifyMentionsInContent(ctx context.Context, tq db.Querier, content, postID, senderID string) {
+func notifyMentionsInContent(ctx context.Context, tq db.Querier, notifDB notifications.DB, content, postID, senderID string) {
 	matches := mentionRe.FindAllStringSubmatch(content, -1)
 	seen := map[string]bool{}
 	var usernames []string
@@ -66,100 +65,33 @@ func notifyMentionsInContent(ctx context.Context, tq db.Querier, content, postID
 		return
 	}
 	for _, u := range users {
-		blocked, err := isBlockedBetween(ctx, tq, senderID, u.UserID)
-		if err != nil {
-			log.Printf("[posts] mention block check: %v", err)
-			continue
-		}
-		if blocked {
-			continue
-		}
-		if err := createReplyNotification(ctx, tq, "MENTION", u.UserID, senderID, postID); err != nil {
+		if err := createReplyNotification(ctx, notifDB, "MENTION", u.UserID, senderID, postID); err != nil {
 			log.Printf("[posts] mention notification: %v", err)
 		}
 	}
 }
 
-// notifyLike crée la notification LIKE (repli du comportement Prisma TS) :
-// pas d'auto-notification, respect des préférences, déduplication non-lue.
-func notifyLike(ctx context.Context, tq db.Querier, postID, senderID string) error {
-	return createEngagementNotification(ctx, tq, "LIKE", postID, senderID)
+// notifyLike crée la notification LIKE via notifications.Dispatch.
+func notifyLike(ctx context.Context, tq db.Querier, notifDB notifications.DB, postID, senderID string) error {
+	return createEngagementNotification(ctx, tq, notifDB, "LIKE", postID, senderID)
 }
 
-// notifyRepost crée la notification REPOST.
-func notifyRepost(ctx context.Context, tq db.Querier, postID, senderID string) error {
-	return createEngagementNotification(ctx, tq, "REPOST", postID, senderID)
+// notifyRepost crée la notification REPOST via notifications.Dispatch.
+func notifyRepost(ctx context.Context, tq db.Querier, notifDB notifications.DB, postID, senderID string) error {
+	return createEngagementNotification(ctx, tq, notifDB, "REPOST", postID, senderID)
 }
 
-func createEngagementNotification(ctx context.Context, tq db.Querier, kind, postID, senderID string) error {
+func createEngagementNotification(ctx context.Context, tq db.Querier, notifDB notifications.DB, kind, postID, senderID string) error {
 	authorID, err := tq.GetPostAuthor(ctx, postID)
 	if err != nil {
 		return err
 	}
-	if authorID == senderID {
-		return nil
-	}
-	blocked, err := isBlockedBetween(ctx, tq, senderID, authorID)
-	if err != nil {
-		return err
-	}
-	if blocked {
-		return nil
-	}
-
-	authorUUID := toUUID(authorID)
-	senderUUID := toUUID(senderID)
-
-	// Préférences du destinataire (défaut : tout activé si aucune ligne).
-	prefs, err := tq.GetLikePrefs(ctx, authorUUID)
-	if err == nil {
-		if !prefs.EmailLikes && !prefs.PushLikes {
-			return nil
-		}
-	} else if !errors.Is(err, pgx.ErrNoRows) {
-		return err
-	}
-
-	// Déduplication : notification identique non lue déjà présente.
-	exists := func() (bool, error) {
-		var n int32
-		var err error
-		switch kind {
-		case "LIKE":
-			n, err = tq.ExistsUnreadLikeNotification(ctx, db.ExistsUnreadLikeNotificationParams{
-				RecipientId: authorUUID, SenderId: senderUUID, ThoughtId: pgtype.Text{String: postID, Valid: true},
-			})
-		default:
-			n, err = tq.ExistsUnreadRepostNotification(ctx, db.ExistsUnreadRepostNotificationParams{
-				RecipientId: authorUUID, SenderId: senderUUID, ThoughtId: pgtype.Text{String: postID, Valid: true},
-			})
-		}
-		if err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
-				return false, nil // pas de doublon non lu
-			}
-			return false, err
-		}
-		return n == 1, nil
-	}
-	found, err := exists()
-	if err != nil {
-		return err
-	}
-	if found {
-		return nil
-	}
-
-	switch kind {
-	case "LIKE":
-		return tq.InsertLikeNotification(ctx, db.InsertLikeNotificationParams{
-			RecipientId: authorUUID, SenderId: senderUUID, ThoughtId: pgtype.Text{String: postID, Valid: true},
-		})
-	default:
-		return tq.InsertRepostNotification(ctx, db.InsertRepostNotificationParams{
-			RecipientId: authorUUID, SenderId: senderUUID, ThoughtId: pgtype.Text{String: postID, Valid: true},
-		})
-	}
+	return notifications.Dispatch(ctx, notifDB, notifications.DispatchInput{
+		RecipientID: authorID,
+		SenderID:    senderID,
+		Type:        kind,
+		ThoughtID:   &postID,
+	})
 }
 
 // deleteEngagementNotification supprime la notification au unlike/unrepost.

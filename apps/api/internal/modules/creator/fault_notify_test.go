@@ -33,22 +33,28 @@ func TestFault_NotifyFollow(t *testing.T) {
 	alicePubID, aliceUserID, _, bobUserID := seedFollows(t)
 	ctx := context.Background()
 
-	for _, m := range []string{"GetPublisherOwner", "GetFollowPrefs", "ExistsUnreadFollowNotification", "InsertFollowNotification"} {
-		fq := &faultQ{Queries: db.New(poolTest), fail: map[string]error{m: errBoom}}
-		if err := notifyFollow(ctx, fq, alicePubID, bobUserID); err == nil {
-			t.Errorf("notifyFollow %s: err = nil", m)
-		}
+	fq := &faultQ{Queries: db.New(poolTest), fail: map[string]error{"GetPublisherOwner": errBoom}}
+	if err := notifyFollow(ctx, fq, poolTest, alicePubID, bobUserID); err == nil {
+		t.Errorf("notifyFollow GetPublisherOwner: err = nil")
+	}
+
+	// Erreur d'exécution lors du Dispatch (blocage / insertion).
+	fqOK := &faultQ{Queries: db.New(poolTest)}
+	if err := notifyFollow(ctx, fqOK, &faultPool{Pool: poolTest, failQueryRow: true}, alicePubID, bobUserID); err == nil {
+		t.Errorf("notifyFollow failQueryRow: err = nil")
+	}
+	if err := notifyFollow(ctx, fqOK, &faultPool{Pool: poolTest, failExec: true}, alicePubID, bobUserID); err == nil {
+		t.Errorf("notifyFollow failExec: err = nil")
 	}
 
 	// Même auteur (owner == sender) → nil sans requête de notification.
-	fq := &faultQ{Queries: db.New(poolTest), fail: map[string]error{"InsertFollowNotification": errBoom}}
-	if err := notifyFollow(ctx, fq, alicePubID, aliceUserID); err != nil {
+	if err := notifyFollow(ctx, fqOK, &faultPool{Pool: poolTest, failExec: true}, alicePubID, aliceUserID); err != nil {
 		t.Fatalf("owner==sender → %v, attendu nil", err)
 	}
 
-	// GetPublicationOwner en ErrNoRows → nil (pas d'owner à notifier).
+	// GetPublisherOwner en ErrNoRows → nil (pas d'owner à notifier).
 	fq = &faultQ{Queries: db.New(poolTest), fail: map[string]error{"GetPublisherOwner": pgx.ErrNoRows}}
-	if err := notifyFollow(ctx, fq, alicePubID, bobUserID); err != nil {
+	if err := notifyFollow(ctx, fq, poolTest, alicePubID, bobUserID); err != nil {
 		t.Fatalf("owner NoRows → %v, attendu nil", err)
 	}
 }

@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	db "github.com/qoefi/api/internal/database"
+	notifpkg "github.com/qoefi/api/internal/notifications"
 	"github.com/qoefi/api/internal/testutil"
 )
 
@@ -355,13 +355,13 @@ func TestMediaInviteIsServed(t *testing.T) {
 		t.Fatalf("publication de l'auteur: %v", err)
 	}
 
-	q := db.New(poolTest)
-	if err := q.InsertMediaInviteNotification(ctx, db.InsertMediaInviteNotificationParams{
-		RecipientID: toUUID(fx.ViewerID),
-		SenderID:    toUUID(fx.AuthorID),
-		PublisherID: pubID,
+	if err := notifpkg.Dispatch(ctx, poolTest, notifpkg.DispatchInput{
+		RecipientID: fx.ViewerID,
+		SenderID:    fx.AuthorID,
+		Type:        "MEDIA_INVITE",
+		PublisherID: &pubID,
 	}); err != nil {
-		t.Fatalf("InsertMediaInviteNotification: %v", err)
+		t.Fatalf("Dispatch MEDIA_INVITE: %v", err)
 	}
 
 	res, err := svc.List(ctx, fx.ViewerID, "", 30, 0)

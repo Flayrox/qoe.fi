@@ -11,44 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const existsUnreadMentionNotification = `-- name: ExistsUnreadMentionNotification :one
-SELECT 1 AS present
-FROM "Notification"
-WHERE "recipientId" = $1 AND "senderId" = $2 AND type = 'MENTION' AND "thoughtId" = $3 AND "isRead" = false
-`
-
-type ExistsUnreadMentionNotificationParams struct {
-	RecipientId pgtype.UUID `json:"recipientId"`
-	SenderId    pgtype.UUID `json:"senderId"`
-	ThoughtId   pgtype.Text `json:"thoughtId"`
-}
-
-func (q *Queries) ExistsUnreadMentionNotification(ctx context.Context, arg ExistsUnreadMentionNotificationParams) (int32, error) {
-	row := q.db.QueryRow(ctx, existsUnreadMentionNotification, arg.RecipientId, arg.SenderId, arg.ThoughtId)
-	var present int32
-	err := row.Scan(&present)
-	return present, err
-}
-
-const existsUnreadReplyNotification = `-- name: ExistsUnreadReplyNotification :one
-SELECT 1 AS present
-FROM "Notification"
-WHERE "recipientId" = $1 AND "senderId" = $2 AND type = 'REPLY' AND "thoughtId" = $3 AND "isRead" = false
-`
-
-type ExistsUnreadReplyNotificationParams struct {
-	RecipientId pgtype.UUID `json:"recipientId"`
-	SenderId    pgtype.UUID `json:"senderId"`
-	ThoughtId   pgtype.Text `json:"thoughtId"`
-}
-
-func (q *Queries) ExistsUnreadReplyNotification(ctx context.Context, arg ExistsUnreadReplyNotificationParams) (int32, error) {
-	row := q.db.QueryRow(ctx, existsUnreadReplyNotification, arg.RecipientId, arg.SenderId, arg.ThoughtId)
-	var present int32
-	err := row.Scan(&present)
-	return present, err
-}
-
 const getActiveSubscriptionForReply = `-- name: GetActiveSubscriptionForReply :one
 SELECT 1 AS present
 FROM "Subscriber"
@@ -96,33 +58,6 @@ func (q *Queries) GetPersonalPublisherID(ctx context.Context, id string) (pgtype
 	var id_2 pgtype.Text
 	err := row.Scan(&id_2)
 	return id_2, err
-}
-
-const getReplyPrefs = `-- name: GetReplyPrefs :one
-
-SELECT "emailReplies", "pushReplies", "emailMentions", "pushMentions"
-FROM "NotificationPreference"
-WHERE "userId" = $1
-`
-
-type GetReplyPrefsRow struct {
-	EmailReplies  bool `json:"emailReplies"`
-	PushReplies   bool `json:"pushReplies"`
-	EmailMentions bool `json:"emailMentions"`
-	PushMentions  bool `json:"pushMentions"`
-}
-
-// Notifications REPLY / MENTION
-func (q *Queries) GetReplyPrefs(ctx context.Context, userid pgtype.UUID) (GetReplyPrefsRow, error) {
-	row := q.db.QueryRow(ctx, getReplyPrefs, userid)
-	var i GetReplyPrefsRow
-	err := row.Scan(
-		&i.EmailReplies,
-		&i.PushReplies,
-		&i.EmailMentions,
-		&i.PushMentions,
-	)
-	return i, err
 }
 
 const getThoughtReplyGate = `-- name: GetThoughtReplyGate :one
@@ -188,36 +123,4 @@ func (q *Queries) GetUsersByUsernames(ctx context.Context, dollar_1 []string) ([
 		return nil, err
 	}
 	return items, nil
-}
-
-const insertMentionNotification = `-- name: InsertMentionNotification :exec
-INSERT INTO "Notification" (id, "recipientId", "senderId", type, "thoughtId")
-VALUES (gen_random_uuid()::text, $1, $2, 'MENTION', $3)
-`
-
-type InsertMentionNotificationParams struct {
-	RecipientId pgtype.UUID `json:"recipientId"`
-	SenderId    pgtype.UUID `json:"senderId"`
-	ThoughtId   pgtype.Text `json:"thoughtId"`
-}
-
-func (q *Queries) InsertMentionNotification(ctx context.Context, arg InsertMentionNotificationParams) error {
-	_, err := q.db.Exec(ctx, insertMentionNotification, arg.RecipientId, arg.SenderId, arg.ThoughtId)
-	return err
-}
-
-const insertReplyNotification = `-- name: InsertReplyNotification :exec
-INSERT INTO "Notification" (id, "recipientId", "senderId", type, "thoughtId")
-VALUES (gen_random_uuid()::text, $1, $2, 'REPLY', $3)
-`
-
-type InsertReplyNotificationParams struct {
-	RecipientId pgtype.UUID `json:"recipientId"`
-	SenderId    pgtype.UUID `json:"senderId"`
-	ThoughtId   pgtype.Text `json:"thoughtId"`
-}
-
-func (q *Queries) InsertReplyNotification(ctx context.Context, arg InsertReplyNotificationParams) error {
-	_, err := q.db.Exec(ctx, insertReplyNotification, arg.RecipientId, arg.SenderId, arg.ThoughtId)
-	return err
 }

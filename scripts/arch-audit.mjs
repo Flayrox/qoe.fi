@@ -600,6 +600,37 @@ if (nonAsyncServerActionExports.length > 0) {
   );
 }
 
+// ─── CHECK 12 : Centralisation des notifications (entonoir internal/notifications) ──
+const rogueNotifications = [];
+const notifScanRoots = [join(ROOT, 'apps/api/internal'), join(ROOT, 'apps/api/sql/queries')];
+for (const dir of notifScanRoots) {
+  if (!existsSync(dir)) continue;
+  walk(dir, (path) => {
+    const rel = relative(ROOT, path).replace(/\\/g, '/');
+    if (
+      rel.startsWith('apps/api/internal/notifications/') ||
+      rel.startsWith('apps/api/internal/seed/') ||
+      rel.startsWith('apps/api/internal/database/') ||
+      rel.endsWith('_test.go')
+    ) {
+      return;
+    }
+    if (!/\.(go|sql)$/.test(rel)) return;
+    const content = readFileSync(path, 'utf8');
+    if (/INSERT\s+INTO\s+(?:public\.)?"?Notification"?(?:\s|\()/i.test(content)) {
+      rogueNotifications.push(rel);
+    }
+  });
+}
+
+if (rogueNotifications.length > 0) {
+  errors.push(
+    `🚨 ${rogueNotifications.length} contournement(s) de notifications.Dispatch détecté(s) !\n` +
+      `   Règle : toute écriture dans "Notification" doit passer par internal/notifications (4 gardes).\n` +
+      rogueNotifications.map((f) => `   - ${f}`).join('\n')
+  );
+}
+
 if (asJson) {
   console.log(
     JSON.stringify({
@@ -618,6 +649,7 @@ if (asJson) {
         surfaceManifestIssues: surfaceManifestIssues.length,
         entityRegistryIssues: entityRegistryIssues.length,
         consumerIssues: consumerIssues.length,
+        rogueNotifications: rogueNotifications.length,
       },
       errors,
     })
@@ -660,6 +692,9 @@ if (asJson) {
   );
   console.log(
     `• Consommateurs manifeste    : ${consumerIssues.length === 0 ? '✅ 0 anomalie' : `❌ ${consumerIssues.length}`}`
+  );
+  console.log(
+    `• Centralisation notifications: ${rogueNotifications.length === 0 ? '✅ 0 contournement' : `❌ ${rogueNotifications.length}`}`
   );
   console.log(`─────────────────────────────────────────────────\n`);
 

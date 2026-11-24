@@ -21,6 +21,7 @@ import (
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/flags"
 	"github.com/qoefi/api/internal/modules/articles"
+	"github.com/qoefi/api/internal/notifications"
 	"github.com/qoefi/api/internal/queue"
 )
 
@@ -180,12 +181,8 @@ func (n *NewsletterWorker) HandleArticlePublished(ctx context.Context, t *asynq.
 
 	log.Printf("[newsletter] article %s (%s) — fanout pour publication %s", p.ArticleID, p.Visibility, p.PublisherID)
 
-	// 🔔 Notification MEDIA_ARTICLE_PUBLISHED (fan-out ≤500, prefs + dédup, no-op hors MEDIA) — best-effort.
-	if err := n.q.InsertMediaArticlePublishedFanout(ctx, db.InsertMediaArticlePublishedFanoutParams{
-		SenderID:    toUUID(p.AuthorID),
-		ArticleID:   pgtype.Text{String: p.ArticleID, Valid: true},
-		PublisherID: p.PublisherID,
-	}); err != nil {
+	// 🔔 Notification MEDIA_ARTICLE_PUBLISHED (fan-out ≤500, 4 gardes, no-op hors MEDIA) — best-effort.
+	if err := notifications.DispatchMediaArticlePublishedFanout(ctx, n.pool, p.PublisherID, p.ArticleID, p.AuthorID); err != nil {
 		log.Printf("[newsletter] notif MEDIA_ARTICLE_PUBLISHED fanout: %v", err)
 	}
 

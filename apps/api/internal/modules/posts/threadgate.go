@@ -7,8 +7,8 @@ import (
 	"regexp"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/notifications"
 )
 
 // CanReplyResult reflète le contrôle Threadgate (miroir de threadgates.ts).
@@ -112,7 +112,7 @@ func (s *Service) CanReply(ctx context.Context, thoughtID, userID string) (CanRe
 }
 
 // replyNotifications notifie les participants du fil (REPLY) et les @mentions (MENTION).
-func (s *Service) replyNotifications(ctx context.Context, tq db.Querier, replyID, replyAuthor string, parentID, rootID string, content string) error {
+func (s *Service) replyNotifications(ctx context.Context, tq db.Querier, notifDB notifications.DB, replyID, replyAuthor string, parentID, rootID string, content string) error {
 	recipients := make(map[string]string) // userId -> type
 
 	add := func(uid, kind string) {
@@ -141,66 +141,22 @@ func (s *Service) replyNotifications(ctx context.Context, tq db.Querier, replyID
 	}
 
 	// @mentions → MENTION (remplace REPLY pour les mentionnés)
-	notifyMentionsInContent(ctx, tq, content, replyID, replyAuthor)
+	notifyMentionsInContent(ctx, tq, notifDB, content, replyID, replyAuthor)
 
 	for uid, kind := range recipients {
-		if err := createReplyNotification(ctx, tq, kind, uid, replyAuthor, replyID); err != nil {
+		if err := createReplyNotification(ctx, notifDB, kind, uid, replyAuthor, replyID); err != nil {
 			log.Printf("[posts] reply notification %s: %v", kind, err)
 		}
 	}
 	return nil
 }
 
-// createReplyNotification insère REPLY/MENTION (dédup + préférences).
-func createReplyNotification(ctx context.Context, tq db.Querier, kind, recipientID, senderID, thoughtID string) error {
-	// Un blocage coupe aussi les notifications : aucun rappel du contenu.
-	blocked, err := isBlockedBetween(ctx, tq, senderID, recipientID)
-	if err != nil {
-		return err
-	}
-	if blocked {
-		return nil
-	}
-
-	recipientUUID := toUUID(recipientID)
-	senderUUID := toUUID(senderID)
-
-	prefs, err := tq.GetReplyPrefs(ctx, recipientUUID)
-	if err == nil {
-		if kind == "MENTION" {
-			if !prefs.EmailMentions && !prefs.PushMentions {
-				return nil
-			}
-		} else if !prefs.EmailReplies && !prefs.PushReplies {
-			return nil
-		}
-	} else if !errors.Is(err, pgx.ErrNoRows) {
-		return err
-	}
-
-	var exists int32
-	if kind == "MENTION" {
-		exists, err = tq.ExistsUnreadMentionNotification(ctx, db.ExistsUnreadMentionNotificationParams{
-			RecipientId: recipientUUID, SenderId: senderUUID, ThoughtId: pgtype.Text{String: thoughtID, Valid: true},
-		})
-	} else {
-		exists, err = tq.ExistsUnreadReplyNotification(ctx, db.ExistsUnreadReplyNotificationParams{
-			RecipientId: recipientUUID, SenderId: senderUUID, ThoughtId: pgtype.Text{String: thoughtID, Valid: true},
-		})
-	}
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-		return err
-	}
-	if exists == 1 {
-		return nil
-	}
-
-	if kind == "MENTION" {
-		return tq.InsertMentionNotification(ctx, db.InsertMentionNotificationParams{
-			RecipientId: recipientUUID, SenderId: senderUUID, ThoughtId: pgtype.Text{String: thoughtID, Valid: true},
-		})
-	}
-	return tq.InsertReplyNotification(ctx, db.InsertReplyNotificationParams{
-		RecipientId: recipientUUID, SenderId: senderUUID, ThoughtId: pgtype.Text{String: thoughtID, Valid: true},
+// createReplyNotification insère REPLY/MENTION via notifications.Dispatch.
+func createReplyNotification(ctx context.Context, notifDB notifications.DB, kind, recipientID, senderID, thoughtID string) error {
+	return notifications.Dispatch(ctx, notifDB, notifications.DispatchInput{
+		RecipientID: recipientID,
+		SenderID:    senderID,
+		Type:        kind,
+		ThoughtID:   &thoughtID,
 	})
 }

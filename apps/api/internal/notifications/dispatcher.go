@@ -31,24 +31,36 @@ type DispatchInput struct {
 	PublisherID *string
 	CommentID   *string
 	Metadata    map[string]any
+	// AllowSelf autorise l'émission d'une notification lorsque SenderID == RecipientID
+	// (alertes système/webhook ou scénarios sandbox : "senderId" étant NOT NULL en base).
+	AllowSelf bool
+	// BypassPreferences ignore le contrôle "NotificationPreference" (alertes critiques/sandbox).
+	BypassPreferences bool
 }
 
 // Dispatch applique les 4 gardes fondamentales (auto-notification, blocage,
 // préférences, déduplication non-lue) avant d'insérer la notification.
 // Toute notification bloquée par une garde est ignorée silencieusement (retour nil).
 func Dispatch(ctx context.Context, db DB, in DispatchInput) error {
-	// Garde 1 : destinataire absent ou auto-notification (sauf émission système sans sender).
+	_, err := DispatchWithID(ctx, db, in)
+	return err
+}
+
+// DispatchWithID exécute Dispatch et retourne l'identifiant généré de la notification
+// insérée (ou "" si l'envoi a été filtré par une garde).
+func DispatchWithID(ctx context.Context, db DB, in DispatchInput) (string, error) {
+	// Garde 1 : destinataire absent ou auto-notification (sauf AllowSelf ou émission sans sender).
 	if in.RecipientID == "" {
-		return nil
+		return "", nil
 	}
-	if in.SenderID != "" && in.RecipientID == in.SenderID {
-		return nil
+	if !in.AllowSelf && in.SenderID != "" && in.RecipientID == in.SenderID {
+		return "", nil
 	}
 
 	recipientUUID, err := uuid.Parse(in.RecipientID)
 	if err != nil {
 		// Destinataire invalide : ignoré silencieusement.
-		return nil
+		return "", nil
 	}
 
 	var senderUUID *uuid.UUID
@@ -56,39 +68,41 @@ func Dispatch(ctx context.Context, db DB, in DispatchInput) error {
 		sUUID, err := uuid.Parse(in.SenderID)
 		if err != nil {
 			// Sender ID invalide : ignoré silencieusement.
-			return nil
+			return "", nil
 		}
 		senderUUID = &sUUID
 	}
 
 	// Garde 2 (Blocage & Masquage) : relation de blocage ou auteur masqué par le destinataire.
-	if senderUUID != nil {
+	if senderUUID != nil && !(in.AllowSelf && *senderUUID == recipientUUID) {
 		var blocked bool
 		err := db.QueryRow(ctx, `SELECT is_blocked_bidirectional($1::uuid, $2::uuid)`, recipientUUID, *senderUUID).Scan(&blocked)
 		if err != nil {
-			return fmt.Errorf("notification dispatcher: vérification blocage: %w", err)
+			return "", fmt.Errorf("notification dispatcher: vérification blocage: %w", err)
 		}
 		if blocked {
-			return nil
+			return "", nil
 		}
 
 		var muted bool
 		err = db.QueryRow(ctx, `SELECT is_muted_by($1::uuid, $2::uuid)`, recipientUUID, *senderUUID).Scan(&muted)
 		if err != nil {
-			return fmt.Errorf("notification dispatcher: vérification masquage: %w", err)
+			return "", fmt.Errorf("notification dispatcher: vérification masquage: %w", err)
 		}
 		if muted {
-			return nil
+			return "", nil
 		}
 	}
 
 	// Garde 3 (Préférences) : vérifie si le destinataire autorise cette notification.
-	allowed, err := allowsNotification(ctx, db, recipientUUID, in.Type)
-	if err != nil {
-		return fmt.Errorf("notification dispatcher: vérification préférences: %w", err)
-	}
-	if !allowed {
-		return nil
+	if !in.BypassPreferences {
+		allowed, err := allowsNotification(ctx, db, recipientUUID, in.Type)
+		if err != nil {
+			return "", fmt.Errorf("notification dispatcher: vérification préférences: %w", err)
+		}
+		if !allowed {
+			return "", nil
+		}
 	}
 
 	// Garde 4 (Déduplication) : notification identique non lue déjà en attente.
@@ -115,10 +129,10 @@ func Dispatch(ctx context.Context, db DB, in DispatchInput) error {
 		)
 	`, recipientUUID, in.Type, senderUUID, in.ArticleID, in.ThoughtID, in.PublisherID, in.CommentID, metaKind).Scan(&exists)
 	if err != nil {
-		return fmt.Errorf("notification dispatcher: vérification doublon: %w", err)
+		return "", fmt.Errorf("notification dispatcher: vérification doublon: %w", err)
 	}
 	if exists {
-		return nil
+		return "", nil
 	}
 
 	// Insertion avec identifiant préfixé "notif_" et métadonnées JSONB.
@@ -127,7 +141,7 @@ func Dispatch(ctx context.Context, db DB, in DispatchInput) error {
 	if in.Metadata != nil && len(in.Metadata) > 0 {
 		metaJSON, err = json.Marshal(in.Metadata)
 		if err != nil {
-			return fmt.Errorf("notification dispatcher: encodage metadata: %w", err)
+			return "", fmt.Errorf("notification dispatcher: encodage metadata: %w", err)
 		}
 	}
 
@@ -159,10 +173,10 @@ func Dispatch(ctx context.Context, db DB, in DispatchInput) error {
 		)
 	`, notifID, recipientUUID, senderUUID, in.Type, in.ArticleID, in.ThoughtID, in.PublisherID, in.CommentID, metaJSON)
 	if err != nil {
-		return fmt.Errorf("notification dispatcher: insertion: %w", err)
+		return "", fmt.Errorf("notification dispatcher: insertion: %w", err)
 	}
 
-	return nil
+	return notifID, nil
 }
 
 // allowsNotification contrôle les préférences de notification du destinataire.
@@ -227,6 +241,8 @@ func allowsNotification(ctx context.Context, db DB, recipientID uuid.UUID, notif
 	case "ARTICLE_CONTRIBUTOR_INVITED", "ARTICLE_CONTRIBUTOR_ACCEPTED",
 		"ARTICLE_CONTRIBUTOR_DECLINED", "ARTICLE_CONTRIBUTOR_REMOVED":
 		return emailCollaborations || pushCollaborations, nil
+	case "SYSTEM_ALERT":
+		return true, nil
 	default:
 		return true, nil
 	}

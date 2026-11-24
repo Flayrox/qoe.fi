@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/qoefi/api/internal/notifications"
 	"github.com/qoefi/api/internal/response"
 )
 
@@ -193,12 +194,15 @@ func (s *Service) ExecuteSeedScenario(ctx context.Context, staffID, scenario str
 			return nil, fmt.Errorf("création testeur sandbox: %w", err)
 		}
 
-		notifID := fmt.Sprintf("notif_sbx_%d", rnd)
-		_, err := s.pool.Exec(ctx, `
-			INSERT INTO "Notification" ("id", "userId", "type", "createdAt", "updatedAt")
-			VALUES ($1, $2::uuid, 'system_alert', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-			notifID, uID)
-		if err != nil {
+		notifID, err := notifications.DispatchWithID(ctx, s.pool, notifications.DispatchInput{
+			RecipientID:       uID,
+			SenderID:          uID,
+			Type:              "FOLLOW",
+			AllowSelf:         true,
+			BypassPreferences: true,
+			Metadata:          map[string]any{"kind": "sandbox_outbox_test", "rnd": rnd},
+		})
+		if err != nil || notifID == "" {
 			return nil, fmt.Errorf("création notification sandbox: %w", err)
 		}
 

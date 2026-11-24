@@ -2,13 +2,13 @@ package articles
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/notifications"
 	"github.com/qoefi/api/internal/permissions"
 )
 
@@ -25,11 +25,7 @@ type ArticleReviewFeedbackResponse struct {
 
 // notifyReviewers notifie les approbateurs (media:review) d'une soumission — best-effort.
 func (s *Service) notifyReviewers(ctx context.Context, publisherID, articleID, senderID string) {
-	_ = s.q.InsertMediaArticleSubmittedFanout(ctx, db.InsertMediaArticleSubmittedFanoutParams{
-		PublisherID: publisherID,
-		ArticleID:   pgtype.Text{String: articleID, Valid: true},
-		SenderID:    toUUID(senderID),
-	})
+	_ = notifications.DispatchMediaArticleSubmittedFanout(ctx, s.pool, publisherID, articleID, senderID)
 }
 
 // reviewTargetState décide l'état cible d'une revue : approuver publie,
@@ -111,14 +107,13 @@ func (s *Service) Review(ctx context.Context, articleID, userID string, approve 
 	if comment != "" {
 		meta["comment"] = comment
 	}
-	metaBytes, _ := json.Marshal(meta)
-	_ = s.q.InsertArticleReviewNotification(ctx, db.InsertArticleReviewNotificationParams{
-		RecipientID: toUUID(row.AuthorID),
-		SenderID:    toUUID(userID),
-		Type:        notifType,
-		ArticleID:   pgtype.Text{String: articleID, Valid: true},
-		PublisherID: pgtype.Text{String: row.PublisherId, Valid: true},
-		Metadata:    metaBytes,
+	_ = notifications.Dispatch(ctx, s.pool, notifications.DispatchInput{
+		RecipientID: row.AuthorID,
+		SenderID:    userID,
+		Type:        string(notifType),
+		ArticleID:   &articleID,
+		PublisherID: &row.PublisherId,
+		Metadata:    meta,
 	})
 
 	// Journal média : l'approbation et le rejet sont des actes éditoriaux que

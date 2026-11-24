@@ -202,12 +202,6 @@ type Querier interface {
 	// Crée (ou récupère) la catégorie « Non classé » d'une publication.
 	// Idempotent grâce à l'index unique partiel sur ("publisherId") WHERE "isDefault".
 	EnsureDefaultCategory(ctx context.Context, publisherid string) (Category, error)
-	ExistsUnreadCommentNotification(ctx context.Context, arg ExistsUnreadCommentNotificationParams) (int32, error)
-	ExistsUnreadFollowNotification(ctx context.Context, arg ExistsUnreadFollowNotificationParams) (int32, error)
-	ExistsUnreadLikeNotification(ctx context.Context, arg ExistsUnreadLikeNotificationParams) (int32, error)
-	ExistsUnreadMentionNotification(ctx context.Context, arg ExistsUnreadMentionNotificationParams) (int32, error)
-	ExistsUnreadReplyNotification(ctx context.Context, arg ExistsUnreadReplyNotificationParams) (int32, error)
-	ExistsUnreadRepostNotification(ctx context.Context, arg ExistsUnreadRepostNotificationParams) (int32, error)
 	FailArticleImportJob(ctx context.Context, id string) error
 	FindFollowingFeed(ctx context.Context, arg FindFollowingFeedParams) ([]FindFollowingFeedRow, error)
 	FindPostsByAuthor(ctx context.Context, arg FindPostsByAuthorParams) ([]FindPostsByAuthorRow, error)
@@ -267,7 +261,6 @@ type Querier interface {
 	GetCategoryByID(ctx context.Context, id string) (Category, error)
 	GetCollaborationRequestByID(ctx context.Context, id string) (GetCollaborationRequestByIDRow, error)
 	GetCommentParentAuthor(ctx context.Context, id string) (string, error)
-	GetCommentPrefs(ctx context.Context, userid pgtype.UUID) (GetCommentPrefsRow, error)
 	GetCommentWithAuthor(ctx context.Context, id string) (GetCommentWithAuthorRow, error)
 	GetConversationByDirectKey(ctx context.Context, directkey pgtype.Text) (string, error)
 	// Détail d'une conversation (vérifie l'appartenance + résout l'autre participant).
@@ -282,7 +275,6 @@ type Querier interface {
 	GetExistingLike(ctx context.Context, arg GetExistingLikeParams) (int32, error)
 	GetExistingMute(ctx context.Context, arg GetExistingMuteParams) (int32, error)
 	GetFollowForReply(ctx context.Context, arg GetFollowForReplyParams) (int32, error)
-	GetFollowPrefs(ctx context.Context, userid pgtype.UUID) (GetFollowPrefsRow, error)
 	GetFollowedPersonalPublisherOwnerIDs(ctx context.Context, readerid pgtype.UUID) ([]string, error)
 	GetFollowingStateByAuthorIDs(ctx context.Context, arg GetFollowingStateByAuthorIDsParams) ([]GetFollowingStateByAuthorIDsRow, error)
 	GetFreeSubscriberCount(ctx context.Context, publisherid string) (int32, error)
@@ -311,7 +303,6 @@ type Querier interface {
 	GetLegalDocumentVersionByLabel(ctx context.Context, arg GetLegalDocumentVersionByLabelParams) (LegalDocumentVersion, error)
 	GetLegalNoticeEmailContext(ctx context.Context, arg GetLegalNoticeEmailContextParams) (GetLegalNoticeEmailContextRow, error)
 	GetLegalReviewReminderContext(ctx context.Context, id string) (GetLegalReviewReminderContextRow, error)
-	GetLikePrefs(ctx context.Context, userid pgtype.UUID) (GetLikePrefsRow, error)
 	GetMediaApiKeyByID(ctx context.Context, arg GetMediaApiKeyByIDParams) (GetMediaApiKeyByIDRow, error)
 	// Dédoublonnage CAS **par propriétaire** : un même contenu peut appartenir à
 	// plusieurs comptes (chacun sa ligne, un seul objet storage) ; chercher le hash
@@ -392,8 +383,6 @@ type Querier interface {
 	GetReferencePublishedVersion(ctx context.Context, documentID string) (LegalDocumentVersion, error)
 	GetRepliesForThought(ctx context.Context, arg GetRepliesForThoughtParams) ([]GetRepliesForThoughtRow, error)
 	GetReplyIDsForThought(ctx context.Context, parentid pgtype.Text) ([]string, error)
-	// Notifications REPLY / MENTION
-	GetReplyPrefs(ctx context.Context, userid pgtype.UUID) (GetReplyPrefsRow, error)
 	GetSovereignCopyByOriginAndAuthor(ctx context.Context, arg GetSovereignCopyByOriginAndAuthorParams) (GetSovereignCopyByOriginAndAuthorRow, error)
 	// Contexte complet pour les emails transactionnels (bienvenue) :
 	// locale de l'abonné + personnalisation de la publication.
@@ -475,21 +464,15 @@ type Querier interface {
 	InsertAdminAuditLog(ctx context.Context, arg InsertAdminAuditLogParams) error
 	InsertApiKey(ctx context.Context, arg InsertApiKeyParams) error
 	InsertArticleComment(ctx context.Context, arg InsertArticleCommentParams) (InsertArticleCommentRow, error)
-	// Notification in-app (jamais perdue) : dédup par (recipient, sender, type,
-	// articleId, non-lue) + pas d'auto-notification. Casts explicites : évite
-	// l'ambiguïté uuid/text en protocole étendu (operator does not exist).
-	InsertArticleContributorNotification(ctx context.Context, arg InsertArticleContributorNotificationParams) error
 	// Import bulk d'articles — jobs asynq + rapports d'erreurs.
 	InsertArticleImportJob(ctx context.Context, arg InsertArticleImportJobParams) (string, error)
 	InsertArticleReleaseCatchUpDeliveries(ctx context.Context, arg InsertArticleReleaseCatchUpDeliveriesParams) error
 	InsertArticleReleaseDeliveries(ctx context.Context, arg InsertArticleReleaseDeliveriesParams) error
 	InsertArticleReleaseMajorUpdateDeliveries(ctx context.Context, arg InsertArticleReleaseMajorUpdateDeliveriesParams) error
 	InsertArticleReviewLog(ctx context.Context, arg InsertArticleReviewLogParams) error
-	InsertArticleReviewNotification(ctx context.Context, arg InsertArticleReviewNotificationParams) error
 	InsertArticleSnapshot(ctx context.Context, arg InsertArticleSnapshotParams) (ArticleSnapshot, error)
 	InsertBlock(ctx context.Context, arg InsertBlockParams) error
 	InsertBookmark(ctx context.Context, arg InsertBookmarkParams) error
-	InsertCommentNotification(ctx context.Context, arg InsertCommentNotificationParams) error
 	// ─── Consentement traceurs (journal serveur) ─────────────────────────
 	// Journal append-only : un changement de choix ajoute une ligne, on n'écrase
 	// jamais une preuve. `consent_id` est l'identifiant que le navigateur conserve
@@ -503,12 +486,7 @@ type Querier interface {
 	// Crée la conversation directe si elle n'existe pas (idempotent).
 	InsertDirectConversation(ctx context.Context, directkey pgtype.Text) (string, error)
 	InsertFollow(ctx context.Context, arg InsertFollowParams) error
-	InsertFollowNotification(ctx context.Context, arg InsertFollowNotificationParams) error
 	InsertFollowRequest(ctx context.Context, arg InsertFollowRequestParams) error
-	// Réutilise le type FOLLOW (pas de migration d'enum) : metadata.kind permet
-	// à l'UI de distinguer une demande d'un follow accepté, et metadata.requestId
-	// permet d'accepter/refuser la demande directement depuis la notification.
-	InsertFollowRequestNotification(ctx context.Context, arg InsertFollowRequestNotificationParams) error
 	InsertLegalConsentExport(ctx context.Context, arg InsertLegalConsentExportParams) (LegalConsentExport, error)
 	InsertLegalDocument(ctx context.Context, arg InsertLegalDocumentParams) (LegalDocument, error)
 	InsertLegalDocumentVersion(ctx context.Context, arg InsertLegalDocumentVersionParams) (LegalDocumentVersion, error)
@@ -521,15 +499,10 @@ type Querier interface {
 	// pas un rappel émis, et le rapport du cycle doit le dire honnêtement.
 	InsertLegalReviewReminder(ctx context.Context, arg InsertLegalReviewReminderParams) (int64, error)
 	InsertLike(ctx context.Context, arg InsertLikeParams) (string, error)
-	InsertLikeNotification(ctx context.Context, arg InsertLikeNotificationParams) error
 	InsertMediaApiKey(ctx context.Context, arg InsertMediaApiKeyParams) error
-	InsertMediaArticlePublishedFanout(ctx context.Context, arg InsertMediaArticlePublishedFanoutParams) error
-	InsertMediaArticleSubmittedFanout(ctx context.Context, arg InsertMediaArticleSubmittedFanoutParams) error
 	// metadata est passé en texte puis casté en jsonb : le pool API force
 	// QueryExecModeExec (PgBouncer), où pgx encoderait []byte en bytea → 22P02.
 	InsertMediaAuditLog(ctx context.Context, arg InsertMediaAuditLogParams) error
-	InsertMediaInviteNotification(ctx context.Context, arg InsertMediaInviteNotificationParams) error
-	InsertMentionNotification(ctx context.Context, arg InsertMentionNotificationParams) error
 	// Messagerie directe : messages (tranche 1).
 	// Table : Message. Pagination arrière par curseur createdAt (exclusif),
 	// plus récupération incrémentale des nouveaux messages pour le polling.
@@ -543,8 +516,6 @@ type Querier interface {
 	// Vote (idempotent : ON CONFLICT DO UPDATE pour changer d'option).
 	InsertPollVote(ctx context.Context, arg InsertPollVoteParams) (string, error)
 	InsertPureRepost(ctx context.Context, arg InsertPureRepostParams) (string, error)
-	InsertReplyNotification(ctx context.Context, arg InsertReplyNotificationParams) error
-	InsertRepostNotification(ctx context.Context, arg InsertRepostNotificationParams) error
 	// Journal des événements de sécurité & Quarantaine API (migration 00090)
 	InsertSecurityEvent(ctx context.Context, arg InsertSecurityEventParams) (InsertSecurityEventRow, error)
 	InsertSocialLink(ctx context.Context, arg InsertSocialLinkParams) error

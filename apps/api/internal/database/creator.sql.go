@@ -515,32 +515,6 @@ func (q *Queries) InsertFollowRequest(ctx context.Context, arg InsertFollowReque
 	return err
 }
 
-const insertFollowRequestNotification = `-- name: InsertFollowRequestNotification :exec
-INSERT INTO "Notification" (id, "recipientId", "senderId", type, "publisherId", metadata)
-VALUES (gen_random_uuid()::text, $1, $2, 'FOLLOW', $3,
-        jsonb_build_object('kind', 'FOLLOW_REQUEST', 'requestId', $4::text))
-`
-
-type InsertFollowRequestNotificationParams struct {
-	RecipientID pgtype.UUID `json:"recipient_id"`
-	SenderID    pgtype.UUID `json:"sender_id"`
-	PublisherID pgtype.Text `json:"publisher_id"`
-	RequestID   string      `json:"request_id"`
-}
-
-// Réutilise le type FOLLOW (pas de migration d'enum) : metadata.kind permet
-// à l'UI de distinguer une demande d'un follow accepté, et metadata.requestId
-// permet d'accepter/refuser la demande directement depuis la notification.
-func (q *Queries) InsertFollowRequestNotification(ctx context.Context, arg InsertFollowRequestNotificationParams) error {
-	_, err := q.db.Exec(ctx, insertFollowRequestNotification,
-		arg.RecipientID,
-		arg.SenderID,
-		arg.PublisherID,
-		arg.RequestID,
-	)
-	return err
-}
-
 const isBlockedEitherWay = `-- name: IsBlockedEitherWay :one
 SELECT EXISTS (
     SELECT 1 FROM "BlockedUser"

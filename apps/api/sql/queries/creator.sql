@@ -268,14 +268,6 @@ FROM "FollowRequest"
 WHERE "requesterId" = $1 AND "publisherId" = $2 AND status = 'PENDING'
 LIMIT 1;
 
--- name: InsertFollowRequestNotification :exec
--- Réutilise le type FOLLOW (pas de migration d'enum) : metadata.kind permet
--- à l'UI de distinguer une demande d'un follow accepté, et metadata.requestId
--- permet d'accepter/refuser la demande directement depuis la notification.
-INSERT INTO "Notification" (id, "recipientId", "senderId", type, "publisherId", metadata)
-VALUES (gen_random_uuid()::text, sqlc.arg('recipient_id'), sqlc.arg('sender_id'), 'FOLLOW', sqlc.arg('publisher_id'),
-        jsonb_build_object('kind', 'FOLLOW_REQUEST', 'requestId', sqlc.arg('request_id')::text));
-
 -- name: DeleteFollowRequestNotification :exec
 DELETE FROM "Notification"
 WHERE "recipientId" = $1 AND "senderId" = $2 AND type = 'FOLLOW' AND "publisherId" = $3

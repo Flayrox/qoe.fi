@@ -324,7 +324,7 @@ func (s *Service) CreateFull(ctx context.Context, authorID string, in CreateFull
 	// @mentions d'un post standalone → notif MENTION (best-effort).
 	// (Les réponses gèrent déjà les mentions via replyNotifications.)
 	if in.ParentID == nil {
-		notifyMentionsInContent(ctx, s.q, in.Content, created.ID, authorID)
+		notifyMentionsInContent(ctx, s.q, s.pool, in.Content, created.ID, authorID)
 	}
 
 	s.invalidateFeedCaches(ctx, authorID)

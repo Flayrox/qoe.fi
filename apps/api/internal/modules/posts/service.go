@@ -171,7 +171,7 @@ func (s *Service) Reply(ctx context.Context, parentID, userID, content string) (
 	}
 
 	// Notifications REPLY / MENTION (best-effort)
-	_ = s.replyNotifications(ctx, s.q, created.ID, userID, parentID, rootID, content)
+	_ = s.replyNotifications(ctx, s.q, s.pool, created.ID, userID, parentID, rootID, content)
 
 	// Invalidation cache feed des participants
 	if parent, err := s.q.GetPostAuthor(ctx, parentID); err == nil {
@@ -333,7 +333,7 @@ func (s *Service) ToggleLike(ctx context.Context, postID, userID string) (bool, 
 	if err := tq.IncrementLikeCount(ctx, postID); err != nil {
 		return false, err
 	}
-	if err := notifyLike(ctx, tq, postID, userID); err != nil {
+	if err := notifyLike(ctx, tq, tx, postID, userID); err != nil {
 		return false, err
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -493,7 +493,7 @@ func (s *Service) ToggleRepost(ctx context.Context, postID, userID string) (bool
 	if err := tq.IncrementRepostCount(ctx, canonicalID); err != nil {
 		return false, err
 	}
-	if err := notifyRepost(ctx, tq, canonicalID, userID); err != nil {
+	if err := notifyRepost(ctx, tq, tx, canonicalID, userID); err != nil {
 		return false, err
 	}
 	return true, tx.Commit(ctx)

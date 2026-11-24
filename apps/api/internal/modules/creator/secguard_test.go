@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
@@ -75,10 +76,6 @@ func (s *stubFollowQuerier) DeleteFollowNotification(ctx context.Context, arg db
 	return nil
 }
 
-func (s *stubFollowQuerier) GetFollowPrefs(ctx context.Context, userid pgtype.UUID) (db.GetFollowPrefsRow, error) {
-	return db.GetFollowPrefsRow{EmailFollows: false, PushFollows: false}, nil
-}
-
 func (s *stubFollowQuerier) CountFollowers(ctx context.Context, publicationid string) (int32, error) {
 	if s.following {
 		return 1, nil
@@ -114,6 +111,8 @@ func (r stubFollowRow) Scan(dest ...any) error {
 		switch d := dest[i].(type) {
 		case *string:
 			*d = r.vals[i].(string)
+		case *bool:
+			*d = r.vals[i].(bool)
 		case *pgtype.Text:
 			*d = pgtype.Text{String: r.vals[i].(string), Valid: true}
 		}
@@ -135,6 +134,9 @@ func (p *stubFollowPool) Query(ctx context.Context, sql string, args ...any) (pg
 }
 
 func (p *stubFollowPool) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row {
+	if strings.Contains(sql, "is_blocked_bidirectional") || strings.Contains(sql, "is_muted_by") || strings.Contains(sql, "SELECT EXISTS") {
+		return stubFollowRow{vals: []any{false}}
+	}
 	if p.requesterID != "" && p.pubID != "" {
 		return stubFollowRow{vals: []any{p.requesterID, p.pubID}}
 	}

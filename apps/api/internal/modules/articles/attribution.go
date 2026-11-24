@@ -7,7 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
-	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/notifications"
 )
 
 // AttributionInfo est une attribution d'article pour l'éditeur (co-auteur).
@@ -257,11 +257,11 @@ func (s *Service) syncAttributionsTx(ctx context.Context, tx pgx.Tx, articleID, 
 
 			// Émission de la notification in-app garantie (best-effort : une
 			// notification manquée ne doit pas annuler l'invitation écrite).
-			_ = s.q.InsertArticleContributorNotification(ctx, db.InsertArticleContributorNotificationParams{
-				Column1: toUUID(attr.UserID),
-				Column2: toUUID(authorID),
-				Column3: db.NotificationTypeARTICLECONTRIBUTORINVITED,
-				Column4: articleID,
+			_ = notifications.Dispatch(ctx, tx, notifications.DispatchInput{
+				RecipientID: attr.UserID,
+				SenderID:    authorID,
+				Type:        "ARTICLE_CONTRIBUTOR_INVITED",
+				ArticleID:   &articleID,
 			})
 		} else if err == nil {
 			// Contributeur existant : mise à jour du rôle, de l'ordre et de la visibilité

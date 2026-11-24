@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/qoefi/api/internal/auditlog"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/notifications"
 	"github.com/qoefi/api/internal/permissions"
 )
 
@@ -145,8 +146,11 @@ func (s *Service) InviteMemberByUsername(ctx context.Context, userID, mediaID, u
 		}
 		return nil, err
 	}
-	if err := s.q.InsertMediaInviteNotification(ctx, db.InsertMediaInviteNotificationParams{
-		RecipientID: toUUID(targetID), SenderID: toUUID(userID), PublisherID: m.PublisherID,
+	if err := notifications.Dispatch(ctx, s.pool, notifications.DispatchInput{
+		RecipientID: targetID,
+		SenderID:    userID,
+		Type:        "MEDIA_INVITE",
+		PublisherID: &m.PublisherID,
 	}); err != nil {
 		return nil, err
 	}

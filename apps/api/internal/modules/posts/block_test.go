@@ -3,9 +3,12 @@ package posts
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	db "github.com/qoefi/api/internal/database"
 )
@@ -69,40 +72,56 @@ func (m *mockBlockQuerier) GetUsersByUsernames(ctx context.Context, usernames []
 	return rows, nil
 }
 
-func (m *mockBlockQuerier) GetLikePrefs(ctx context.Context, id pgtype.UUID) (db.GetLikePrefsRow, error) {
-	return db.GetLikePrefsRow{EmailLikes: true, PushLikes: true}, nil
+func (m *mockBlockQuerier) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
+	if len(args) >= 4 {
+		if notifType, ok := args[3].(string); ok {
+			switch notifType {
+			case "LIKE":
+				m.insertedLikes++
+			case "REPOST":
+				m.insertedReposts++
+			case "MENTION":
+				m.insertedMentions++
+			}
+		}
+	}
+	return pgconn.CommandTag{}, nil
 }
 
-func (m *mockBlockQuerier) GetReplyPrefs(ctx context.Context, id pgtype.UUID) (db.GetReplyPrefsRow, error) {
-	return db.GetReplyPrefsRow{EmailMentions: true, PushMentions: true}, nil
+func (m *mockBlockQuerier) Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error) {
+	return nil, nil
 }
 
-func (m *mockBlockQuerier) ExistsUnreadLikeNotification(ctx context.Context, arg db.ExistsUnreadLikeNotificationParams) (int32, error) {
-	return 0, nil
+func (m *mockBlockQuerier) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row {
+	if strings.Contains(sql, "is_blocked_bidirectional") && len(args) >= 2 {
+		r := args[0].(uuid.UUID).String()
+		c := args[1].(uuid.UUID).String()
+		blocked := (m.blocks[r] != nil && m.blocks[r][c]) || (m.blocks[c] != nil && m.blocks[c][r])
+		return &mockBlockBoolRow{val: blocked}
+	}
+	if strings.Contains(sql, "is_muted_by") || strings.Contains(sql, "SELECT EXISTS") {
+		return &mockBlockBoolRow{val: false}
+	}
+	if strings.Contains(sql, "NotificationPreference") {
+		return &mockBlockErrRow{err: pgx.ErrNoRows}
+	}
+	return &mockBlockBoolRow{val: false}
 }
 
-func (m *mockBlockQuerier) ExistsUnreadRepostNotification(ctx context.Context, arg db.ExistsUnreadRepostNotificationParams) (int32, error) {
-	return 0, nil
-}
+type mockBlockBoolRow struct{ val bool }
 
-func (m *mockBlockQuerier) ExistsUnreadMentionNotification(ctx context.Context, arg db.ExistsUnreadMentionNotificationParams) (int32, error) {
-	return 0, nil
-}
-
-func (m *mockBlockQuerier) InsertLikeNotification(ctx context.Context, arg db.InsertLikeNotificationParams) error {
-	m.insertedLikes++
+func (r *mockBlockBoolRow) Scan(dest ...any) error {
+	if len(dest) > 0 {
+		if b, ok := dest[0].(*bool); ok {
+			*b = r.val
+		}
+	}
 	return nil
 }
 
-func (m *mockBlockQuerier) InsertRepostNotification(ctx context.Context, arg db.InsertRepostNotificationParams) error {
-	m.insertedReposts++
-	return nil
-}
+type mockBlockErrRow struct{ err error }
 
-func (m *mockBlockQuerier) InsertMentionNotification(ctx context.Context, arg db.InsertMentionNotificationParams) error {
-	m.insertedMentions++
-	return nil
-}
+func (r *mockBlockErrRow) Scan(dest ...any) error { return r.err }
 
 // ─────────────────────────── Tests Unitaires Purs ───────────────────────────
 
@@ -181,7 +200,7 @@ func TestNotificationsMatrix_Unit(t *testing.T) {
 		q.authors["post_alice"] = aliceID
 
 		// Bob tente de liker Alice
-		err := notifyLike(ctx, q, "post_alice", bobID)
+		err := notifyLike(ctx, q, q, "post_alice", bobID)
 		if err != nil {
 			t.Fatalf("notifyLike ne doit pas échouer: %v", err)
 		}
@@ -190,7 +209,7 @@ func TestNotificationsMatrix_Unit(t *testing.T) {
 		}
 
 		// Bob tente de reposter Alice
-		err = notifyRepost(ctx, q, "post_alice", bobID)
+		err = notifyRepost(ctx, q, q, "post_alice", bobID)
 		if err != nil {
 			t.Fatalf("notifyRepost ne doit pas échouer: %v", err)
 		}
@@ -206,7 +225,7 @@ func TestNotificationsMatrix_Unit(t *testing.T) {
 		q.usersByUsername["charlie"] = charlieID
 
 		// Bob mentionne @alice (bloquée) et @charlie (non bloqué)
-		notifyMentionsInContent(ctx, q, "Coucou @alice et @charlie !", "post_bob", bobID)
+		notifyMentionsInContent(ctx, q, q, "Coucou @alice et @charlie !", "post_bob", bobID)
 
 		if q.insertedMentions != 1 {
 			t.Fatalf("seule la mention non bloquée (@charlie) doit être insérée, total: %d", q.insertedMentions)
@@ -219,7 +238,7 @@ func TestNotificationsMatrix_Unit(t *testing.T) {
 		q.usersByUsername["charlie"] = charlieID
 
 		// Alice like Charlie
-		if err := notifyLike(ctx, q, "post_charlie", aliceID); err != nil {
+		if err := notifyLike(ctx, q, q, "post_charlie", aliceID); err != nil {
 			t.Fatalf("notifyLike: %v", err)
 		}
 		if q.insertedLikes != 1 {
@@ -227,7 +246,7 @@ func TestNotificationsMatrix_Unit(t *testing.T) {
 		}
 
 		// Alice repost Charlie
-		if err := notifyRepost(ctx, q, "post_charlie", aliceID); err != nil {
+		if err := notifyRepost(ctx, q, q, "post_charlie", aliceID); err != nil {
 			t.Fatalf("notifyRepost: %v", err)
 		}
 		if q.insertedReposts != 1 {
@@ -235,7 +254,7 @@ func TestNotificationsMatrix_Unit(t *testing.T) {
 		}
 
 		// Alice mentionne Charlie
-		notifyMentionsInContent(ctx, q, "Merci @charlie !", "post_alice", aliceID)
+		notifyMentionsInContent(ctx, q, q, "Merci @charlie !", "post_alice", aliceID)
 		if q.insertedMentions != 1 {
 			t.Fatalf("notification mention attendue, inséré %d", q.insertedMentions)
 		}

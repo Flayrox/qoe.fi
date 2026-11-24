@@ -138,24 +138,6 @@ func (f *faultQ) UpdateCategory(ctx context.Context, arg db.UpdateCategoryParams
 	}
 	return f.Queries.UpdateCategory(ctx, arg)
 }
-func (f *faultQ) GetFollowPrefs(ctx context.Context, userid pgtype.UUID) (db.GetFollowPrefsRow, error) {
-	if e, ok := f.val("GetFollowPrefs"); ok {
-		return db.GetFollowPrefsRow{}, e
-	}
-	return f.Queries.GetFollowPrefs(ctx, userid)
-}
-func (f *faultQ) ExistsUnreadFollowNotification(ctx context.Context, arg db.ExistsUnreadFollowNotificationParams) (int32, error) {
-	if e, ok := f.val("ExistsUnreadFollowNotification"); ok {
-		return 0, e
-	}
-	return f.Queries.ExistsUnreadFollowNotification(ctx, arg)
-}
-func (f *faultQ) InsertFollowNotification(ctx context.Context, arg db.InsertFollowNotificationParams) error {
-	if e, ok := f.val("InsertFollowNotification"); ok {
-		return e
-	}
-	return f.Queries.InsertFollowNotification(ctx, arg)
-}
 func (f *faultQ) DeleteFollowNotification(ctx context.Context, arg db.DeleteFollowNotificationParams) error {
 	if e, ok := f.val("DeleteFollowNotification"); ok {
 		return e

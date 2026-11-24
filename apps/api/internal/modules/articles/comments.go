@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/notifications"
 )
 
 var errCommentsDisabled = errors.New("les commentaires sont désactivés sur cet écrit")
@@ -155,45 +156,14 @@ func (s *Service) notifyComment(ctx context.Context, articleID, authorID, commen
 	if recipientID == "" || recipientID == authorID {
 		return
 	}
-	if blocked, err := s.blockedBetween(ctx, recipientID, authorID); err != nil {
-		log.Printf("[articles] comment block check: %v", err)
-		return
-	} else if blocked {
-		return
-	}
 
-	recipientUUID := toUUID(recipientID)
-	senderUUID := toUUID(authorID)
-
-	prefs, err := s.q.GetCommentPrefs(ctx, recipientUUID)
-	if err == nil {
-		if !prefs.EmailComments && !prefs.PushComments {
-			return
-		}
-	} else if !errors.Is(err, pgx.ErrNoRows) {
-		log.Printf("[articles] comment prefs: %v", err)
-		return
-	}
-
-	exists, err := s.q.ExistsUnreadCommentNotification(ctx, db.ExistsUnreadCommentNotificationParams{
-		RecipientId: recipientUUID,
-		SenderId:    senderUUID,
-		CommentId:   pgtype.Text{String: commentID, Valid: true},
-	})
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-		log.Printf("[articles] comment dedup: %v", err)
-		return
-	}
-	if exists == 1 {
-		return
-	}
-
-	if err := s.q.InsertCommentNotification(ctx, db.InsertCommentNotificationParams{
-		RecipientId: recipientUUID,
-		SenderId:    senderUUID,
-		ArticleId:   pgtype.Text{String: articleID, Valid: true},
-		CommentId:   pgtype.Text{String: commentID, Valid: true},
-		PublisherId: pgtype.Text{String: cfg.PublisherID, Valid: true},
+	if err := notifications.Dispatch(ctx, s.pool, notifications.DispatchInput{
+		RecipientID: recipientID,
+		SenderID:    authorID,
+		Type:        "COMMENT",
+		ArticleID:   &articleID,
+		CommentID:   &commentID,
+		PublisherID: &cfg.PublisherID,
 	}); err != nil {
 		log.Printf("[articles] comment notif: %v", err)
 	}

@@ -68,20 +68,6 @@ UPDATE "CollaborationRequest"
 SET status = 'REVOKED', "showOnPublicProfile" = false, "updatedAt" = now()
 WHERE "articleId" = $1 AND "inviteeId" = $2;
 
--- name: InsertArticleContributorNotification :exec
--- Notification in-app (jamais perdue) : dédup par (recipient, sender, type,
--- articleId, non-lue) + pas d'auto-notification. Casts explicites : évite
--- l'ambiguïté uuid/text en protocole étendu (operator does not exist).
-INSERT INTO "Notification" (id, "recipientId", "senderId", type, "articleId")
-SELECT gen_random_uuid()::text, $1::uuid, $2::uuid, $3::"NotificationType", $4::text
-WHERE $1::uuid <> $2::uuid
-  AND NOT EXISTS (
-    SELECT 1 FROM "Notification" n
-    WHERE n."recipientId" = $1::uuid AND n."senderId" = $2::uuid
-      AND n.type = $3::"NotificationType" AND n."articleId" = $4::text
-      AND n."isRead" = false
-  );
-
 -- name: ListReceivedCollaborationRequests :many
 SELECT cr.id, cr."articleId", cr.status, cr."requestedRole", cr."requestedOrder",
        cr."showOnPublicProfile", cr."createdAt",

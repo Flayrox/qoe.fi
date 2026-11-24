@@ -11,13 +11,20 @@ import (
 )
 
 type mockDispatcherDB struct {
-	isBlocked bool
-	isMuted   bool
-	execCalls int
+	isBlocked   bool
+	isMuted     bool
+	isDuplicate bool
+	prefsRow    bool
+	prefsErr    error
+	execCalls   int
+	lastSQL     string
+	lastArgs    []any
 }
 
 func (m *mockDispatcherDB) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
 	m.execCalls++
+	m.lastSQL = sql
+	m.lastArgs = args
 	return pgconn.CommandTag{}, nil
 }
 
@@ -32,6 +39,18 @@ func (m *mockDispatcherDB) QueryRow(ctx context.Context, sql string, args ...any
 	if strings.Contains(sql, "is_muted_by") {
 		return &mockBoolRow{val: m.isMuted}
 	}
+	if strings.Contains(sql, "NotificationPreference") {
+		if m.prefsErr != nil {
+			return &mockPrefsRow{err: m.prefsErr}
+		}
+		if m.prefsRow {
+			return &mockPrefsRow{allowAll: false}
+		}
+		return &mockPrefsRow{err: pgx.ErrNoRows}
+	}
+	if strings.Contains(sql, "SELECT EXISTS") {
+		return &mockBoolRow{val: m.isDuplicate}
+	}
 	return &mockBoolRow{}
 }
 
@@ -43,6 +62,23 @@ func (r *mockBoolRow) Scan(dest ...any) error {
 	if len(dest) > 0 {
 		if b, ok := dest[0].(*bool); ok {
 			*b = r.val
+		}
+	}
+	return nil
+}
+
+type mockPrefsRow struct {
+	allowAll bool
+	err      error
+}
+
+func (r *mockPrefsRow) Scan(dest ...any) error {
+	if r.err != nil {
+		return r.err
+	}
+	for _, d := range dest {
+		if b, ok := d.(*bool); ok {
+			*b = r.allowAll
 		}
 	}
 	return nil
@@ -108,5 +144,77 @@ func TestDispatch_Guard2_BlockedAndMuted(t *testing.T) {
 	}
 	if dbMuted.execCalls != 0 {
 		t.Fatalf("attendu 0 insertions pour sender masqué, obtenu %d", dbMuted.execCalls)
+	}
+}
+
+func TestDispatch_AllowSelfAndBypassPreferences(t *testing.T) {
+	ctx := context.Background()
+	uid := uuid.New().String()
+
+	// Préférences refusées sur FOLLOW -> filtré sans BypassPreferences
+	dbRefused := &mockDispatcherDB{prefsRow: true}
+	id, err := DispatchWithID(ctx, dbRefused, DispatchInput{
+		RecipientID: uid,
+		SenderID:    uuid.New().String(),
+		Type:        "FOLLOW",
+	})
+	if err != nil || id != "" || dbRefused.execCalls != 0 {
+		t.Fatalf("préférence désactivée doit filtrer: id=%q err=%v calls=%d", id, err, dbRefused.execCalls)
+	}
+
+	// Alerte self + BypassPreferences -> insérée avec ID généré
+	dbSelf := &mockDispatcherDB{prefsRow: true}
+	id, err = DispatchWithID(ctx, dbSelf, DispatchInput{
+		RecipientID:       uid,
+		SenderID:          uid,
+		Type:              "SYSTEM_ALERT",
+		AllowSelf:         true,
+		BypassPreferences: true,
+		Metadata:          map[string]any{"kind": "WEBHOOK_DISABLED"},
+	})
+	if err != nil {
+		t.Fatalf("DispatchWithID AllowSelf: %v", err)
+	}
+	if !strings.HasPrefix(id, "notif_") || dbSelf.execCalls != 1 {
+		t.Fatalf("attendu insertion notif_* (calls=%d, id=%q)", dbSelf.execCalls, id)
+	}
+
+	// Déduplication non-lue -> ignoré sans erreur
+	dbDup := &mockDispatcherDB{isDuplicate: true}
+	id, err = DispatchWithID(ctx, dbDup, DispatchInput{
+		RecipientID: uid,
+		SenderID:    uuid.New().String(),
+		Type:        "LIKE",
+	})
+	if err != nil || id != "" || dbDup.execCalls != 0 {
+		t.Fatalf("doublon non lu doit filtrer: id=%q err=%v calls=%d", id, err, dbDup.execCalls)
+	}
+}
+
+func TestDispatchMediaFanouts(t *testing.T) {
+	ctx := context.Background()
+	m := &mockDispatcherDB{}
+	senderID := uuid.New().String()
+
+	if err := DispatchMediaArticlePublishedFanout(ctx, m, "pub_1", "art_1", senderID); err != nil {
+		t.Fatalf("DispatchMediaArticlePublishedFanout: %v", err)
+	}
+	if m.execCalls != 1 || !strings.Contains(m.lastSQL, "MEDIA_ARTICLE_PUBLISHED") || !strings.Contains(m.lastSQL, "is_blocked_bidirectional") {
+		t.Fatalf("fanout published inattendu: calls=%d sql=%s", m.execCalls, m.lastSQL)
+	}
+
+	if err := DispatchMediaArticleSubmittedFanout(ctx, m, "pub_1", "art_1", senderID); err != nil {
+		t.Fatalf("DispatchMediaArticleSubmittedFanout: %v", err)
+	}
+	if m.execCalls != 2 || !strings.Contains(m.lastSQL, "MEDIA_ARTICLE_SUBMITTED") || !strings.Contains(m.lastSQL, "is_blocked_bidirectional") {
+		t.Fatalf("fanout submitted inattendu: calls=%d sql=%s", m.execCalls, m.lastSQL)
+	}
+
+	// Entrées vides ou UUID invalide : no-op sûr
+	if err := DispatchMediaArticlePublishedFanout(ctx, m, "pub_1", "art_1", "not-a-uuid"); err != nil {
+		t.Fatalf("attendu nil pour UUID invalide: %v", err)
+	}
+	if m.execCalls != 2 {
+		t.Fatalf("attendu aucune requête pour UUID invalide, calls=%d", m.execCalls)
 	}
 }

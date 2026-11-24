@@ -231,8 +231,8 @@ func (h *Handler) notifyFollowAccepted(ctx context.Context, publisherID, userID,
 
 // notifyFollowRequest crée la notification de demande d'abonnement. Le type
 // reste FOLLOW (pas de migration d'enum) et metadata.kind distingue la
-// demande côté UI. Best-effort, respecte les préférences du destinataire.
-func notifyFollowRequest(ctx context.Context, tq ServiceQuerier, publisherID, senderID string) error {
+// demande côté UI. Best-effort, passe par notifications.Dispatch.
+func notifyFollowRequest(ctx context.Context, tq ServiceQuerier, notifDB notifications.DB, publisherID, senderID string) error {
 	ownerID, err := tq.GetPublisherOwner(ctx, publisherID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -244,35 +244,8 @@ func notifyFollowRequest(ctx context.Context, tq ServiceQuerier, publisherID, se
 		return nil
 	}
 
-	ownerUUID := toUUID(ownerID)
-	senderUUID := toUUID(senderID)
-
-	prefs, err := tq.GetFollowPrefs(ctx, ownerUUID)
-	if err == nil {
-		if !prefs.EmailFollows && !prefs.PushFollows {
-			return nil
-		}
-	} else if !errors.Is(err, pgx.ErrNoRows) {
-		return err
-	}
-
-	exists, err := tq.ExistsUnreadFollowNotification(ctx, db.ExistsUnreadFollowNotificationParams{
-		RecipientId: ownerUUID,
-		SenderId:    senderUUID,
-		PublisherId: pgtype.Text{String: publisherID, Valid: true},
-	})
-	if err != nil {
-		if !errors.Is(err, pgx.ErrNoRows) {
-			return err
-		}
-		exists = 0
-	}
-	if exists == 1 {
-		return nil
-	}
-
 	requestID, err := tq.GetPendingFollowRequestID(ctx, db.GetPendingFollowRequestIDParams{
-		RequesterId: senderUUID,
+		RequesterId: toUUID(senderID),
 		PublisherId: publisherID,
 	})
 	if err != nil {
@@ -282,11 +255,15 @@ func notifyFollowRequest(ctx context.Context, tq ServiceQuerier, publisherID, se
 		return err
 	}
 
-	return tq.InsertFollowRequestNotification(ctx, db.InsertFollowRequestNotificationParams{
-		RecipientID: ownerUUID,
-		SenderID:    senderUUID,
-		PublisherID: pgtype.Text{String: publisherID, Valid: true},
-		RequestID:   requestID,
+	return notifications.Dispatch(ctx, notifDB, notifications.DispatchInput{
+		RecipientID: ownerID,
+		SenderID:    senderID,
+		Type:        "FOLLOW",
+		PublisherID: &publisherID,
+		Metadata: map[string]any{
+			"kind":      "FOLLOW_REQUEST",
+			"requestId": requestID,
+		},
 	})
 }
 
