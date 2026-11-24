@@ -20,6 +20,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 
 const {
   mockComments,
+  mockReplies,
   mockDeleteComment,
   mockSummarize,
   mockSimilar,
@@ -29,6 +30,7 @@ const {
   ttsMetadata,
 } = vi.hoisted(() => ({
   mockComments: vi.fn(),
+  mockReplies: vi.fn(),
   mockDeleteComment: vi.fn(),
   mockSummarize: vi.fn(),
   mockSimilar: vi.fn(),
@@ -37,6 +39,18 @@ const {
   ttsProps: [] as Record<string, unknown>[],
   ttsMetadata: [] as Record<string, unknown>[],
 }));
+
+type CommentPage = {
+  // `replyCount` n'existe que sur le fil (L42) : les fixtures restent minimales.
+  items: (ReturnType<typeof commentFixture> & { replyCount?: number })[];
+  nextCursor: string;
+  hasMore: boolean;
+};
+
+/** Une page de fil : le curseur est vide tant qu'il n'y a pas de suite. */
+function pageOf(items: CommentPage['items'], nextCursor = '', hasMore = false): CommentPage {
+  return { items, nextCursor, hasMore };
+}
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -55,6 +69,7 @@ vi.mock('@lingui/core/macro', () => ({
 
 vi.mock('@qoe/sdk/actions/articles', () => ({
   getArticleCommentsAction: mockComments,
+  getPostRepliesAction: mockReplies,
   deleteArticleCommentAction: mockDeleteComment,
   postArticleCommentAction: vi.fn(async () => ({ ok: false })),
   getSimilarArticlesAction: mockSimilar,
@@ -124,6 +139,8 @@ vi.mock('lucide-react', () => {
     'Bookmark',
     'BookMarked',
     'Check',
+    'ChevronDown',
+    'ChevronRight',
     'Loader2',
     'MessageSquare',
     'MoreHorizontal',
@@ -212,49 +229,67 @@ afterEach(() => {
 
 describe('ArticleComments', () => {
   it("n'affiche jamais les commentaires d'un article sous le suivant", async () => {
-    const slow = deferred<{ ok: boolean; data: unknown[] }>();
-    const fast = deferred<{ ok: boolean; data: unknown[] }>();
-    mockComments.mockImplementation((articleId: string) =>
+    const slow = deferred<{ ok: boolean; data: CommentPage }>();
+    const fast = deferred<{ ok: boolean; data: CommentPage }>();
+    mockComments.mockImplementation(({ articleId }: { articleId: string }) =>
       articleId === 'art-a' ? slow.promise : fast.promise
     );
 
     const { rerender } = render(<ArticleComments articleId="art-a" />);
-    await waitFor(() => expect(mockComments).toHaveBeenCalledWith('art-a'));
+    await waitFor(() =>
+      expect(mockComments).toHaveBeenCalledWith(expect.objectContaining({ articleId: 'art-a' }))
+    );
     rerender(<ArticleComments articleId="art-b" />);
-    await waitFor(() => expect(mockComments).toHaveBeenCalledWith('art-b'));
+    await waitFor(() =>
+      expect(mockComments).toHaveBeenCalledWith(expect.objectContaining({ articleId: 'art-b' }))
+    );
 
     await act(async () => {
-      slow.resolve({ ok: true, data: [commentFixture('de-a')] });
+      slow.resolve({ ok: true, data: pageOf([commentFixture('de-a')]) });
     });
     expect(screen.queryByText('commentaire-de-a')).toBeNull();
 
     await act(async () => {
-      fast.resolve({ ok: true, data: [commentFixture('de-b')] });
+      fast.resolve({ ok: true, data: pageOf([commentFixture('de-b')]) });
     });
     await waitFor(() => expect(screen.getByText('commentaire-de-b')).toBeTruthy());
   });
 
-  it('ne compte plus les réponses d’un commentaire racine supprimé', async () => {
+  it('garde la place d’un commentaire supprimé et laisse ses réponses lisibles', async () => {
+    // Une racine avec une réponse : la page d'article ne contient que la
+    // racine, la réponse vit dans le fil du commentaire (pagination L42).
     mockComments.mockResolvedValue({
       ok: true,
-      data: [commentFixture('racine', null), commentFixture('reponse', 'racine')],
+      data: pageOf([{ ...commentFixture('racine'), replyCount: 1 }]),
+    });
+    mockReplies.mockResolvedValue({
+      ok: true,
+      data: pageOf([commentFixture('reponse', 'racine')]),
     });
     mockDeleteComment.mockResolvedValue({ ok: true, data: null });
 
     render(<ArticleComments articleId="art-1" currentUserId="u2" />);
+    await waitFor(() => expect(screen.getByText('commentaire-racine')).toBeTruthy());
+    expect(screen.getByText('(1)')).toBeTruthy();
+
+    // Le fil se charge à l'ouverture, pas avant.
+    expect(mockReplies).not.toHaveBeenCalled();
+    await act(async () => {
+      fireEvent.click(screen.getByText('1 réponse'));
+    });
     await waitFor(() => expect(screen.getByText('commentaire-reponse')).toBeTruthy());
-    expect(screen.getByText('(2)')).toBeTruthy();
+    expect(mockReplies).toHaveBeenCalledWith(expect.objectContaining({ postId: 'racine' }));
 
     const supprimer = screen.getAllByText('Supprimer')[0];
     await act(async () => {
       fireEvent.click(supprimer);
     });
 
+    // Tombstone : le contenu disparaît, la place et la réponse restent.
     await waitFor(() => expect(screen.queryByText('commentaire-racine')).toBeNull());
-    expect(screen.queryByText('commentaire-reponse')).toBeNull();
-    // La réponse orpheline ne doit plus être comptée dans l'en-tête.
-    expect(screen.queryByText('(1)')).toBeNull();
-    expect(screen.queryByText('(2)')).toBeNull();
+    expect(screen.getByText('Message supprimé')).toBeTruthy();
+    expect(screen.getByText('commentaire-reponse')).toBeTruthy();
+    expect(screen.getByText('(1)')).toBeTruthy();
   });
 });
 

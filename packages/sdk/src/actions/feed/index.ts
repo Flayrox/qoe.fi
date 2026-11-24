@@ -872,6 +872,25 @@ export const getFeedItemsAction = safeAction<
   { requireAuth: false }
 );
 
+// 🧵 Onglet « réponses » d'un profil : même curseur (createdAt, id) que les
+// fils, hydratation identique au feed (auteur, capacités, pièces jointes).
+export const getUserRepliesAction = safeAction<
+  { username: string; cursor?: string | null; limit?: number },
+  { items: ApiFeedSlice[]; nextCursor: string | null; hasMore: boolean }
+>(
+  async ({ username, cursor = null, limit = 20 }) => {
+    const body = await goFetch<{ items: unknown[]; nextCursor: string | null; hasMore: boolean }>(
+      `/v1/users/${encodeURIComponent(username)}/replies?limit=${Math.min(limit, 50)}&cursor=${encodeURIComponent(cursor ?? '')}`
+    );
+    return {
+      items: body.items as unknown as ApiFeedSlice[],
+      nextCursor: body.nextCursor ?? null,
+      hasMore: Boolean(body.hasMore),
+    };
+  },
+  { requireAuth: false }
+);
+
 // ─────────────────────────────────────────────────────────────────────
 // 👤 Profil public — lecture depuis l'API Go (shape unifié FeedPost)
 // ─────────────────────────────────────────────────────────────────────

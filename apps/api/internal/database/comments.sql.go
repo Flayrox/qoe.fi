@@ -12,10 +12,14 @@ import (
 )
 
 const deleteArticleComment = `-- name: DeleteArticleComment :exec
-DELETE FROM "Post"
-WHERE id = $1
+UPDATE "Post"
+SET "deletedAt" = now(),
+    "updatedAt" = now()
+WHERE id = $1 AND "deletedAt" IS NULL
 `
 
+// Les filtres sont ceux des feeds (helpers SQL partagés) : un commentaire ne
+// peut pas être visible ici et caché là-bas.
 func (q *Queries) DeleteArticleComment(ctx context.Context, id string) error {
 	_, err := q.db.Exec(ctx, deleteArticleComment, id)
 	return err
@@ -226,82 +230,4 @@ func (q *Queries) InsertArticleCommentRoot(ctx context.Context, arg InsertArticl
 		&i.RootID,
 	)
 	return i, err
-}
-
-const listArticleComments = `-- name: ListArticleComments :many
-SELECT p.id, p."content", p."createdAt", p."updatedAt",
-       p."rootArticleId" AS article_id, p."authorId"::text AS author_id,
-       p."parentId", p."rootId" AS root_id,
-       u.name AS author_name,
-       u.username AS author_username,
-       u."logoUrl" AS author_logo_url,
-       u."isCertified" AS author_is_certified
-FROM "Post" p
-JOIN "User" u ON u.id = p."authorId"
-WHERE p."rootArticleId" = $1
-  AND p."deletedAt" IS NULL
-  AND p."isDraft" = false
-  AND p."isHiddenByModerator" = false
-  AND p."isHiddenByAuthor" = false
-  AND p.visibility = 'public'
-  AND NOT is_blocked_bidirectional($2::uuid, p."authorId")
-  AND can_view_profile($2::uuid, u.id)
-  AND NOT is_muted_by($2::uuid, p."authorId")
-  AND NOT contains_muted_word($2::uuid, p."content")
-ORDER BY p."createdAt" ASC, p.id ASC
-`
-
-type ListArticleCommentsParams struct {
-	ArticleID pgtype.Text `json:"article_id"`
-	ViewerID  pgtype.UUID `json:"viewer_id"`
-}
-
-type ListArticleCommentsRow struct {
-	ID                string           `json:"id"`
-	Content           string           `json:"content"`
-	CreatedAt         pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt         pgtype.Timestamp `json:"updatedAt"`
-	ArticleID         pgtype.Text      `json:"article_id"`
-	AuthorID          string           `json:"author_id"`
-	ParentId          pgtype.Text      `json:"parentId"`
-	RootID            pgtype.Text      `json:"root_id"`
-	AuthorName        pgtype.Text      `json:"author_name"`
-	AuthorUsername    pgtype.Text      `json:"author_username"`
-	AuthorLogoUrl     pgtype.Text      `json:"author_logo_url"`
-	AuthorIsCertified bool             `json:"author_is_certified"`
-}
-
-// Les filtres sont ceux des feeds (helpers SQL partagés) : un commentaire ne
-// peut pas être visible ici et caché là-bas.
-func (q *Queries) ListArticleComments(ctx context.Context, arg ListArticleCommentsParams) ([]ListArticleCommentsRow, error) {
-	rows, err := q.db.Query(ctx, listArticleComments, arg.ArticleID, arg.ViewerID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ListArticleCommentsRow{}
-	for rows.Next() {
-		var i ListArticleCommentsRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Content,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.ArticleID,
-			&i.AuthorID,
-			&i.ParentId,
-			&i.RootID,
-			&i.AuthorName,
-			&i.AuthorUsername,
-			&i.AuthorLogoUrl,
-			&i.AuthorIsCertified,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }

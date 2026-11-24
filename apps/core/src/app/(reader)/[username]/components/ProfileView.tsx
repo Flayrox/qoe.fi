@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { AuthorAvatar } from '@qoe/ui/ui/AuthorAvatar';
 import { ThoughtCard } from '@/components/social/ThoughtCard';
+import { ProfileReplies } from './ProfileReplies';
 import {
   useArticleOverlay,
   type OpenArticleInput,
@@ -719,29 +720,16 @@ export function ProfileView({
           )}
 
           {activeTab === 'with_replies' && (
-            <div className="space-y-2">
-              {replyThoughts.length === 0 ? (
-                <EmptyTabMessage message="Aucune réponse publiée pour le moment." />
-              ) : (
-                replyThoughts.map((post) => (
-                  <div key={post.id} className="space-y-1.5">
-                    {post.parentUnavailable && (
-                      <HiddenParentNotice reason={post.parentUnavailableReason} />
-                    )}
-                    <ThoughtCard
-                      post={post}
-                      currentUserId={currentUserId}
-                      onDeletePost={handleDeletePost}
-                      onOpenPost={(id, authorUsername) => {
-                        const handle = authorUsername || user.username || user.subdomain || user.id;
-                        openThought(id, handle);
-                      }}
-                      onOpenArticle={handleOpenArticle}
-                    />
-                  </div>
-                ))
-              )}
-            </div>
+            <ProfileReplies
+              username={profileHandle}
+              currentUserId={currentUserId ?? null}
+              onDeletePost={handleDeletePost}
+              onOpenPost={(id, authorUsername) => {
+                const handle = authorUsername || user.username || user.subdomain || user.id;
+                openThought(id, handle);
+              }}
+              onOpenArticle={handleOpenArticle}
+            />
           )}
 
           {activeTab === 'articles' && (

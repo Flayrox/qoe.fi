@@ -110,7 +110,7 @@ export function ArticleCommentsSection({
         toast.error(res.error?.message ?? t`Commentaire refusé`);
         return;
       }
-      if (res.data) {
+      if (res.data && res.data.author) {
         const formattedComment: CommentItem = {
           id: res.data.id,
           content: res.data.content,
@@ -145,7 +145,7 @@ export function ArticleCommentsSection({
         toast.error(res.error?.message ?? t`Réponse refusée`);
         return;
       }
-      if (res.data) {
+      if (res.data && res.data.author) {
         const formattedReply: CommentReplyItem = {
           id: res.data.id,
           content: res.data.content,

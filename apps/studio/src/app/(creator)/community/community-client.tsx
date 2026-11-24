@@ -24,7 +24,10 @@ export function CommunityClient({ articles }: { articles: CommunityArticle[] }) 
     articles.find((article) => article.commentsCount > 0)?.id ?? articles[0]?.id ?? null
   );
   const [comments, setComments] = useState<ArticleCommentPayload[]>([]);
+  const [cursor, setCursor] = useState('');
+  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>(() =>
     Object.fromEntries(articles.map((article) => [article.id, article.commentsCount]))
@@ -39,11 +42,16 @@ export function CommunityClient({ articles }: { articles: CommunityArticle[] }) 
     setLoading(true);
     setError(null);
     try {
-      const res = await getArticleCommentsAction(articleId);
+      const res = await getArticleCommentsAction({ articleId });
       if (requestId !== latestRequest.current) return;
       if (res.ok) {
-        setComments(res.data);
-        setCounts((current) => ({ ...current, [articleId]: res.data.length }));
+        setComments(res.data.items);
+        setCursor(res.data.nextCursor);
+        setHasMore(res.data.hasMore);
+        setCounts((current) => ({
+          ...current,
+          [articleId]: res.data.items.filter((c) => !c.tombstone).length,
+        }));
       } else {
         setError(t`Impossible de charger les commentaires.`);
       }
@@ -59,6 +67,29 @@ export function CommunityClient({ articles }: { articles: CommunityArticle[] }) 
     if (selectedId) void load(selectedId);
   }, [selectedId, load]);
 
+  // La suite arrive par le même curseur : aucune discussion n'est plus
+  // chargée en entier d'un coup (R134).
+  const loadMore = useCallback(async () => {
+    if (!selectedId || !cursor || loadingMore) return;
+    const requestId = latestRequest.current;
+    setLoadingMore(true);
+    try {
+      const res = await getArticleCommentsAction({ articleId: selectedId, cursor });
+      if (requestId !== latestRequest.current) return;
+      if (res.ok) {
+        setComments((current) => [...current, ...res.data.items]);
+        setCursor(res.data.nextCursor);
+        setHasMore(res.data.hasMore);
+      } else {
+        setError(t`Impossible de charger la suite.`);
+      }
+    } catch {
+      setError(t`Impossible de charger la suite.`);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [cursor, loadingMore, selectedId]);
+
   const remove = async (commentId: string) => {
     if (!selectedId) return;
     setError(null);
@@ -68,9 +99,18 @@ export function CommunityClient({ articles }: { articles: CommunityArticle[] }) 
         setError(res.error.message);
         return;
       }
+      // Le serveur garde la ligne en tombstone : on conserve la place dans la
+      // liste et on ne décrémente le compteur que si elle était vivante.
       setComments((current) => {
-        const next = current.filter((comment) => comment.id !== commentId);
-        setCounts((map) => ({ ...map, [selectedId]: next.length }));
+        const target = current.find((comment) => comment.id === commentId);
+        const next = current.map((comment) =>
+          comment.id === commentId
+            ? { ...comment, content: '', author: null, tombstone: true }
+            : comment
+        );
+        if (target && !target.tombstone) {
+          setCounts((map) => ({ ...map, [selectedId]: Math.max((map[selectedId] ?? 1) - 1, 0) }));
+        }
         return next;
       });
     } catch {
@@ -140,29 +180,46 @@ export function CommunityClient({ articles }: { articles: CommunityArticle[] }) 
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-xs font-semibold text-foreground">
-                      {comment.author?.name || comment.author?.username || t`Lecteur`}
-                      {comment.parentId && (
+                      {comment.tombstone
+                        ? t`Message supprimé`
+                        : comment.author?.name || comment.author?.username || t`Lecteur`}
+                      {(comment.replyCount ?? 0) > 0 && (
                         <span className="ml-2 text-[10px] font-normal text-muted-foreground">
-                          {t`réponse`}
+                          {t`${comment.replyCount ?? 0} réponses`}
                         </span>
                       )}
                     </p>
-                    <p className="mt-1 whitespace-pre-wrap text-sm text-foreground/90">
-                      {comment.content}
-                    </p>
+                    {!comment.tombstone && (
+                      <p className="mt-1 whitespace-pre-wrap text-sm text-foreground/90">
+                        {comment.content}
+                      </p>
+                    )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => void remove(comment.id)}
-                    className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-destructive-text"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                    {t`Supprimer`}
-                  </button>
+                  {!comment.tombstone && (
+                    <button
+                      type="button"
+                      onClick={() => void remove(comment.id)}
+                      className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-destructive-text"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      {t`Supprimer`}
+                    </button>
+                  )}
                 </div>
               </li>
             ))}
           </ul>
+        )}
+        {hasMore && !loading && (
+          <button
+            type="button"
+            onClick={() => void loadMore()}
+            disabled={loadingMore}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground disabled:opacity-50"
+          >
+            {loadingMore && <Loader2 className="h-3 w-3 animate-spin" />}
+            {t`Afficher plus`}
+          </button>
         )}
       </section>
     </div>

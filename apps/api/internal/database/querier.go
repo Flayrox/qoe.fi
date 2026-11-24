@@ -162,6 +162,8 @@ type Querier interface {
 	DeleteAnnotationComment(ctx context.Context, arg DeleteAnnotationCommentParams) (int64, error)
 	DeleteApiKey(ctx context.Context, arg DeleteApiKeyParams) error
 	DeleteArticle(ctx context.Context, id string) error
+	// Les filtres sont ceux des feeds (helpers SQL partagés) : un commentaire ne
+	// peut pas être visible ici et caché là-bas.
 	DeleteArticleComment(ctx context.Context, id string) error
 	DeleteBlock(ctx context.Context, arg DeleteBlockParams) error
 	DeleteBookmark(ctx context.Context, arg DeleteBookmarkParams) error
@@ -361,7 +363,6 @@ type Querier interface {
 	GetPostAuthor(ctx context.Context, id string) (string, error)
 	// Retourne le contenu + tags + auteur d'une pensée pour calculer son vecteur.
 	GetPostForEmbedding(ctx context.Context, id string) (GetPostForEmbeddingRow, error)
-	GetPostThread(ctx context.Context, arg GetPostThreadParams) ([]GetPostThreadRow, error)
 	GetPostsByIDs(ctx context.Context, arg GetPostsByIDsParams) ([]GetPostsByIDsRow, error)
 	GetPremiumActiveSubscribers(ctx context.Context, publisherid string) ([]GetPremiumActiveSubscribersRow, error)
 	// Contenu complet d'un document publié (markdown).
@@ -394,8 +395,6 @@ type Querier interface {
 	// Version publiée de référence d'un document (FR en priorité : c'est le texte
 	// qui fait foi). Sert de base au brouillon de revue.
 	GetReferencePublishedVersion(ctx context.Context, documentID string) (LegalDocumentVersion, error)
-	GetRepliesForThought(ctx context.Context, arg GetRepliesForThoughtParams) ([]GetRepliesForThoughtRow, error)
-	GetReplyIDsForThought(ctx context.Context, parentid pgtype.Text) ([]string, error)
 	GetSovereignCopyByOriginAndAuthor(ctx context.Context, arg GetSovereignCopyByOriginAndAuthorParams) (GetSovereignCopyByOriginAndAuthorRow, error)
 	// Contexte complet pour les emails transactionnels (bienvenue) :
 	// locale de l'abonné + personnalisation de la publication.
@@ -557,9 +556,6 @@ type Querier interface {
 	// un commentaire ne doit jamais révéler une annotation privée.
 	ListAnnotationComments(ctx context.Context, arg ListAnnotationCommentsParams) ([]ListAnnotationCommentsRow, error)
 	ListApiKeys(ctx context.Context, userid pgtype.UUID) ([]ListApiKeysRow, error)
-	// Les filtres sont ceux des feeds (helpers SQL partagés) : un commentaire ne
-	// peut pas être visible ici et caché là-bas.
-	ListArticleComments(ctx context.Context, arg ListArticleCommentsParams) ([]ListArticleCommentsRow, error)
 	ListArticleImportJobs(ctx context.Context, arg ListArticleImportJobsParams) ([]ListArticleImportJobsRow, error)
 	ListArticleSlugs(ctx context.Context, articleid string) ([]string, error)
 	ListArticleSnapshots(ctx context.Context, articleid string) ([]ListArticleSnapshotsRow, error)
@@ -572,6 +568,10 @@ type Querier interface {
 	// Articles attribués à un créateur : publication directe OU co-signés via ArticleAttribution ACCEPTED + visible.
 	// Miroir de prisma.article.findMany { OR: [{publisherId}, {attributions: {some: {userId, consentStatus, isVisible}}}] } où published = true.
 	ListAttributedArticleIDs(ctx context.Context, arg ListAttributedArticleIDsParams) ([]string, error)
+	// Onglet « réponses » d'un profil : les réponses vivantes d'un compte, du plus
+	// récent au plus ancien. Les ids seuls suffisent, l'hydratation (auteur,
+	// capacités, pièces jointes) réutilise celle du feed.
+	ListAuthorReplyIDsPage(ctx context.Context, arg ListAuthorReplyIDsPageParams) ([]ListAuthorReplyIDsPageRow, error)
 	// Articles sauvegardés (bookmarks) d'un lecteur, avec titre/slug/publication
 	// et la date de sauvegarde — pour la bibliothèque mobile.
 	ListBookmarksByReader(ctx context.Context, arg ListBookmarksByReaderParams) ([]ListBookmarksByReaderRow, error)
@@ -732,6 +732,21 @@ type Querier interface {
 	ListSubscribersByPublisher(ctx context.Context, arg ListSubscribersByPublisherParams) ([]ListSubscribersByPublisherRow, error)
 	// ── Feature Flags / Config / Frontend / Translations ────────────────────────
 	ListSystemConfigs(ctx context.Context) ([]SystemConfig, error)
+	// =====================================================================
+	// 🧵 Pagination unique des fils de réponses (lot L42)
+	// =====================================================================
+	// Une seule requête sert les trois surfaces : réponses d'un post, fil
+	// complet d'une conversation (par "rootId"), et commentaires de niveau 1 d'un
+	// article. Le curseur est un ordre total ("createdAt", id) : stable même
+	// quand des réponses arrivent pendant la lecture (elles tombent après le
+	// curseur, donc dans une page suivante, jamais en double).
+	//
+	// Tombstone : un post supprimé, masqué (auteur/modération) ou invisible pour
+	// CE viewer (blocage, mute, profil privé, mot masqué, compte suspendu) est
+	// renvoyé comme une ligne sans contenu ni auteur. La structure du fil et le
+	// compteur "replyCount" restent lisibles, et aucune donnée n'est révélée.
+	// =====================================================================
+	ListThreadPage(ctx context.Context, arg ListThreadPageParams) ([]ListThreadPageRow, error)
 	ListUserDrafts(ctx context.Context, arg ListUserDraftsParams) ([]ListUserDraftsRow, error)
 	ListUserLegalAcceptances(ctx context.Context, userID pgtype.UUID) ([]ListUserLegalAcceptancesRow, error)
 	ListUserSecurityEvents(ctx context.Context, userid pgtype.UUID) ([]SecurityEvent, error)

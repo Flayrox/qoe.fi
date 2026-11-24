@@ -51,14 +51,14 @@ describe('CommunityClient — sélection', () => {
 
     second.resolve({
       ok: true,
-      data: [comment('c-b', 'Commentaire de B')],
+      data: { items: [comment('c-b', 'Commentaire de B')], nextCursor: '', hasMore: false },
     } as never);
     await screen.findByText('Commentaire de B');
 
     // La réponse tardive de A ne doit rien écraser.
     first.resolve({
       ok: true,
-      data: [comment('c-a', 'Commentaire de A')],
+      data: { items: [comment('c-a', 'Commentaire de A')], nextCursor: '', hasMore: false },
     } as never);
 
     await waitFor(() => expect(screen.queryByText('Commentaire de A')).toBeNull());

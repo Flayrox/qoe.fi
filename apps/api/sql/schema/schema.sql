@@ -1575,6 +1575,18 @@ CREATE INDEX "Post_rootId_idx" ON "Post"("rootId");
 CREATE INDEX "Post_rootArticleId_createdAt_idx" ON "Post"("rootArticleId", "createdAt") WHERE "rootArticleId" IS NOT NULL;
 
 -- CreateIndex
+CREATE INDEX "Post_parentId_createdAt_id_idx" ON "Post"("parentId", "createdAt", "id") WHERE "parentId" IS NOT NULL;
+
+-- CreateIndex
+CREATE INDEX "Post_rootId_createdAt_id_idx" ON "Post"("rootId", "createdAt", "id") WHERE "rootId" IS NOT NULL;
+
+-- CreateIndex
+CREATE INDEX "Post_rootArticleId_parentId_createdAt_id_idx" ON "Post"("rootArticleId", "createdAt", "id") WHERE "rootArticleId" IS NOT NULL AND "parentId" IS NULL;
+
+-- CreateIndex
+CREATE INDEX "Post_authorId_parentId_createdAt_id_idx" ON "Post"("authorId", "createdAt", "id") WHERE "parentId" IS NOT NULL;
+
+-- CreateIndex
 CREATE INDEX "Post_repostId_idx" ON "Post"("repostId");
 
 -- CreateIndex

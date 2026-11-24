@@ -58,28 +58,8 @@ WHERE p.id = $1 AND p."deletedAt" IS NULL;
 
 -- Les filtres sont ceux des feeds (helpers SQL partagés) : un commentaire ne
 -- peut pas être visible ici et caché là-bas.
--- name: ListArticleComments :many
-SELECT p.id, p."content", p."createdAt", p."updatedAt",
-       p."rootArticleId" AS article_id, p."authorId"::text AS author_id,
-       p."parentId", p."rootId" AS root_id,
-       u.name AS author_name,
-       u.username AS author_username,
-       u."logoUrl" AS author_logo_url,
-       u."isCertified" AS author_is_certified
-FROM "Post" p
-JOIN "User" u ON u.id = p."authorId"
-WHERE p."rootArticleId" = sqlc.arg('article_id')
-  AND p."deletedAt" IS NULL
-  AND p."isDraft" = false
-  AND p."isHiddenByModerator" = false
-  AND p."isHiddenByAuthor" = false
-  AND p.visibility = 'public'
-  AND NOT is_blocked_bidirectional(sqlc.arg('viewer_id')::uuid, p."authorId")
-  AND can_view_profile(sqlc.arg('viewer_id')::uuid, u.id)
-  AND NOT is_muted_by(sqlc.arg('viewer_id')::uuid, p."authorId")
-  AND NOT contains_muted_word(sqlc.arg('viewer_id')::uuid, p."content")
-ORDER BY p."createdAt" ASC, p.id ASC;
-
 -- name: DeleteArticleComment :exec
-DELETE FROM "Post"
-WHERE id = $1;
+UPDATE "Post"
+SET "deletedAt" = now(),
+    "updatedAt" = now()
+WHERE id = $1 AND "deletedAt" IS NULL;

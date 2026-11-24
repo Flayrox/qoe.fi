@@ -806,11 +806,28 @@ export const deleteCategoryAction = safeAction<string, { success: boolean }>(asy
 
 export interface ArticleCommentPayload {
   id: string;
+  /** Contenu vide quand `tombstone` : rien du message supprimé ne sort. */
   content: string;
   parentId: string | null;
-  articleId: string;
-  author: ArticleAuthorBrief;
+  rootId?: string | null;
+  articleId?: string;
+  /** Absent sur un tombstone (aucune identité révélée). */
+  author: ArticleAuthorBrief | null;
   createdAt: string;
+  updatedAt?: string;
+  /** Place conservée dans le fil, contenu et auteur effacés. */
+  tombstone?: boolean;
+  /** Réponses vivantes directes (le fil se charge par la pagination). */
+  replyCount?: number;
+  likeCount?: number;
+  repostCount?: number;
+}
+
+/** Page de fil : curseur opaque stable (createdAt, id), jamais un offset. */
+export interface CommentRepliesPage {
+  items: ArticleCommentPayload[];
+  nextCursor: string;
+  hasMore: boolean;
 }
 
 export const postArticleCommentAction = safeAction<
@@ -834,11 +851,41 @@ export const deleteArticleCommentAction = safeAction<string, { success: boolean 
   }
 );
 
-export const getArticleCommentsAction = safeAction<string, ArticleCommentPayload[]>(
-  async (articleId) => {
-    return goFetch<ArticleCommentPayload[]>(
-      `/v1/articles/${encodeURIComponent(articleId)}/comments`
+export const getArticleCommentsAction = safeAction<
+  { articleId: string; cursor?: string | null; limit?: number },
+  CommentRepliesPage
+>(
+  async ({ articleId, cursor = null, limit = 20 }) => {
+    const page = await goFetch<CommentRepliesPage>(
+      `/v1/articles/${encodeURIComponent(articleId)}/comments?limit=${Math.min(limit, 50)}&cursor=${encodeURIComponent(cursor ?? '')}`
     );
+    return {
+      items: page.items ?? [],
+      nextCursor: page.nextCursor ?? '',
+      hasMore: Boolean(page.hasMore),
+    };
+  },
+  { requireAuth: false }
+);
+
+/**
+ * 🧵 Fil d'un post (pensée OU commentaire) : `scope=children` pour les
+ * réponses directes, `scope=thread` pour tous les descendants de la
+ * conversation. Même curseur que la page de commentaires.
+ */
+export const getPostRepliesAction = safeAction<
+  { postId: string; scope?: 'children' | 'thread'; cursor?: string | null; limit?: number },
+  CommentRepliesPage
+>(
+  async ({ postId, scope = 'children', cursor = null, limit = 20 }) => {
+    const page = await goFetch<CommentRepliesPage>(
+      `/v1/posts/${encodeURIComponent(postId)}/replies?scope=${scope}&limit=${Math.min(limit, 50)}&cursor=${encodeURIComponent(cursor ?? '')}`
+    );
+    return {
+      items: page.items ?? [],
+      nextCursor: page.nextCursor ?? '',
+      hasMore: Boolean(page.hasMore),
+    };
   },
   { requireAuth: false }
 );

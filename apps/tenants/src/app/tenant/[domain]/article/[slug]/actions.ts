@@ -135,9 +135,15 @@ export async function deleteArticleCommentAction(commentId: string) {
 }
 
 export async function getArticleComments(articleId: string) {
-  const res = await rawGetArticleComments(articleId);
-  if (!res.ok) return { success: false, comments: [] };
-  return { success: true, comments: res.data };
+  // Pagination par curseur : la page porte ses items et la suite.
+  const res = await rawGetArticleComments({ articleId });
+  if (!res.ok) return { success: false, comments: [], nextCursor: '', hasMore: false };
+  return {
+    success: true,
+    comments: res.data.items,
+    nextCursor: res.data.nextCursor,
+    hasMore: res.data.hasMore,
+  };
 }
 
 export async function getArticleCommentsAction(articleId: string) {

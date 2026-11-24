@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/qoefi/api/internal/middleware"
+	"github.com/qoefi/api/internal/modules/posts"
 	"github.com/qoefi/api/internal/response"
 )
 
@@ -42,6 +43,8 @@ func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Post("/v1/feed/hydrate", h.hydrate)
 	r.Get("/v1/home/feed", h.homeFeed)
 	r.Get("/v1/posts/{id}/thread", h.thread)
+	r.Get("/v1/posts/{id}/replies", h.postReplies)
+	r.Get("/v1/users/{username}/replies", h.userReplies)
 	r.Get("/v1/users/{username}/posts", h.userPosts)
 	r.Get("/v1/users/{username}/articles", h.userArticles)
 	r.Get("/v1/feed/articles", h.articles)
@@ -119,6 +122,52 @@ func (h *Handler) userPosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, items)
+}
+
+// postReplies — page de réponses d'un post (ou de tout son fil).
+// `scope=thread` pagine par racine de conversation, `scope=children` (défaut)
+// par parent direct. Le curseur est opaque et stable.
+func (h *Handler) postReplies(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	id := chi.URLParam(r, "id")
+	limit := middleware.ClampLimit(r.URL.Query().Get("limit"), posts.DefaultReplyLimit, posts.MaxReplyLimit)
+	page, err := h.svc.PostReplies(r.Context(), id, userID, r.URL.Query().Get("scope"), r.URL.Query().Get("cursor"), limit)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			response.NotFound(w, "Post introuvable")
+			return
+		}
+		if errors.Is(err, posts.ErrInvalidCursor) {
+			response.BadRequest(w, "Curseur de pagination invalide")
+			return
+		}
+		log.Printf("[feed] postReplies: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, page)
+}
+
+// userReplies — onglet « réponses » d'un profil, même curseur que les fils.
+func (h *Handler) userReplies(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	username := chi.URLParam(r, "username")
+	limit := middleware.ClampLimit(r.URL.Query().Get("limit"), posts.DefaultReplyLimit, posts.MaxReplyLimit)
+	result, err := h.svc.UserReplies(r.Context(), username, userID, r.URL.Query().Get("cursor"), limit)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			response.NotFound(w, "Utilisateur introuvable")
+			return
+		}
+		if errors.Is(err, posts.ErrInvalidCursor) {
+			response.BadRequest(w, "Curseur de pagination invalide")
+			return
+		}
+		log.Printf("[feed] userReplies: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, result)
 }
 
 func (h *Handler) thread(w http.ResponseWriter, r *http.Request) {

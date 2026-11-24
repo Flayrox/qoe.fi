@@ -25,7 +25,7 @@ import (
 // sql/migrations : ajouter une migration sans la mettre à jour fait échouer
 // la CI, donc le SLO ne peut pas dériver en silence.
 const (
-	ExpectedMigrationVersion int64 = 97
+	ExpectedMigrationVersion int64 = 98
 )
 
 type SLOStatus string

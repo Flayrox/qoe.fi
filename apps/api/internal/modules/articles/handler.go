@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/qoefi/api/internal/antispam"
 	"github.com/qoefi/api/internal/middleware"
+	"github.com/qoefi/api/internal/modules/posts"
 	"github.com/qoefi/api/internal/response"
 	"github.com/qoefi/api/internal/secguard"
 	"github.com/qoefi/api/internal/trust"
@@ -1152,17 +1153,23 @@ func (h *Handler) similar(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, map[string]any{"items": items})
 }
 
-// GET /v1/articles/{id}/comments — liste publique des commentaires.
+// GET /v1/articles/{id}/comments — page publique des commentaires de niveau 1.
+// Curseur opaque : la suite du fil ne dépend d'aucun offset.
 func (h *Handler) listComments(w http.ResponseWriter, r *http.Request) {
 	articleID := chi.URLParam(r, "id")
 	viewerID, _ := middleware.UserID(r.Context())
-	comments, err := h.svc.ListComments(r.Context(), articleID, viewerID)
+	limit := middleware.ClampLimit(r.URL.Query().Get("limit"), posts.DefaultReplyLimit, posts.MaxReplyLimit)
+	page, err := h.svc.ListCommentsPage(r.Context(), articleID, viewerID, r.URL.Query().Get("cursor"), limit)
 	if err != nil {
+		if errors.Is(err, posts.ErrInvalidCursor) {
+			response.BadRequest(w, "Curseur de pagination invalide")
+			return
+		}
 		log.Printf("[articles] listComments: %v", err)
 		response.Internal(w)
 		return
 	}
-	response.OK(w, comments)
+	response.OK(w, page)
 }
 
 // parseScheduledAt convertit une date RFC3339 optionnelle (vide → nil).

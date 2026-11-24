@@ -3,6 +3,8 @@ package articles
 import (
 	"context"
 	"testing"
+
+	"github.com/qoefi/api/internal/modules/posts"
 )
 
 func newSvc() *Service {
@@ -68,13 +70,24 @@ func TestComments_CreateListDelete(t *testing.T) {
 		t.Fatalf("reply.ParentId = %v", reply.ParentID)
 	}
 
-	// List.
-	all, err := svc.ListComments(ctx, "art_test_000", "")
+	// Liste : les commentaires de niveau 1 forment la page de l'article, la
+	// réponse vit dans le fil du commentaire (même pagination).
+	page, err := svc.ListCommentsPage(ctx, "art_test_000", "", "", 20)
 	if err != nil {
-		t.Fatalf("ListComments: %v", err)
+		t.Fatalf("ListCommentsPage: %v", err)
 	}
-	if len(all) != 2 {
-		t.Fatalf("comments = %d, attendu 2", len(all))
+	if len(page.Items) != 1 || page.Items[0].ID != comment.ID {
+		t.Fatalf("racines = %+v, attendu [%s]", page.Items, comment.ID)
+	}
+	if page.Items[0].ReplyCount != 1 {
+		t.Fatalf("replyCount racine = %d, attendu 1", page.Items[0].ReplyCount)
+	}
+	replies, err := posts.ReplyPageFor(ctx, svc.q, posts.ReplyScopeChildren, comment.ID, "", "", "", "", 20)
+	if err != nil {
+		t.Fatalf("réponses: %v", err)
+	}
+	if len(replies.Items) != 1 || replies.Items[0].ID != reply.ID || replies.Items[0].Tombstone {
+		t.Fatalf("r\u00e9ponses = %+v, attendu [%s]", replies.Items, reply.ID)
 	}
 
 	// Delete par l'auteur du commentaire (reader) ✓.
@@ -88,6 +101,26 @@ func TestComments_CreateListDelete(t *testing.T) {
 	// Supprimer un commentaire inexistant → not found.
 	if err := svc.DeleteComment(ctx, "commentaire_x", fx.AuthorID); err == nil {
 		t.Fatal("delete d'un commentaire inexistant doit échouer")
+	}
+
+	// Tombstone : la racine reste dans la page (structure + compteur), sans
+	// contenu ni auteur, et la réponse reste atteignable dessous.
+	after, err := svc.ListCommentsPage(ctx, "art_test_000", "", "", 20)
+	if err != nil {
+		t.Fatalf("page après suppression: %v", err)
+	}
+	if len(after.Items) != 1 || !after.Items[0].Tombstone {
+		t.Fatalf("tombstone attendu, obtenu %+v", after.Items)
+	}
+	if after.Items[0].Content != "" || after.Items[0].Author != nil {
+		t.Fatalf("un tombstone ne doit rien révéler: %+v", after.Items[0])
+	}
+	orphans, err := posts.ReplyPageFor(ctx, svc.q, posts.ReplyScopeChildren, comment.ID, "", "", "", "", 20)
+	if err != nil {
+		t.Fatalf("réponses après suppression: %v", err)
+	}
+	if len(orphans.Items) != 1 || orphans.Items[0].ID != reply.ID {
+		t.Fatalf("enfant d'un tombstone perdu: %+v", orphans.Items)
 	}
 }
 

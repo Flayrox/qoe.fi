@@ -257,3 +257,53 @@ Risques nommés :
   d'intégration `articles` (Docker indisponible en local) restent à passer en CI.
 - **L43** : éligibilité par surface (`why`), ranking transparent pondéré
   (`SystemConfig`), levée du drapeau `rootArticleId IS NULL` avec contexte d'article.
+
+### 2026-11-24 — L42 livré (fils paginés, tombstones, R134 + R314 absorbés)
+
+| Étape | État | Preuve |
+| --- | --- | --- |
+| Migration `00098_reply_threads.sql` | ✅ | 4 index partiels `(parentId|rootId|rootArticleId|authorId, createdAt, id)` ; dry-run transactionnel (rollback) sur la base de dev |
+| `ListThreadPage` (requête unique) | ✅ | `scope=roots|children|thread`, curseur `(createdAt, id)`, tombstones calculés en SQL par les helpers des feeds |
+| `GET /v1/articles/{id}/comments` paginé | ✅ | `{ items, nextCursor, hasMore }`, curseur opaque, 400 sur curseur illisible |
+| `GET /v1/posts/{id}/replies` | ✅ | `scope=children` (défaut) ou `thread` (tous les descendants par `rootId`) |
+| `GET /v1/users/{username}/replies` | ✅ | onglet « Réponses » du profil, ids paginés puis hydratés par le feed |
+| `Thread()` sans plafond silencieux | ✅ | `replies` = première page, `repliesCursor` + `repliesTruncated` ; `GetPostThread`, `GetRepliesForThought`, `GetReplyIDsForThought` supprimées |
+| Suppression = tombstone | ✅ | `DeleteArticleComment` passe en `UPDATE deletedAt` ; structure et `replyCount` conservés |
+| Surfaces | ✅ | `ArticleComments` (arbre récursif, chargement par nœud), studio communauté, onglet profil, surfaces `tenants` adaptées |
+
+**Décisions prises pendant L42.**
+
+- *Un seul chemin de lecture* : `posts.ReplyPageFor` sert les trois surfaces ; la politique
+  de visibilité est un `LATERAL` unique (`is_blocked_bidirectional`, `can_view_profile`,
+  `is_muted_by`, `contains_muted_word`, shadowban/suspension, masquages). Aucune copie.
+- *Tombstone universel* : supprimé, masqué (auteur/modération) **ou** invisible pour CE
+  viewer → même ligne, même place, contenu et auteur vides. Un blocage ne fait donc plus
+  disparaître un nœud (et ses enfants) : il le rend illisible, ce qui préserve la
+  structure sans rien révéler. Preuve : deux viewers, même page, l'un lit le contenu,
+  l'autre voit un tombstone.
+- *Compteurs = vivant* : `replyCount` et les compteurs d'articles comptent les lignes
+  `deletedAt IS NULL` (comme les pensées avant L42). Le tombstone occupe une place mais
+  n'est pas compté. Les compteurs d'article ne comptent que `parentId IS NULL`, sinon une
+  discussion gonflerait le nombre de commentaires de l'article.
+- *Curseur illisible = 400*, jamais « première page » : sinon un client cassé
+  rejouerait le début du fil en boucle.
+- *`Thread()` change de contrat* : il ne promet plus l'arbre complet, il promet une page
+  plus un curseur. `repliesTruncated` remplace le plafond muet de 500.
+
+**Limites mesurées.**
+
+- Les tests d'intégration Go (`articles`, `feed`) exigent Docker/testcontainers :
+  indisponibles en local, ils sont **sautés**. Le dry-run SQL transactionnel en tient
+  lieu (pages 3/3/1 sans doublon, insertion concurrente, antidatée non ressuscitée,
+  tombstone + enfants + profondeur 3, deux viewers, compteurs, profil 2/2/2/1, compte
+  bloqué → 0).
+- L'en-tête « Discussion (n) » affiche les commentaires **chargés**, pas le total de
+  l'article : le total n'est plus connu sans compter le fil (L43 peut l'exposer via un
+  compteur serveur si l'UI le veut).
+
+### Reste à faire après L42
+
+- **L43** : éligibilité par surface avec `why`, ranking transparent pondéré
+  (`SystemConfig`), levée du drapeau `rootArticleId IS NULL` dans les feeds avec rendu du
+  contexte d'article, et compteur total de discussion si l'UI le demande.
+- Supprimer la table `ArticleComment` (migration `00099`) après un cycle de déploiement.

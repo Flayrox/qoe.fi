@@ -33,6 +33,12 @@ vi.mock('@qoe/sdk', async (importOriginal) => {
   };
 });
 
+vi.mock('@qoe/sdk/actions/feed', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@qoe/sdk/actions/feed')>();
+  return { ...actual, getUserRepliesAction: vi.fn() };
+});
+
+import { getUserRepliesAction } from '@qoe/sdk/actions/feed';
 import { mapProfileSlice } from '@qoe/sdk/actions/feed/mappers';
 import { ProfileView } from '../ProfileView';
 
@@ -106,7 +112,14 @@ function makeSlice(reason: 'blocked' | 'deleted') {
 }
 
 function renderReply(reason: 'blocked' | 'deleted') {
-  const post = mapProfileSlice(makeSlice(reason) as never);
+  const slice = makeSlice(reason);
+  // L'onglet « Réponses » lit la pagination du graphe : on lui rend la même
+  // page, payload adversarial compris.
+  vi.mocked(getUserRepliesAction).mockResolvedValue({
+    ok: true,
+    data: { items: [slice], nextCursor: null, hasMore: false },
+  } as never);
+  const post = mapProfileSlice(slice as never);
   return render(
     <ProfileView
       profileUser={{
@@ -151,10 +164,10 @@ describe('ProfileView — réponse à un parent masqué', () => {
     },
   ])(
     'affiche le bon placeholder ($reason) sans fuite du parent',
-    ({ reason, label, explanation }) => {
+    async ({ reason, label, explanation }) => {
       renderReply(reason);
 
-      expect(screen.getByText('La réponse visible')).toBeTruthy();
+      expect(await screen.findByText('La réponse visible')).toBeTruthy();
       expect(screen.getByText(label)).toBeTruthy();
       expect(screen.queryByText(new RegExp(SECRET_CONTENT))).toBeNull();
       expect(screen.queryByText(new RegExp(SECRET_HANDLE))).toBeNull();

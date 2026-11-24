@@ -33,14 +33,25 @@ func TestComments_BlockedAuthorIsHiddenAndCannotComment(t *testing.T) {
 			`DELETE FROM "BlockedUser" WHERE id = 'block_comments_test'`)
 	})
 
-	comments, err := svc.ListComments(ctx, "art_test_000", reader)
+	page, err := svc.ListCommentsPage(ctx, "art_test_000", reader, "", 20)
 	if err != nil {
-		t.Fatalf("ListComments: %v", err)
+		t.Fatalf("ListCommentsPage: %v", err)
 	}
-	for _, c := range comments {
-		if c.AuthorID == fx.AuthorID {
-			t.Fatalf("commentaire d'un compte bloqué visible: %+v", c)
+	tombstones := 0
+	for _, c := range page.Items {
+		if c.Author != nil && c.Author.ID == fx.AuthorID {
+			t.Fatalf("auteur d'un compte bloqué exposé: %+v", c)
 		}
+		if c.Content == "Commentaire de l'auteur" {
+			t.Fatalf("commentaire d'un compte bloqué lisible: %+v", c)
+		}
+		if c.Tombstone {
+			tombstones++
+		}
+	}
+	// La place du commentaire bloqué reste (structure du fil), sans contenu.
+	if tombstones == 0 {
+		t.Fatal("le commentaire d'un compte bloqué doit être un tombstone, pas disparaître")
 	}
 
 	if _, err := svc.CreateComment(ctx, "art_test_000", reader, "Je contourne le blocage", nil); err == nil {

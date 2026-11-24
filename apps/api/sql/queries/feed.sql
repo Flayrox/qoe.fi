@@ -93,53 +93,6 @@ WHERE p."isDraft" = false
 ORDER BY (p."likeCount" + p."repostCount" + p."replyCount") DESC, p."createdAt" DESC
 LIMIT @take_count OFFSET @skip_count;
 
--- name: GetPostThread :many
-SELECT p.id,
-       p.content,
-       p."authorId",
-       p."createdAt",
-       p.tags,
-       p."imageUrl",
-       p."likeCount",
-       p."repostCount",
-       p."replyCount",
-       p."parentId",
-       p."rootId",
-       p."repostId",
-       p."replyRestriction",
-       p."isPinned",
-       p."isHiddenByAuthor",
-       u.id::text      AS author_id,
-       u.name          AS author_name,
-       u.username      AS author_username,
-       u."logoUrl"     AS author_logo,
-       u."isCertified" AS author_certified,
-       (CASE WHEN l."userId" IS NOT NULL THEN true ELSE false END) AS viewer_liked
-FROM "Post" p
-JOIN "User" u ON u.id = p."authorId"
-LEFT JOIN "Like" l ON l."postId" = p.id AND l."userId" = @viewer_id
-WHERE p.id = $1 OR p."rootId" = $1
-ORDER BY p."createdAt" ASC;
-
--- name: GetRepliesForThought :many
-SELECT id,
-       content,
-       "authorId",
-       "createdAt",
-       "likeCount",
-       "repostCount",
-       "replyCount",
-       "parentId",
-       "rootId",
-       "repostId"
-FROM "Post"
-WHERE "parentId" = $1
-  AND "deletedAt" IS NULL
-  AND "isHiddenByModerator" = false
-  AND "isDraft" = false
-ORDER BY "createdAt" ASC
-LIMIT $2 OFFSET $3;
-
 -- name: FindPostsByAuthor :many
 SELECT p.id,
        p.content,
@@ -290,15 +243,6 @@ WHERE a.id = ANY(@ids::text[])
        ) = @viewer_id
     OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = @viewer_id AND f."publisherId" = p.id)
   );
-
--- name: GetReplyIDsForThought :many
-SELECT id
-FROM "Post"
-WHERE "parentId" = $1
-  AND "deletedAt" IS NULL
-  AND "isHiddenByModerator" = false
-  AND "isDraft" = false
-ORDER BY "createdAt" ASC;
 
 -- name: GetFollowingStateByAuthorIDs :many
 SELECT u.id::text AS author_id,

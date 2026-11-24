@@ -380,7 +380,7 @@ func (s *Service) Article(ctx context.Context, domain, slug, viewerID, viewerEma
 	bundle.Article.RepostsCount = repostsCount
 
 	var commentsCount int
-	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM "Post" WHERE "rootArticleId" = $1 AND "deletedAt" IS NULL`, article.ID).Scan(&commentsCount); err != nil {
+	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM "Post" WHERE "rootArticleId" = $1 AND "parentId" IS NULL AND "deletedAt" IS NULL`, article.ID).Scan(&commentsCount); err != nil {
 		log.Printf("[publishers] comments count: %v", err)
 	}
 	bundle.Article.CommentsCount = commentsCount
@@ -589,7 +589,7 @@ func (s *Service) publishedArticles(ctx context.Context, pubID, viewerID string)
 		       a.visibility, a."readingTime", a."createdAt", a."categoryId",
 		       c.id, c.name, c.slug, COALESCE(c."isDefault", false), cp.slug, a."imageUrl",
 		       (SELECT count(*) FROM "ContentFeedback" f WHERE f."articleId" = a.id AND f."type" = 'LIKE') AS likes,
-		       (SELECT count(*) FROM "Post" ac WHERE ac."rootArticleId" = a.id AND ac."deletedAt" IS NULL) AS comments,
+		       (SELECT count(*) FROM "Post" ac WHERE ac."rootArticleId" = a.id AND ac."parentId" IS NULL AND ac."deletedAt" IS NULL) AS comments,
 		       (SELECT count(*) FROM "Post" p WHERE p."quotedArticleId" = a.id
 		          AND p."isDraft" = false AND p."deletedAt" IS NULL AND p."isHiddenByAuthor" = false) AS reposts,
 		       a."publisherId", ap.name, ap.slug, ap.type::text, ap."logoUrl"

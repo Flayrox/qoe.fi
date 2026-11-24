@@ -356,10 +356,15 @@ type FeedArticleCat struct {
 	Slug string `json:"slug"`
 }
 
-// ThreadPost est une pensée de fil avec ses réponses.
+// ThreadPost est une pensée de fil avec la première page de ses réponses.
+// `repliesCursor` / `repliesTruncated` remplacent le plafond silencieux : le
+// client sait qu'il reste des réponses et lit la suite par la pagination
+// unique (R314).
 type ThreadPost struct {
 	posts.FeedPost
-	Replies []posts.FeedPost `json:"replies"`
+	Replies          []posts.FeedPost `json:"replies"`
+	RepliesCursor    string           `json:"repliesCursor"`
+	RepliesTruncated bool             `json:"repliesTruncated"`
 }
 
 // Thread retourne une pensée + sa chaîne parent/repost + ses réponses.
@@ -429,31 +434,22 @@ func (s *Service) Thread(ctx context.Context, postID, viewerID string) (*ThreadP
 		}
 	}
 
-	// 2) Réponses RÉCURSIVES (BFS borné) : on descend dans les fils des fils
-	//    pour reconstituer l'arbre complet du fil (parité Bluesky), chaque
-	//    FeedPost portant son `parentId`. Le mobile reconstruit l'arbre.
-	queue := []string{postID}
-	seen := map[string]bool{postID: true}
-	var replyIDs []string
-	for len(queue) > 0 && len(replyIDs) < 500 {
-		var next []string
-		for _, id := range queue {
-			children, err := s.q.GetReplyIDsForThought(ctx, pgtype.Text{String: id, Valid: true})
-			if err != nil {
-				return nil, err
-			}
-			for _, c := range children {
-				if !seen[c] {
-					seen[c] = true
-					replyIDs = append(replyIDs, c)
-					next = append(next, c)
-				}
-			}
-		}
-		queue = next
+	// 2) Réponses : une page de la pagination unique, par « rootId ». Le BFS
+	//    plafonné à 500 en silence est remplacé : le client reçoit un curseur
+	//    et charge la suite (R314). Les réponses profondes arrivent par la même
+	//    requête, avec la même politique de visibilité.
+	canonicalRoot := postID
+	if r, ok := all[postID]; ok && r.RootId.Valid && r.RootId.String != "" {
+		canonicalRoot = r.RootId.String
 	}
-	for _, id := range replyIDs {
-		add(&id)
+	replyPage, err := posts.ReplyPageFor(ctx, s.q, posts.ReplyScopeThread, "", canonicalRoot, "", viewerID, "", posts.MaxReplyLimit)
+	if err != nil {
+		return nil, err
+	}
+	replyIDs := make([]string, 0, len(replyPage.Items))
+	for _, item := range replyPage.Items {
+		replyIDs = append(replyIDs, item.ID)
+		add(&item.ID)
 	}
 
 	if len(extras) > 0 {
@@ -528,7 +524,11 @@ func (s *Service) Thread(ctx context.Context, postID, viewerID string) (*ThreadP
 	}
 	target := posts.BuildFeedPostWithAncestors(all[postID], all, attachments, polls, map[string]bool{}, quoted, graph)
 	markThreadAncestorParents(&target, all, parentReason)
-	thread := &ThreadPost{FeedPost: target}
+	thread := &ThreadPost{
+		FeedPost:         target,
+		RepliesCursor:    replyPage.NextCursor,
+		RepliesTruncated: replyPage.HasMore,
+	}
 
 	// Réponses triées par date croissante. Chaque réponse dont le parent est
 	// absent de la fermeture visible porte le même placeholder que la cible :
@@ -541,6 +541,108 @@ func (s *Service) Thread(ctx context.Context, postID, viewerID string) (*ThreadP
 		}
 	}
 	return thread, nil
+}
+
+// PostReplies renvoie une page de réponses d'un post, ou de tout son fil.
+// `scope=thread` remonte à la racine de conversation : une réponse profonde et
+// son ancêtre partagent alors le même curseur, donc l'ordre ne dépend pas du
+// point d'entrée.
+func (s *Service) PostReplies(ctx context.Context, postID, viewerID, scope, cursor string, limit int) (posts.ReplyPage, error) {
+	if scope != posts.ReplyScopeThread {
+		scope = posts.ReplyScopeChildren
+	}
+	if s.pool == nil {
+		return posts.ReplyPage{}, fmt.Errorf("feed: base indisponible")
+	}
+	if scope == posts.ReplyScopeThread {
+		var root pgtype.Text
+		if err := s.pool.QueryRow(ctx,
+			`SELECT COALESCE("rootId", id) FROM "Post" WHERE id = $1`, postID).Scan(&root); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return posts.ReplyPage{}, ErrNotFound
+			}
+			return posts.ReplyPage{}, fmt.Errorf("feed: racine du fil: %w", err)
+		}
+		return posts.ReplyPageFor(ctx, s.q, scope, "", root.String, "", viewerID, cursor, limit)
+	}
+
+	// Réponses directes : le parent peut être un tombstone (supprimé, masqué).
+	// Ses enfants restent atteignables — c'est tout l'intérêt de garder la
+	// ligne — donc on ne filtre pas sur "deletedAt" pour l'existence.
+	var exists bool
+	if err := s.pool.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM "Post" WHERE id = $1)`, postID).Scan(&exists); err != nil {
+		return posts.ReplyPage{}, fmt.Errorf("feed: post: %w", err)
+	}
+	if !exists {
+		return posts.ReplyPage{}, ErrNotFound
+	}
+	return posts.ReplyPageFor(ctx, s.q, scope, postID, "", "", viewerID, cursor, limit)
+}
+
+// UserReplies renvoie l'onglet « réponses » d'un profil : les réponses vivantes
+// d'un compte, de la plus récente à la plus ancienne, avec le même curseur
+// (createdAt, id) que les fils. L'hydratation réutilise celle du feed.
+func (s *Service) UserReplies(ctx context.Context, username, viewerID, cursor string, limit int) (FeedResult, error) {
+	if s.pool == nil {
+		return FeedResult{}, fmt.Errorf("feed: base indisponible")
+	}
+	page := posts.NormalizeReplyLimit(limit)
+
+	var ownerID string
+	if err := s.pool.QueryRow(ctx, `
+		SELECT COALESCE(
+			(SELECT u.id::text FROM "Publisher" p JOIN "User" u ON u."publisherId" = p.id
+			  WHERE p.slug = $1 OR p.subdomain = $1 LIMIT 1),
+			(SELECT u.id::text FROM "User" u
+			  WHERE LOWER(u.username) = LOWER($1) OR u.id::text = $1 LIMIT 1))`, username).Scan(&ownerID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return FeedResult{}, ErrNotFound
+		}
+		return FeedResult{}, fmt.Errorf("profil: resolution: %w", err)
+	}
+
+	// Même règle que le profil : un compte privé non suivi ne rend rien.
+	allowed, err := s.canViewAuthorContent(ctx, ownerID, viewerID)
+	if err != nil {
+		return FeedResult{}, fmt.Errorf("profil: acces: %w", err)
+	}
+	if !allowed {
+		return FeedResult{Items: []posts.FeedSlice{}, HasMore: false}, nil
+	}
+
+	cursorAt, cursorID, err := posts.DecodeReplyCursor(cursor)
+	if err != nil {
+		return FeedResult{}, err
+	}
+	rows, err := s.q.ListAuthorReplyIDsPage(ctx, db.ListAuthorReplyIDsPageParams{
+		AuthorID:  toUUID(ownerID),
+		ViewerID:  toUUID(viewerID),
+		CursorAt:  cursorAt,
+		CursorID:  cursorID,
+		TakeCount: int32(page + 1),
+	})
+	if err != nil {
+		return FeedResult{}, fmt.Errorf("profil: reponses: %w", err)
+	}
+
+	ids := make([]string, 0, page)
+	for i, row := range rows {
+		if i == page {
+			break
+		}
+		ids = append(ids, row.ID)
+	}
+	result, err := s.finalizeIDs(ctx, ids, viewerID, len(ids), 0, true)
+	if err != nil {
+		return FeedResult{}, err
+	}
+	if len(rows) > page {
+		last := rows[page-1]
+		result.NextCursor = posts.EncodeReplyCursor(last.CreatedAt.Time, last.ID)
+		result.HasMore = true
+	}
+	return result, nil
 }
 
 // ArticleFeedResult est la réponse paginée du feed d'articles (mobile).

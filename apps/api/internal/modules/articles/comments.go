@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/modules/posts"
 	"github.com/qoefi/api/internal/notifications"
 )
 
@@ -129,27 +130,16 @@ func (s *Service) CreateComment(ctx context.Context, articleID, authorID, conten
 	return s.getComment(ctx, createdID)
 }
 
-// ListComments renvoie tous les commentaires d'un article (flat, ordre chronologique).
-// Les commentaires d'un compte bloqué (dans un sens ou dans l'autre) et ceux
-// d'un compte privé non suivi sont omis pour le viewer.
-func (s *Service) ListComments(ctx context.Context, articleID, viewerID string) ([]Comment, error) {
-	rows, err := s.q.ListArticleComments(ctx, db.ListArticleCommentsParams{
-		ArticleID: pgtype.Text{String: articleID, Valid: true},
-		ViewerID:  toUUID(viewerID),
-	})
-	if err != nil {
-		return nil, err
-	}
-	out := make([]Comment, 0, len(rows))
-	for _, r := range rows {
-		// Les deux formes de ligne sont identiques (même SELECT) : la
-		// conversion est un simple changement de type généré.
-		out = append(out, commentFromWithAuthorRow(db.GetCommentWithAuthorRow(r)))
-	}
-	return out, nil
+// ListCommentsPage renvoie une page de commentaires de niveau 1, paginée par
+// curseur stable (R134). Les réponses s'obtiennent par le fil du commentaire,
+// avec la même pagination : l'API ne renvoie plus l'arbre entier d'un coup.
+func (s *Service) ListCommentsPage(ctx context.Context, articleID, viewerID, cursor string, limit int) (posts.ReplyPage, error) {
+	return posts.ReplyPageFor(ctx, s.q, posts.ReplyScopeRoots, "", "", articleID, viewerID, cursor, limit)
 }
 
-// DeleteComment supprime un commentaire (auteur uniquement).
+// DeleteComment transforme un commentaire en tombstone (auteur uniquement).
+// La ligne survit : les réponses gardent leur parent et le fil reste lisible,
+// mais ni le contenu ni l'auteur ne sortent plus.
 func (s *Service) DeleteComment(ctx context.Context, commentID, userID string) error {
 	author, err := s.q.GetArticleCommentAuthor(ctx, commentID)
 	if err != nil {
