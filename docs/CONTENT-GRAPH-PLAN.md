@@ -214,7 +214,7 @@ classement.
 | Lot  | Contenu | Preuve de sortie |
 | ---- | ------- | ---------------- |
 | **L41** — graphe de contenu ✅ | colonne `Post.rootArticleId` + index partiel, backfill 225 commentaires (ids conservés), FK `Notification."commentId"` repointée, service `articles/comments.go` branché sur `Post`, compteurs (`fetchCommentsBatch`, `publishers`, `analytics`) sur `parentId IS NULL AND deletedAt IS NULL`, seed adapté. **Non livré** : table `Interaction`, assembleur `FeedItem`, like/repost génériques (cible L43). | dry-run transactionnel 00097 (225 → 225, 0 orphelin, FK OK) ; `pnpm guard:sqlc` (38 fichiers) ; `go build ./...` ; `go test` articles/feed/posts/publishers/analytics/seed |
-| **L42** — fils paginés ✅ | une requête `ListThreadPage` à trois portées (`roots`, `children`, `thread`), curseur opaque `(createdAt, id)`, `{ items, nextCursor, hasMore }`, tombstones, `Thread()` = première page (≤ `MaxReplyLimit` = 50) + `repliesCursor`/`repliesTruncated`, UI récursive (core, studio) + onglet profil paginé + surfaces `tenants` | dry-run transactionnel : pages 3/3/1 sans doublon, insertion concurrente, antidatée non ressuscitée, tombstone + enfants + profondeur 3, deux viewers, compteurs, profil 2/2/2/1 ; `guard:sqlc` 39 fichiers ; `go build`/`go vet`/`go test` posts/articles/feed ; vitest core 68 / studio 101 / tenants 6 ; absorbe **R134** et **R314** |
+| **L42** — fils paginés ✅ | une requête `ListThreadPage` à trois portées (`roots`, `children`, `thread`), curseur opaque `(createdAt, id)`, `{ items, nextCursor, hasMore }`, tombstones, `Thread()` = première page (≤ `MaxReplyLimit` = 50) + `repliesCursor`/`repliesTruncated`, UI récursive (core, studio) + onglet profil paginé + surfaces `tenants`, fil de pensée paginé côté web | dry-run transactionnel : pages 3/3/1 sans doublon, insertion concurrente, antidatée non ressuscitée, tombstone + enfants + profondeur 3, deux viewers, compteurs, profil 2/2/2/1 ; `guard:sqlc` 39 fichiers ; `go build`/`go vet`/`go test` posts/articles/feed ; vitest core / studio / tenants + `threadRepliesPagination.test.ts` (6) et `thought-thread-load-more.test.tsx` (2) ; absorbe **R134** et **R314** |
 | **L43** — éligibilité + ranking | politiques par surface, features, score pondéré, `why`, logs d'exposition, métriques | tableau de bord + test : un commentaire hors seuil n'apparaît pas ; un compte suivi qui répond apparaît dans Abonnement ; NDCG mesuré sur 7 jours ; `pnpm arch:audit` 0 |
 
 Risques nommés :
@@ -299,6 +299,7 @@ déploiement) — reprise dans le reste-à-faire final.
 | Suppression = tombstone | ✅ | `DeleteArticleComment` passe en `UPDATE deletedAt` ; structure et `replyCount` conservés |
 | Surfaces | ✅ | `ArticleComments` (arbre récursif, chargement par nœud), studio communauté, onglet profil, surfaces `tenants` adaptées |
 | Curseur testé unitairement | ✅ | `posts/replies_test.go` : aller-retour exact, curseur vide = première page, curseur illisible = `ErrInvalidCursor`, bornes `NormalizeReplyLimit` |
+| Pagination cliente du fil | ✅ | `repliesCursor`/`repliesTruncated` exposés par le mapping SDK ; `getPostThreadRepliesAction` (`scope=thread`) + `mergeThreadReplies` (rattachement au parent réel, idempotent, orphelin visible et marqué) ; bouton « Charger la suite du fil » dans `ThoughtThreadList` |
 
 **R134 et R314 absorbés, aucun cas séparé.** Il n'existe plus de liste de commentaires
 « complète » ni de fil de pensée plafonné : `ListArticleComments`,
@@ -344,10 +345,10 @@ articles, les pensées et les commentaires.
   `Interaction` (like/repost génériques article/commentaire) et métriques de ranking.
 - **Suppression de la table `ArticleComment`** : migration `00099`, après un cycle de
   déploiement (la table est gelée depuis L41, plus aucun lecteur ni écrivain).
-- **Dette `Thread()` côté clients** : le web (`ThoughtThreadRoot`) rend la première page
-  et n'a pas encore de bouton branché sur `repliesCursor` ; au-delà de 50 descendants,
-  seuls les 50 premiers s'affichent. Le mobile, en pause, porte la même dette à sa
-  reprise. Les fils d'article et de commentaire, eux, paginent déjà par nœud.
+- **Mobile (en pause)** : porte encore la dette du contrat `Thread()` (première page +
+  `repliesCursor`) ; à traiter à sa reprise, jamais de sa propre initiative. Le web est
+  branché (`getPostThreadRepliesAction` + fusion + bouton), les fils d'article et de
+  commentaire paginent par nœud depuis L42.
 - **Tests d'intégration Go non exécutés** : `articles` et `feed` exigent
   Docker/testcontainers, indisponibles en local ; le dry-run SQL documenté en tient lieu,
   mais le code Go contre une vraie base reste à prouver en CI.

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { MessageSquare } from 'lucide-react';
+import { CornerDownRight, Loader2, MessageSquare } from 'lucide-react';
 import { ThoughtThreadItem } from './ThoughtThreadItem';
 import { ThoughtThreadTombstone } from './ThoughtThreadTombstone';
 import { useThoughtThreadContext, type OptimisticThought } from './ThoughtThreadContext';
@@ -11,7 +11,8 @@ export interface ThoughtThreadListProps {
 }
 
 export function ThoughtThreadList({ children }: ThoughtThreadListProps) {
-  const { post, loading } = useThoughtThreadContext();
+  const { post, loading, repliesHasMore, repliesLoadingMore, loadMoreReplies } =
+    useThoughtThreadContext();
   const [showAllReplies, setShowAllReplies] = useState<boolean>(false);
 
   if (loading) {
@@ -67,6 +68,28 @@ export function ThoughtThreadList({ children }: ThoughtThreadListProps) {
             <span>
               Afficher {remainingCount} autre{remainingCount > 1 ? 's' : ''} réponse
               {remainingCount > 1 ? 's' : ''}
+            </span>
+          </button>
+        </div>
+      )}
+
+      {/* Le fil est paginé côté serveur (L42) : au-delà de la page chargée, on
+          demande explicitement la suite au lieu de laisser croire le fil fini. */}
+      {repliesHasMore && (
+        <div className="py-3 px-1">
+          <button
+            type="button"
+            onClick={loadMoreReplies}
+            disabled={repliesLoadingMore}
+            className="w-full py-2 px-3 rounded-xl border border-border/40 bg-card/60 hover:bg-muted/40 disabled:opacity-60 disabled:cursor-wait text-xs font-semibold text-brand transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
+          >
+            {repliesLoadingMore ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <CornerDownRight className="w-3.5 h-3.5" />
+            )}
+            <span>
+              {repliesLoadingMore ? 'Chargement de la suite…' : 'Charger la suite du fil'}
             </span>
           </button>
         </div>

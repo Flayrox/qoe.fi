@@ -230,6 +230,14 @@ export interface WebThreadPost {
   /** Droits calculés par Go (threadgate, propriété, sourdine, blocage). */
   capabilities?: PostCapabilities;
   replies: WebThreadPost[];
+  /**
+   * Curseur opaque de la page suivante de réponses (fil paginé L42). Vide =
+   * dernière page. Sans ce champ, le client croirait le fil complet et
+   * perdrait silencieusement les réponses au-delà de la première page.
+   */
+  repliesCursor?: string | null;
+  /** `true` quand le serveur n'a pas encore envoyé tout le fil. */
+  repliesTruncated?: boolean;
   quotedExcerpt?: string | null;
   annotationQuote?: MappedQuotedAnnotation;
   articleQuote?: MappedQuotedArticle;
@@ -395,7 +403,78 @@ export function mapGoThreadToWebThread(
     ? (rawThread.replies as RawPostPayload[])
     : [];
   root.replies = buildThreadTree(root.id as string, flatReplies);
+  // Fil paginé (L42) : le serveur annonce la page suivante au lieu d'envoyer
+  // l'arbre entier (plafond muet de 500 supprimé).
+  root.repliesCursor = typeof rawThread.repliesCursor === 'string' ? rawThread.repliesCursor : '';
+  root.repliesTruncated = rawThread.repliesTruncated === true;
   return root;
+}
+
+/**
+ * Fusionne une page supplémentaire de réponses dans un arbre déjà construit.
+ *
+ * Le serveur renvoie les descendants par `(createdAt, id)` croissant : un
+ * parent précède donc toujours ses enfants (page courante ou page déjà
+ * affichée), ce qui suffit à rattacher chaque nœud à sa vraie place. Renvoie un
+ * **nouvel** arbre (aucune mutation de l'existant, donc pas de rendu fantôme) et
+ * le nombre de réponses réellement ajoutées : rejouer une page est sans effet.
+ */
+/**
+ * Nœud minimal partagé par les shapes de fil : le SDK (`WebThreadPost`) et
+ * l'état optimiste du web (`OptimisticThought`). La fusion ne dépend pas du
+ * reste des champs, elle reste donc réutilisable sans conversion.
+ */
+export interface ThreadNodeLike {
+  id: string;
+  parentId?: string | null;
+  parentUnavailable?: boolean;
+  parentUnavailableReason?: string | null;
+  parent?: ThreadNodeLike | null;
+  replies?: ThreadNodeLike[];
+}
+
+export function mergeThreadReplies<T extends ThreadNodeLike>(
+  root: T,
+  incoming: ThreadNodeLike[]
+): { root: T; added: number } {
+  const clone = cloneThreadNode(root);
+  const index = new Map<string, ThreadNodeLike>();
+  const indexNode = (node: ThreadNodeLike): void => {
+    index.set(node.id, node);
+    for (const child of node.replies ?? []) indexNode(child);
+  };
+  indexNode(clone);
+
+  let added = 0;
+  for (const reply of incoming) {
+    if (!reply || typeof reply.id !== 'string' || index.has(reply.id)) continue;
+    const node = cloneThreadNode(reply);
+    const parentId = node.parentId ?? null;
+    const parent = parentId ? index.get(parentId) : null;
+    if (parent) {
+      parent.replies = [...(parent.replies ?? []), node];
+    } else if (!parentId || parentId === clone.id) {
+      clone.replies = [...(clone.replies ?? []), node];
+    } else {
+      // Parent hors des pages chargées : on garde la réponse visible, marquée
+      // orpheline, plutôt que de la faire disparaître du fil.
+      node.parent = null;
+      node.parentUnavailable = true;
+      node.parentUnavailableReason = node.parentUnavailableReason ?? 'unavailable';
+      clone.replies = [...(clone.replies ?? []), node];
+    }
+    index.set(node.id, node);
+    added += 1;
+  }
+
+  return { root: clone, added };
+}
+
+function cloneThreadNode<T extends ThreadNodeLike>(node: T): T {
+  return {
+    ...node,
+    replies: (node.replies ?? []).map((child) => cloneThreadNode(child)),
+  } as T;
 }
 
 /** Pensée de profil (contrat web, mappé depuis FeedSlice/FeedPost Go). */

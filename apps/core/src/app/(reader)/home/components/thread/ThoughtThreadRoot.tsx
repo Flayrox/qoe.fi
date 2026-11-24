@@ -6,10 +6,12 @@ import { toast } from '@qoe/ui/toast';
 import { updatePostShadow } from '@qoe/sdk';
 import {
   getPostThreadAction as getPostThread,
+  getPostThreadRepliesAction as getPostThreadReplies,
   toggleLikePostAction as toggleLikePost,
   deletePostAction as deletePost,
   toggleRepostPostAction as toggleRepostPost,
 } from '@qoe/sdk/actions/feed';
+import { mergeThreadReplies } from '@qoe/sdk/actions/feed/mappers';
 
 import { routes } from '@qoe/config/routes';
 import { trackEvent } from '@/lib/analytics';
@@ -38,6 +40,35 @@ export interface ThoughtThreadRootProps {
   children: React.ReactNode;
 }
 
+/** Parcourt l'arbre du fil (parent + réponses) et transforme chaque nœud. */
+function mapThoughtTree(
+  node: OptimisticThought,
+  transform: (node: OptimisticThought) => OptimisticThought
+): OptimisticThought {
+  const next = transform(node);
+  return {
+    ...next,
+    parent: next.parent ? mapThoughtTree(next.parent, transform) : next.parent,
+    replies: next.replies
+      ? next.replies.map((child) => mapThoughtTree(child, transform))
+      : next.replies,
+  };
+}
+
+/** Retrouve un nœud du fil par son id (racine, chaîne parent ou réponse). */
+function findThought(node: OptimisticThought, id: string): OptimisticThought | null {
+  if (node.id === id) return node;
+  if (node.parent) {
+    const foundParent = findThought(node.parent, id);
+    if (foundParent) return foundParent;
+  }
+  for (const child of node.replies ?? []) {
+    const foundChild = findThought(child, id);
+    if (foundChild) return foundChild;
+  }
+  return null;
+}
+
 export function ThoughtThreadRoot({
   postId,
   currentUserId,
@@ -55,11 +86,19 @@ export function ThoughtThreadRoot({
   const [post, setPost] = useState<OptimisticThought | null>(initialPost);
   const [loading, setLoading] = useState(!initialPost);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  // Le fil est paginé côté serveur : on garde le curseur à part du post pour
+  // ne pas le faire voyager dans les mutations optimistes (like, suppression).
+  const [repliesPage, setRepliesPage] = useState<{ cursor: string | null; hasMore: boolean }>({
+    cursor: null,
+    hasMore: false,
+  });
+  const [loadingMoreReplies, setLoadingMoreReplies] = useState(false);
 
   // Load thread on mount or when postId changes
   useEffect(() => {
     if (initialPost && initialPost.id === postId) {
       setPost(initialPost);
+      setRepliesPage({ cursor: null, hasMore: false });
       setLoading(false);
       return;
     }
@@ -84,6 +123,10 @@ export function ThoughtThreadRoot({
                 ? postData.likesCount
                 : postData.likes?.length || 0,
           });
+          setRepliesPage({
+            cursor: postData.repliesCursor || null,
+            hasMore: Boolean(postData.repliesTruncated),
+          });
 
           // 🎯 Synchroniser l'URL si elle utilisait le fallback générique /auteur/thought/:id
           const realHandle = postData.author?.username || postData.author?.id;
@@ -99,9 +142,11 @@ export function ThoughtThreadRoot({
           }
         } else {
           setPost(null);
+          setRepliesPage({ cursor: null, hasMore: false });
         }
       } catch {
         setPost(null);
+        setRepliesPage({ cursor: null, hasMore: false });
       } finally {
         setLoading(false);
       }
@@ -165,55 +210,52 @@ export function ThoughtThreadRoot({
               liked: userHasLiked,
               likesCount: typeof p.likesCount === 'number' ? p.likesCount : p.likes?.length || 0,
             });
+            setRepliesPage({
+              cursor: p.repliesCursor || null,
+              hasMore: Boolean(p.repliesTruncated),
+            });
           } else {
             setPost(null);
+            setRepliesPage({ cursor: null, hasMore: false });
           }
         })
-        .catch(() => setPost(null))
+        .catch(() => {
+          setPost(null);
+          setRepliesPage({ cursor: null, hasMore: false });
+        })
         .finally(() => setLoading(false));
     },
     [post, currentUserId, standalone, thoughtOverlay]
   );
 
   // 0ms Optimistic Like Handler with Rollback
+  // L'état visé est calculé AVANT `setPost` : React peut différer ou rejouer un
+  // updater, et lire ses variables après coup donnerait au parent (et au
+  // rollback) un état périmé.
   const handleToggleLike = useCallback(
     async (targetId: string) => {
       if (!currentUserId) {
         if (onLoginRequired) onLoginRequired();
         return;
       }
+      if (!post) return;
 
-      let previousPostSnapshot: OptimisticThought | null = null;
-      let targetNewLiked = false;
-      let targetNewCount = 0;
+      const target = findThought(post, targetId);
+      if (!target) return;
 
-      setPost((prevPost) => {
-        if (!prevPost) return null;
-        previousPostSnapshot = JSON.parse(JSON.stringify(prevPost));
+      const previousPostSnapshot = structuredClone(post);
+      const targetNewLiked = !target.liked;
+      const previousCount = target.likesCount || 0;
+      const targetNewCount = targetNewLiked ? previousCount + 1 : Math.max(0, previousCount - 1);
 
-        const mutateLike = (item: OptimisticThought): OptimisticThought => {
-          if (item.id === targetId) {
-            const isLiked = !item.liked;
-            const count = item.likesCount || 0;
-            targetNewLiked = isLiked;
-            targetNewCount = isLiked ? count + 1 : Math.max(0, count - 1);
-            return {
-              ...item,
-              liked: isLiked,
-              likesCount: targetNewCount,
-            };
-          }
-          return {
-            ...item,
-            parent: item.parent ? mutateLike(item.parent) : null,
-            replies: item.replies ? item.replies.map(mutateLike) : [],
-          };
-        };
+      setPost(
+        mapThoughtTree(post, (node) =>
+          node.id === targetId
+            ? { ...node, liked: targetNewLiked, likesCount: targetNewCount }
+            : node
+        )
+      );
 
-        return mutateLike(prevPost);
-      });
-
-      // Side effects outside render phase
       if (onInteractionUpdate) {
         onInteractionUpdate(targetId, { liked: targetNewLiked, likesCount: targetNewCount });
       }
@@ -222,67 +264,77 @@ export function ThoughtThreadRoot({
 
       const res = await toggleLikePost(targetId);
       if (!res.ok) {
-        if (previousPostSnapshot) {
-          setPost(previousPostSnapshot);
-          if (onInteractionUpdate) {
-            onInteractionUpdate(targetId, {
-              liked: !targetNewLiked,
-              likesCount: targetNewLiked ? Math.max(0, targetNewCount - 1) : targetNewCount + 1,
-            });
-          }
+        setPost(previousPostSnapshot);
+        if (onInteractionUpdate) {
+          onInteractionUpdate(targetId, { liked: target.liked, likesCount: previousCount });
         }
         toast.error(res.error?.message || t`Action impossible`);
       }
     },
-    [currentUserId, onInteractionUpdate, onLoginRequired]
+    [post, currentUserId, onInteractionUpdate, onLoginRequired]
   );
 
-  // 0ms Optimistic Repost Handler with Rollback
+  // 0ms Optimistic Repost Handler with Rollback (même règle : aucun calcul
+  // d'état dans l'updater).
   const handleRepostThought = useCallback(
     async (targetId: string) => {
       if (!currentUserId) {
         if (onLoginRequired) onLoginRequired();
         return;
       }
+      if (!post) return;
 
-      let previousPostSnapshot: OptimisticThought | null = null;
+      const target = findThought(post, targetId);
+      if (!target) return;
 
-      setPost((prevPost) => {
-        if (!prevPost) return null;
-        previousPostSnapshot = JSON.parse(JSON.stringify(prevPost));
+      const previousPostSnapshot = structuredClone(post);
+      const isReposted = !target.reposted;
+      const previousCount = target.repostsCount || 0;
+      const nextCount = isReposted ? previousCount + 1 : Math.max(0, previousCount - 1);
 
-        const mutateRepost = (item: OptimisticThought): OptimisticThought => {
-          if (item.id === targetId) {
-            const isReposted = !item.reposted;
-            const count = item.repostsCount || 0;
-            return {
-              ...item,
-              reposted: isReposted,
-              repostsCount: isReposted ? count + 1 : Math.max(0, count - 1),
-            };
-          }
-          return {
-            ...item,
-            parent: item.parent ? mutateRepost(item.parent) : null,
-            replies: item.replies ? item.replies.map(mutateRepost) : [],
-          };
-        };
-
-        return mutateRepost(prevPost);
-      });
+      setPost(
+        mapThoughtTree(post, (node) =>
+          node.id === targetId ? { ...node, reposted: isReposted, repostsCount: nextCount } : node
+        )
+      );
 
       trackEvent('thought_repost', { targetId });
 
       const res = await toggleRepostPost(targetId);
       if (!res.ok) {
-        if (previousPostSnapshot) setPost(previousPostSnapshot);
+        setPost(previousPostSnapshot);
         toast.error(res.error?.message || t`Impossible de repartager la pensée.`);
       } else {
         toast.success(res.data?.reposted ? t`Pensée repartagée !` : t`Repartage annulé.`);
       }
     },
-    [currentUserId, onLoginRequired]
+    [post, currentUserId, onLoginRequired]
   );
+
+  // Charge la page suivante de réponses (fil paginé L42). Les réponses
+  // arrivent à plat, ordonnées : la fusion les rattache à leur parent déjà
+  // affiché, sans reconstruire ni recharger tout le fil.
+  const handleLoadMoreReplies = useCallback(async () => {
+    if (!post || loadingMoreReplies || !repliesPage.hasMore) return;
+    setLoadingMoreReplies(true);
+    try {
+      const res = await getPostThreadReplies({ postId: post.id, cursor: repliesPage.cursor });
+      if (!res.ok) {
+        toast.error(res.error.message || t`Impossible de charger la suite du fil.`);
+        return;
+      }
+      setPost((prev) => (prev ? mergeThreadReplies(prev, res.data.replies).root : prev));
+      setRepliesPage({
+        cursor: res.data.nextCursor || null,
+        // Un `hasMore` sans curseur boucherait sur une boucle de requêtes.
+        hasMore: res.data.hasMore && Boolean(res.data.nextCursor),
+      });
+    } catch {
+      toast.error(t`Impossible de charger la suite du fil.`);
+    } finally {
+      setLoadingMoreReplies(false);
+    }
+  }, [post, loadingMoreReplies, repliesPage]);
 
   // Insert a server reply directly into the thread tree (no API call)
   const handleInsertReply = useCallback((parentId: string, reply: OptimisticThought) => {
@@ -384,6 +436,9 @@ export function ThoughtThreadRoot({
     repostThought: handleRepostThought,
     insertReply: handleInsertReply,
     deleteThought: handleDeleteThought,
+    repliesHasMore: repliesPage.hasMore,
+    repliesLoadingMore: loadingMoreReplies,
+    loadMoreReplies: handleLoadMoreReplies,
     onClose,
     onOpenProfile,
     onOpenPost: handleOpenPost,

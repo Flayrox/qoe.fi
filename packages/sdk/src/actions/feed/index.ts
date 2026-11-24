@@ -322,6 +322,36 @@ export const getPostThreadAction = safeAction<string, { post: ThreadPost }>(
   { requireAuth: false }
 );
 
+/**
+ * 🧵 Page suivante d'un fil de pensée (L42) : `Thread()` n'envoie que la
+ * première page et son `repliesCursor` ; ce endpoint sert la suite avec la même
+ * politique de visibilité (tombstones compris) et le même curseur opaque que
+ * les commentaires d'article.
+ */
+export const getPostThreadRepliesAction = safeAction<
+  { postId: string; cursor?: string | null; limit?: number },
+  { replies: WebThreadPost[]; nextCursor: string; hasMore: boolean }
+>(
+  async ({ postId, cursor = null, limit = 50 }) => {
+    const page = await goFetch<{
+      items?: RawPostPayload[];
+      nextCursor?: string;
+      hasMore?: boolean;
+    }>(
+      `/v1/posts/${encodeURIComponent(postId)}/replies?scope=thread&limit=${Math.min(limit, 50)}&cursor=${encodeURIComponent(cursor ?? '')}`
+    );
+    const replies = (page.items ?? [])
+      .map((item) => mapFeedPostToThreadThought(item))
+      .filter((item): item is WebThreadPost => item !== null);
+    return {
+      replies,
+      nextCursor: page.nextCursor ?? '',
+      hasMore: Boolean(page.hasMore),
+    };
+  },
+  { requireAuth: false }
+);
+
 export const getArticleThreadAction = safeAction<
   string,
   {

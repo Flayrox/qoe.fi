@@ -37,6 +37,12 @@ export interface ThoughtThreadContextValue {
   insertReply: (parentId: string, reply: OptimisticThought) => void;
   deleteThought: (targetId: string) => Promise<boolean>;
 
+  // Pagination serveur du fil (L42) : `Thread()` n'envoie qu'une page.
+  /** `true` quand le serveur n'a pas encore envoyé tout le fil. */
+  repliesHasMore: boolean;
+  repliesLoadingMore: boolean;
+  loadMoreReplies: () => Promise<void>;
+
   // Navigation
   onClose?: () => void;
   onOpenProfile?: (username: string) => void;
