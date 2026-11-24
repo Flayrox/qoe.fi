@@ -40,15 +40,24 @@ const {
   ttsMetadata: [] as Record<string, unknown>[],
 }));
 
+type CommentFixture = ReturnType<typeof commentFixture>;
+/** Un item de fil : commentaire lisible ou tombstone motivé (L43). */
+type CommentItem = Omit<CommentFixture, 'author'> & {
+  // `replyCount` n'existe que sur le fil (L42) ; un tombstone n'a plus d'auteur.
+  author: CommentFixture['author'] | null;
+  replyCount?: number;
+  tombstone?: boolean;
+  tombstoneReason?: string;
+  why?: string;
+};
 type CommentPage = {
-  // `replyCount` n'existe que sur le fil (L42) : les fixtures restent minimales.
-  items: (ReturnType<typeof commentFixture> & { replyCount?: number })[];
+  items: CommentItem[];
   nextCursor: string;
   hasMore: boolean;
 };
 
 /** Une page de fil : le curseur est vide tant qu'il n'y a pas de suite. */
-function pageOf(items: CommentPage['items'], nextCursor = '', hasMore = false): CommentPage {
+function pageOf(items: CommentItem[], nextCursor = '', hasMore = false): CommentPage {
   return { items, nextCursor, hasMore };
 }
 
@@ -290,6 +299,40 @@ describe('ArticleComments', () => {
     expect(screen.getByText('Message supprimé')).toBeTruthy();
     expect(screen.getByText('commentaire-reponse')).toBeTruthy();
     expect(screen.getByText('(1)')).toBeTruthy();
+  });
+
+  it('affiche la raison d’exclusion venue du serveur, pas le libellé générique', async () => {
+    mockComments.mockResolvedValue({
+      ok: true,
+      data: pageOf([
+        {
+          ...commentFixture('bloque'),
+          content: '',
+          author: null,
+          tombstone: true,
+          tombstoneReason: 'blocked',
+          why: 'Compte bloqué : contenu masqué.',
+        },
+      ]),
+    });
+
+    render(<ArticleComments articleId="art-1" />);
+
+    await waitFor(() => expect(screen.getByText('Compte bloqué : contenu masqué.')).toBeTruthy());
+    // Le serveur a tranché : le web ne réécrit pas la raison en libellé générique.
+    expect(screen.queryByText('Message supprimé')).toBeNull();
+    expect(screen.queryByText('commentaire-bloque')).toBeNull();
+  });
+
+  it('replie sur le libellé générique quand le serveur ne fournit aucune raison', async () => {
+    mockComments.mockResolvedValue({
+      ok: true,
+      data: pageOf([{ ...commentFixture('orphelin'), content: '', author: null, tombstone: true }]),
+    });
+
+    render(<ArticleComments articleId="art-1" />);
+
+    await waitFor(() => expect(screen.getByText('Message supprimé')).toBeTruthy());
   });
 });
 

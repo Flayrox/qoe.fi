@@ -229,7 +229,7 @@ classement.
 | ---- | ------- | ---------------- |
 | **L41** — graphe de contenu ✅ | colonne `Post.rootArticleId` + index partiel, backfill 225 commentaires (ids conservés), FK `Notification."commentId"` repointée, service `articles/comments.go` branché sur `Post`, compteurs (`fetchCommentsBatch`, `publishers`, `analytics`) sur `parentId IS NULL AND deletedAt IS NULL`, seed adapté. **Non livré** : table `Interaction`, assembleur `FeedItem`, like/repost génériques (cible L43). | dry-run transactionnel 00097 (225 → 225, 0 orphelin, FK OK) ; `pnpm guard:sqlc` (38 fichiers) ; `go build ./...` ; `go test` articles/feed/posts/publishers/analytics/seed |
 | **L42** — fils paginés ✅ | une requête `ListThreadPage` à trois portées (`roots`, `children`, `thread`), curseur opaque `(createdAt, id)`, `{ items, nextCursor, hasMore }`, tombstones, `Thread()` = première page (≤ `MaxReplyLimit` = 50) + `repliesCursor`/`repliesTruncated`, UI récursive (core, studio) + onglet profil paginé + surfaces `tenants`, fil de pensée paginé côté web | dry-run transactionnel : pages 3/3/1 sans doublon, insertion concurrente, antidatée non ressuscitée, tombstone + enfants + profondeur 3, deux viewers, compteurs, profil 2/2/2/1 ; `guard:sqlc` 39 fichiers ; `go build`/`go vet`/`go test` posts/articles/feed ; vitest core / studio / tenants + `threadRepliesPagination.test.ts` (6) et `thought-thread-load-more.test.tsx` (2) ; absorbe **R134** et **R314** |
-| **L43** — éligibilité + explication ✅ (périmètre 2026-11-24) | `eligibility.Decide`/`Rank` par surface, `WeightsFromConfig` sur `feed.rank_*`, `GET /v1/feed/eligibility`, `tombstoneReason`/`why` sur `ReplyItem` (LATERAL unique de `ListThreadPage`), SDK `parseEligibilitySurface`/`sortEligibilityDecisions`/`getSurfaceEligibilityAction`, tombstone d'article qui affiche `why` | `go test ./internal/eligibility` (nominal, modération, seuil 0, config partielle, égalités, surface inconnue) ; `go build`/`go vet` ; `go test` posts/feed/articles ; `guard:sqlc` 40 fichiers ; vitest sdk 34 fichiers / 233 tests ; core tsc 0. **Non livré** : contexte d'article dans les feeds, `Interaction`, NDCG hors ligne, métriques `feed_items_total` |
+| **L43** — éligibilité + explication ✅ (périmètre 2026-11-24) | `eligibility.Decide`/`Rank` par surface, `WeightsFromConfig` sur `feed.rank_*`, `GET /v1/feed/eligibility`, `tombstoneReason`/`why` sur `ReplyItem` (LATERAL unique de `ListThreadPage`), SDK `parseEligibilitySurface`/`sortEligibilityDecisions`/`getSurfaceEligibilityAction`, tombstone d'article qui affiche `why` | `go test ./internal/eligibility` (nominal, modération, seuil 0, config partielle, égalités, surface inconnue) + `TestSurfaceEligibility_*` dans `feed` (service traversé sur queryer stubbé, sans Docker) ; deux tests de rendu `ArticleComments` dans `article-reading-chain.test.tsx` (`why` serveur affiché, repli générique) ; `go build`/`go vet` ; `go test` posts/feed/articles ; `guard:sqlc` 40 fichiers ; vitest sdk 34 fichiers / 233 tests ; core 69 fichiers / 425 tests ; tsc 0. **Non livré** : contexte d'article dans les feeds, `Interaction`, NDCG hors ligne, métriques `feed_items_total` |
 
 Risques nommés :
 
@@ -405,9 +405,25 @@ articles, les pensées et les commentaires.
 - `Thread()` assemble ses réponses via `GetPostsByIDs` (`posts.FeedPost`) : ces lignes ne
   portent pas encore de raison de tombstone. Seule la pagination `ListThreadPage`
   (`ReplyItem`) l'expose.
-- Les tests d'intégration Go (`articles`, `feed`) exigent Docker/testcontainers,
-  indisponibles en local ; `SurfaceEligibility` lit la base et n'est donc prouvé que par
-  ses règles pures (`eligibility`) et la compilation, pas par un test bout en bout.
+- **Chemins prouvés sans Docker** (2026-11-24) : `feed/surface_eligibility_test.go`
+  traverse `Service.SurfaceEligibility` avec un queryer stubbé et la VRAIE chaîne
+  `Decide`/`Rank`/`WeightsFromConfig` —
+  `TestSurfaceEligibility_RanksEligibleAndExplainsExclusions` (retenus classés + exclus
+  motivés), `_FollowingRequiresFollowAndExplainsIt`, `_UnknownSurfaceIsPropagatedWithoutReading`
+  (aucune lecture déclenchée), `_ClampsLimit` (500 → 100, absent → 50),
+  `_PartialConfigKeepsSafeDefaults`, `_InvalidConfigFallsBackToDefaults`,
+  `_ExplicitZeroAndThresholdAreRespected`, `_ConfigReadErrorFallsBackToDefaults`,
+  `_CandidateReadErrorIsPropagated`. Côté web,
+  `article-reading-chain.test.tsx` prouve que `ArticleComments` affiche le `why` du
+  serveur (`Compte bloqué : contenu masqué.`) et retombe sur « Message supprimé » sans
+  raison.
+- **Défaut trouvé et corrigé par ces tests** : une `limit` de 500 était rabattue sur 50
+  au lieu du plafond 100. Le service plafonne désormais (`EligibilityMaxLimit`) au lieu de
+  revenir au défaut.
+- **Preuve encore impossible en local** : la requête `ListEligibilityCandidates`
+  elle-même (jointure `Post`/`User`, fonctions SQL de visibilité) n'est exécutée que si
+  Postgres est disponible ; les tests d'intégration `feed`/`articles` sont sautés faute de
+  Docker/testcontainers. Ce qui reste non prouvé est donc **le SQL**, pas la décision.
 
 ### Reste à faire après L43
 

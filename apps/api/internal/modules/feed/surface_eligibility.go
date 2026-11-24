@@ -23,6 +23,9 @@ import (
 // EligibilityDefaultLimit borne la lecture quand le client n'en demande pas.
 const EligibilityDefaultLimit = 50
 
+// EligibilityMaxLimit est le plafond dur d'une page de décisions.
+const EligibilityMaxLimit = 100
+
 // SurfaceEligibility rend les décisions d'éligibilité d'une surface pour un
 // viewer donné. Sert l'administration, le debug et les états vides motivés :
 // chaque contenu retenu ou exclu porte sa raison (`reason`) et son texte
@@ -32,8 +35,14 @@ func (s *Service) SurfaceEligibility(ctx context.Context, rawSurface, viewerID s
 	if err != nil {
 		return eligibility.Result{}, err
 	}
-	if limit <= 0 || limit > 100 {
+	// Une demande absente prend le défaut ; une demande trop grande est
+	// PLAFONNÉE (pas rabattue sur le défaut) : 500 doit rendre 100, sinon un
+	// client qui demande plus reçoit moins que le plafond annoncé.
+	switch {
+	case limit <= 0:
 		limit = EligibilityDefaultLimit
+	case limit > EligibilityMaxLimit:
+		limit = EligibilityMaxLimit
 	}
 
 	rows, err := s.q.ListEligibilityCandidates(ctx, db.ListEligibilityCandidatesParams{
@@ -84,18 +93,17 @@ func (s *Service) rankingWeights(ctx context.Context) eligibility.Weights {
 		eligibility.KeyMinScore,
 		eligibility.KeyMaxAgeDays,
 	}
-	rows, err := s.pool.Query(ctx, `SELECT key, value FROM "SystemConfig" WHERE key = ANY($1::text[])`, keys)
+	// Même requête sqlc que l'administration des configs : la couche service
+	// reste testable sans base (queryer stubbé), et il n'existe pas une seconde
+	// façon de lire SystemConfig.
+	rows, err := s.q.GetSystemConfigsByKeys(ctx, keys)
 	if err != nil {
 		return eligibility.DefaultWeights()
 	}
-	defer rows.Close()
 
-	values := make(map[string]string, len(keys))
-	for rows.Next() {
-		var k, v string
-		if rows.Scan(&k, &v) == nil {
-			values[k] = v
-		}
+	values := make(map[string]string, len(rows))
+	for _, row := range rows {
+		values[row.Key] = row.Value
 	}
 	return eligibility.WeightsFromConfig(values)
 }
