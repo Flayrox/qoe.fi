@@ -4,8 +4,9 @@ package workers
 // 📧 EmailProvider — contrat d'envoi d'emails du worker (SMTP ou Resend)
 // =====================================================================
 // Le worker draine la boîte d'envoi (NotificationDelivery, channel EMAIL)
-// via un EmailProvider injecté. Le fournisseur est choisi par EMAIL_PROVIDER :
-//   - "smtp"   → relais SMTP (Stalwart local, Hostinger, SendGrid…), variables SMTP_*
+// via un EmailProvider injecté (usuellement enveloppé dans comms.Gateway).
+// Le fournisseur est choisi par EMAIL_PROVIDER :
+//   - "smtp"   → relais SMTP (Stalwart local, Hostinger, SendGrid…), via go-mail
 //   - "resend" → API Resend (RESEND_API_KEY)
 // Aucune valeur sensible dans Git : tout passe par l'environnement du worker.
 
@@ -14,44 +15,25 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/tls"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"mime/quotedprintable"
 	"net"
 	"net/http"
 	"net/mail"
-	"net/smtp"
 	"strings"
 	"time"
+
+	"github.com/qoefi/api/internal/comms"
+	gomail "github.com/wneessen/go-mail"
 )
 
-// EmailMessage est le message envoyé par un EmailProvider.
-type EmailMessage struct {
-	From    string
-	To      string
-	Subject string
-	HTML    string
-	// Text est l'alternative texte brut (multipart/alternative) — note
-	// délivrabilité : un email HTML sans partie texte est pénalisé.
-	Text            string
-	ReplyTo         string
-	ListUnsubscribe string
-	// ListID alimente l'en-tête List-Id (identification de la liste).
-	ListID string
-	// RefID alimente X-Entity-Ref-ID (anti-threading Gmail : deux emails
-	// transactionnels distincts ne doivent jamais être filés ensemble).
-	RefID  string
-	IsBulk bool
-}
+// EmailMessage est un alias sur comms.Message (type unifié Go).
+type EmailMessage = comms.Message
 
-// EmailProvider envoie un email transactionnel.
-type EmailProvider interface {
-	// Name identifie le fournisseur (stocké dans NotificationDelivery.provider).
-	Name() string
-	Send(ctx context.Context, msg EmailMessage) error
-}
+// EmailProvider est un alias sur comms.Transport (implémenté par SMTPProvider,
+// ResendProvider et comms.Gateway).
+type EmailProvider = comms.Transport
 
 // ─────────────────────────────────────────────────────────────────────
 // SMTP (self-hosté : Stalwart local, relais Hostinger, SMTP de n'importe quel
@@ -79,117 +61,115 @@ func NewSMTPProvider(cfg SMTPConfig) *SMTPProvider {
 func (p *SMTPProvider) Name() string { return "smtp" }
 
 func (p *SMTPProvider) Send(ctx context.Context, msg EmailMessage) error {
-	from := msg.From
-	envelopeFrom := cleanEnvelopeAddress(from)
-	if envelopeFrom == "" {
-		envelopeFrom = cleanEnvelopeAddress(p.cfg.From)
-		if envelopeFrom == "" {
-			envelopeFrom = cleanEnvelopeAddress(p.cfg.User)
-		}
-		if envelopeFrom == "" {
-			envelopeFrom = "noreply@qoe.fi"
-		}
-		// Si msg.From était incomplet (ex: "Nom <>" ou juste "Nom"),
-		// on reformate From avec l'adresse d'enveloppe résolue pour l'en-tête RFC 5322.
-		display := strings.TrimSpace(msg.From)
-		if start := strings.LastIndex(display, "<"); start != -1 {
-			display = strings.TrimSpace(display[:start])
-		}
-		if display != "" {
-			from = fmt.Sprintf("%s <%s>", display, envelopeFrom)
+	m, err := buildGoMailMessage(p.cfg, msg)
+	if err != nil {
+		return err
+	}
+
+	client, err := gomail.NewClient(p.cfg.Host, p.clientOptions()...)
+	if err != nil {
+		return fmt.Errorf("smtp: client %s: %w", smtpAddr(p.cfg), err)
+	}
+
+	if err := client.DialAndSendWithContext(ctx, m); err != nil {
+		return fmt.Errorf("smtp: %s: %w", smtpAddr(p.cfg), err)
+	}
+	return nil
+}
+
+func (p *SMTPProvider) clientOptions() []gomail.Option {
+	port := p.cfg.Port
+	if port == 0 {
+		if p.cfg.Secure {
+			port = 465
 		} else {
-			from = envelopeFrom
+			port = 587
 		}
 	}
 
-	// 1) Connexion : TLS implicite (465) ou TCP nu (25/587 → STARTTLS ensuite).
-	var conn net.Conn
-	var err error
-	if p.cfg.Secure {
-		dialer := &tls.Dialer{NetDialer: &net.Dialer{Timeout: 15 * time.Second}}
-		conn, err = dialer.DialContext(ctx, "tcp", smtpAddr(p.cfg))
-	} else {
-		dialer := &net.Dialer{Timeout: 15 * time.Second}
-		conn, err = dialer.DialContext(ctx, "tcp", smtpAddr(p.cfg))
-	}
-	if err != nil {
-		return fmt.Errorf("smtp: connexion %s: %w", smtpAddr(p.cfg), err)
+	opts := []gomail.Option{
+		gomail.WithPort(port),
+		gomail.WithTimeout(15 * time.Second),
 	}
 
-	client, err := smtp.NewClient(conn, p.cfg.Host)
-	if err != nil {
-		_ = conn.Close()
-		return fmt.Errorf("smtp: handshake: %w", err)
-	}
-	defer client.Close()
-
-	if err := client.Hello(p.cfg.Host); err != nil {
-		return fmt.Errorf("smtp: ehlo: %w", err)
-	}
-
-	// 2) STARTTLS si le serveur le propose (et qu'on n'est pas déjà en TLS).
-	if !p.cfg.Secure {
-		if ok, _ := client.Extension("STARTTLS"); ok {
-			tlsCfg := &tls.Config{ServerName: p.cfg.Host}
-			// Sur les liaisons locales/bridge docker (host.docker.internal, localhost, 127.0.0.1),
-			// le certificat TLS du serveur mail porte souvent le nom de domaine public (ex. mail.qoe.fi).
-			// On accepte la négociation TLS sans blocage de nom d'hôte sur ces adresses locales.
-			if p.cfg.Host == "host.docker.internal" || p.cfg.Host == "localhost" || p.cfg.Host == "127.0.0.1" {
-				tlsCfg.InsecureSkipVerify = true
-			}
-			if err := client.StartTLS(tlsCfg); err != nil {
-				return fmt.Errorf("smtp: starttls: %w", err)
-			}
-			// Post-STARTTLS : re-EHLO (certains serveurs exigent une nouvelle EHLO).
-			_ = client.Hello(p.cfg.Host)
-		}
-	}
-
-	// 3) Authentification (PLAIN sur canal chiffré — universel : Hostinger,
-	//    SendGrid, Postfix/Dovecot…). Sans user/pass, relais ouvert local.
 	if p.cfg.User != "" {
-		auth := smtp.PlainAuth("", p.cfg.User, p.cfg.Pass, p.cfg.Host)
-		if err := client.Auth(auth); err != nil {
-			return fmt.Errorf("smtp: auth: %w", err)
+		opts = append(opts,
+			gomail.WithSMTPAuth(gomail.SMTPAuthPlain),
+			gomail.WithUsername(p.cfg.User),
+			gomail.WithPassword(p.cfg.Pass),
+		)
+	}
+
+	switch {
+	case p.cfg.Secure:
+		opts = append(opts, gomail.WithSSL(), gomail.WithTLSPolicy(gomail.TLSMandatory))
+		if isLoopbackOrDockerHost(p.cfg.Host) {
+			opts = append(opts, gomail.WithTLSConfig(&tls.Config{
+				ServerName:         p.cfg.Host,
+				InsecureSkipVerify: true,
+			}))
 		}
+	case p.cfg.User == "" && !p.cfg.Secure:
+		// Relais local sans AUTH (ex: pnpm mail:dev sur 127.0.0.1:1025) : aucun TLS requis.
+		opts = append(opts, gomail.WithTLSPolicy(gomail.NoTLS))
+	case isLoopbackOrDockerHost(p.cfg.Host):
+		// Sur les liaisons locales/bridge docker, le certificat TLS du serveur mail
+		// porte souvent le nom de domaine public (ex. mail.qoe.fi).
+		opts = append(opts,
+			gomail.WithTLSPolicy(gomail.TLSOpportunistic),
+			gomail.WithTLSConfig(&tls.Config{
+				ServerName:         p.cfg.Host,
+				InsecureSkipVerify: true,
+			}),
+		)
+	default:
+		opts = append(opts, gomail.WithTLSPolicy(gomail.TLSMandatory))
 	}
 
-	// 4) Enveloppe + contenu.
-	// En SMTP (RFC 5321), MAIL FROM et RCPT TO attendent une adresse pure (reverse-path / forward-path),
-	// jamais une adresse formatée avec display-name (ex: "Nom <email@domaine.com>").
-	if err := client.Mail(envelopeFrom); err != nil {
-		return fmt.Errorf("smtp: mail from: %w", err)
-	}
-	envelopeTo := cleanEnvelopeAddress(msg.To)
-	if envelopeTo == "" {
-		return fmt.Errorf("smtp: destinataire invalide (%q)", msg.To)
-	}
-	if err := client.Rcpt(envelopeTo); err != nil {
-		return fmt.Errorf("smtp: rcpt to %s: %w", envelopeTo, err)
-	}
+	return opts
+}
 
-	w, err := client.Data()
-	if err != nil {
-		return fmt.Errorf("smtp: data: %w", err)
-	}
-	body := buildSMTPMessage(from, msg)
-	if _, err := w.Write([]byte(body)); err != nil {
-		_ = w.Close()
-		return fmt.Errorf("smtp: écriture: %w", err)
-	}
-	if err := w.Close(); err != nil {
-		return fmt.Errorf("smtp: fin de message: %w", err)
-	}
-
-	return client.Quit()
+func isLoopbackOrDockerHost(host string) bool {
+	h := strings.ToLower(strings.TrimSpace(host))
+	return h == "host.docker.internal" || h == "localhost" || h == "127.0.0.1"
 }
 
 func smtpAddr(cfg SMTPConfig) string {
 	port := cfg.Port
 	if port == 0 {
-		port = 587
+		if cfg.Secure {
+			port = 465
+		} else {
+			port = 587
+		}
 	}
 	return net.JoinHostPort(cfg.Host, fmt.Sprintf("%d", port))
+}
+
+func resolveSenderAddresses(cfg SMTPConfig, rawFrom string) (headerFrom, envelopeFrom string) {
+	from := strings.TrimSpace(rawFrom)
+	envelopeFrom = cleanEnvelopeAddress(from)
+	if envelopeFrom != "" {
+		return from, envelopeFrom
+	}
+	envelopeFrom = cleanEnvelopeAddress(cfg.From)
+	if envelopeFrom == "" {
+		envelopeFrom = cleanEnvelopeAddress(cfg.User)
+	}
+	if envelopeFrom == "" {
+		envelopeFrom = "noreply@qoe.fi"
+	}
+
+	// Si msg.From était incomplet (ex: "Nom <>" ou juste "Nom"),
+	// on reformate From avec l'adresse d'enveloppe résolue pour l'en-tête RFC 5322.
+	display := SanitizeHeaderValue(from)
+	if start := strings.LastIndex(display, "<"); start != -1 {
+		display = strings.TrimSpace(display[:start])
+	}
+	if display != "" {
+		return fmt.Sprintf("%s <%s>", display, envelopeFrom), envelopeFrom
+	}
+	return envelopeFrom, envelopeFrom
 }
 
 func cleanEnvelopeAddress(addr string) string {
@@ -240,76 +220,88 @@ func SanitizeHeaderValue(val string) string {
 	return strings.TrimSpace(b.String())
 }
 
-// buildSMTPMessage assemble le message RFC 5322 complet (en-têtes + corps MIME).
-// buildSMTPHeaders se termine déjà par \r\n et buildSMTPBody commence par le
-// header Content-Type suivi de \r\n\r\n — aucun \r\n supplémentaire entre deux.
-func buildSMTPMessage(from string, msg EmailMessage) string {
-	return buildSMTPHeaders(from, msg) + buildSMTPBody(msg)
-}
+// buildGoMailMessage compose le message RFC 5322/MIME via github.com/wneessen/go-mail :
+// replis RFC 2047 automatiques sur les longs en-têtes UTF-8 (R28) et multipart/alternative
+// quoted-printable (lignes ≤ 76 caractères).
+func buildGoMailMessage(cfg SMTPConfig, msg EmailMessage) (*gomail.Msg, error) {
+	headerFrom, envelopeFrom := resolveSenderAddresses(cfg, msg.From)
+	envelopeTo := cleanEnvelopeAddress(SanitizeHeaderValue(msg.To))
+	if envelopeTo == "" {
+		return nil, fmt.Errorf("smtp: destinataire invalide (%q)", msg.To)
+	}
 
-// buildSMTPHeaders compose les en-têtes RFC 5322 (sujet encodé RFC 2047 +
-// Message-ID unique — blindé contre l'injection CRLF).
-func buildSMTPHeaders(from string, msg EmailMessage) string {
-	cleanFrom := SanitizeHeaderValue(from)
-	cleanTo := SanitizeHeaderValue(msg.To)
-	cleanSubject := SanitizeHeaderValue(msg.Subject)
+	m := gomail.NewMsg(gomail.WithNoDefaultUserAgent())
+	m.SetCharset(gomail.CharsetUTF8)
+	m.SetEncoding(gomail.EncodingQP)
+	m.SetMessageIDWithValue(fmt.Sprintf("%s@qoe.fi", messageID()))
+	m.SetDate()
+	m.SetGenHeader("X-Mailer", "qoe-worker")
 
-	var b strings.Builder
-	b.WriteString(fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMessage-ID: <%s@qoe.fi>\r\nMIME-Version: 1.0\r\n",
-		encodeAddressHeader(cleanFrom), encodeAddressHeader(cleanTo), encodeRFC2047(cleanSubject),
-		messageID()))
-	b.WriteString("Date: " + time.Now().UTC().Format(time.RFC1123Z) + "\r\n")
-	b.WriteString("X-Mailer: qoe-worker\r\n")
-	if msg.ListID != "" {
-		b.WriteString(fmt.Sprintf("List-Id: %s\r\n", SanitizeHeaderValue(msg.ListID)))
+	if err := m.From(SanitizeHeaderValue(headerFrom)); err != nil {
+		return nil, fmt.Errorf("smtp: expéditeur invalide (%q): %w", headerFrom, err)
 	}
-	if msg.RefID != "" {
-		b.WriteString(fmt.Sprintf("X-Entity-Ref-ID: %s\r\n", SanitizeHeaderValue(msg.RefID)))
+	if err := m.EnvelopeFrom(envelopeFrom); err != nil {
+		return nil, fmt.Errorf("smtp: envelope-from invalide (%q): %w", envelopeFrom, err)
 	}
-	if msg.ReplyTo != "" {
-		cleanReplyTo := SanitizeHeaderValue(msg.ReplyTo)
-		b.WriteString(fmt.Sprintf("Reply-To: %s\r\n", encodeAddressHeader(cleanReplyTo)))
+	if err := m.To(SanitizeHeaderValue(msg.To)); err != nil {
+		return nil, fmt.Errorf("smtp: destinataire invalide (%q): %w", msg.To, err)
 	}
-	if msg.ListUnsubscribe != "" {
-		cleanListUnsub := SanitizeHeaderValue(msg.ListUnsubscribe)
-		b.WriteString(fmt.Sprintf("List-Unsubscribe: <%s>\r\nList-Unsubscribe-Post: List-Unsubscribe=One-Click\r\n", cleanListUnsub))
+
+	m.Subject(SanitizeHeaderValue(msg.Subject))
+
+	if strings.TrimSpace(msg.ReplyTo) != "" {
+		if err := m.ReplyTo(SanitizeHeaderValue(msg.ReplyTo)); err != nil {
+			return nil, fmt.Errorf("smtp: reply-to invalide (%q): %w", msg.ReplyTo, err)
+		}
+	}
+	if strings.TrimSpace(msg.ListID) != "" {
+		m.SetGenHeader("List-Id", SanitizeHeaderValue(msg.ListID))
+	}
+	if strings.TrimSpace(msg.RefID) != "" {
+		m.SetGenHeader("X-Entity-Ref-ID", SanitizeHeaderValue(msg.RefID))
+	}
+	if strings.TrimSpace(msg.MessageType) != "" {
+		m.SetGenHeader("X-Qoefi-Message-Type", SanitizeHeaderValue(msg.MessageType))
+	}
+	if strings.TrimSpace(msg.ListUnsubscribe) != "" {
+		cleanUnsub := SanitizeHeaderValue(msg.ListUnsubscribe)
+		m.SetListUnsubscribe(cleanUnsub)
+		m.SetListUnsubscribePost()
 	}
 	if msg.IsBulk {
-		b.WriteString("Precedence: bulk\r\nAuto-Submitted: auto-generated\r\n")
+		m.SetBulk()
+		m.SetGenHeader("Auto-Submitted", "auto-generated")
 	}
-	return b.String()
+
+	textBody := strings.ReplaceAll(msg.Text, "\r\n", "\n")
+	htmlBody := strings.ReplaceAll(msg.HTML, "\r\n", "\n")
+	switch {
+	case strings.TrimSpace(textBody) != "" && strings.TrimSpace(htmlBody) != "":
+		m.SetBodyString(gomail.TypeTextPlain, textBody)
+		m.AddAlternativeString(gomail.TypeTextHTML, htmlBody)
+	case strings.TrimSpace(textBody) != "":
+		m.SetBodyString(gomail.TypeTextPlain, textBody)
+	default:
+		m.SetBodyString(gomail.TypeTextHTML, htmlBody)
+	}
+
+	return m, nil
 }
 
-// buildSMTPBody écrit le corps MIME : multipart/alternative (texte + HTML en
-// quoted-printable) quand l'alternative texte existe, HTML brut sinon
-// (compatibilité avec les envois historiques).
-func buildSMTPBody(msg EmailMessage) string {
-	if strings.TrimSpace(msg.Text) == "" {
-		return "Content-Type: text/html; charset=UTF-8\r\n\r\n" + msg.HTML
+// renderSMTPMessage sérialise le message RFC 5322 complet (utilisé dans les tests).
+func renderSMTPMessage(from string, msg EmailMessage) (string, error) {
+	if msg.From == "" {
+		msg.From = from
 	}
-	boundary := "qoe_" + messageID()
-	var b strings.Builder
-	b.WriteString("Content-Type: multipart/alternative; boundary=\"" + boundary + "\"\r\n\r\n")
-	b.WriteString("--" + boundary + "\r\n")
-	b.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
-	b.WriteString("Content-Transfer-Encoding: quoted-printable\r\n\r\n")
-	b.WriteString(quotedPrintableEncode(msg.Text))
-	b.WriteString("\r\n--" + boundary + "\r\n")
-	b.WriteString("Content-Type: text/html; charset=UTF-8\r\n")
-	b.WriteString("Content-Transfer-Encoding: quoted-printable\r\n\r\n")
-	b.WriteString(quotedPrintableEncode(msg.HTML))
-	b.WriteString("\r\n--" + boundary + "--\r\n")
-	return b.String()
-}
-
-// quotedPrintableEncode encode un corps en quoted-printable (retours à la
-// ligne SMTP, lignes ≤ 76 chars — jamais de ligne > 998).
-func quotedPrintableEncode(s string) string {
+	m, err := buildGoMailMessage(SMTPConfig{From: from}, msg)
+	if err != nil {
+		return "", err
+	}
 	var buf bytes.Buffer
-	w := quotedprintable.NewWriter(&buf)
-	_, _ = w.Write([]byte(strings.ReplaceAll(s, "\r\n", "\n")))
-	_ = w.Close()
-	return buf.String()
+	if _, err := m.WriteTo(&buf); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
 
 // messageID génère un identifiant unique pour l'en-tête Message-ID.
@@ -317,39 +309,6 @@ func messageID() string {
 	b := make([]byte, 12)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
-}
-
-// encodeAddressHeader encode un « Display Name <addr> » si le nom contient
-// des caractères non-ASCII (RFC 2047).
-func encodeAddressHeader(addr string) string {
-	if !strings.Contains(addr, "<") {
-		// Simple adresse (ou adresse seule) : pas de nom d'affichage à encoder.
-		return addr
-	}
-	open := strings.Index(addr, "<")
-	name := strings.TrimSpace(addr[:open])
-	email := addr[open:]
-	if isASCII(name) {
-		return addr
-	}
-	return encodeRFC2047(name) + " " + email
-}
-
-// encodeRFC2047 encode un sujet/nom UTF-8 en encoded-word Base64.
-func encodeRFC2047(s string) string {
-	if isASCII(s) {
-		return s
-	}
-	return "=?UTF-8?B?" + base64.StdEncoding.EncodeToString([]byte(s)) + "?="
-}
-
-func isASCII(s string) bool {
-	for _, r := range s {
-		if r > 127 {
-			return false
-		}
-	}
-	return true
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -377,6 +336,9 @@ func (p *ResendProvider) Send(ctx context.Context, msg EmailMessage) error {
 	if strings.TrimSpace(msg.Text) != "" {
 		payloadMap["text"] = msg.Text
 	}
+	if strings.TrimSpace(msg.ReplyTo) != "" {
+		payloadMap["reply_to"] = msg.ReplyTo
+	}
 	customHeaders := map[string]string{}
 	if msg.ListID != "" {
 		customHeaders["List-Id"] = msg.ListID
@@ -384,17 +346,15 @@ func (p *ResendProvider) Send(ctx context.Context, msg EmailMessage) error {
 	if msg.RefID != "" {
 		customHeaders["X-Entity-Ref-ID"] = msg.RefID
 	}
-	if len(customHeaders) > 0 {
-		payloadMap["headers"] = customHeaders
+	if msg.MessageType != "" {
+		customHeaders["X-Qoefi-Message-Type"] = msg.MessageType
 	}
 	if msg.ListUnsubscribe != "" {
-		lu, ok := payloadMap["headers"].(map[string]string)
-		if !ok {
-			lu = map[string]string{}
-			payloadMap["headers"] = lu
-		}
-		lu["List-Unsubscribe"] = fmt.Sprintf("<%s>", msg.ListUnsubscribe)
-		lu["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
+		customHeaders["List-Unsubscribe"] = fmt.Sprintf("<%s>", msg.ListUnsubscribe)
+		customHeaders["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
+	}
+	if len(customHeaders) > 0 {
+		payloadMap["headers"] = customHeaders
 	}
 	payload, err := json.Marshal(payloadMap)
 	if err != nil {

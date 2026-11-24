@@ -125,12 +125,14 @@ func (w *StaffCampaignWorker) buildCampaignEmail(ctx context.Context, campaignID
 	}
 	body = admin.RenderCampaignVars(body, info.PublisherName, unsub)
 	msg := EmailMessage{
-		From:    w.from,
-		To:      c.Email,
-		Subject: subject,
-		HTML:    renderEmailLayout(info.PublisherName, "", "", subject, subject, body, unsub, ""),
-		Text:    body,
-		IsBulk:  true,
+		From:        w.from,
+		To:          c.Email,
+		Subject:     subject,
+		HTML:        renderEmailLayout(info.PublisherName, "", "", subject, subject, body, unsub, ""),
+		Text:        body,
+		IsBulk:      true,
+		MessageType: "staff.campaign",
+		PublisherID: info.PublisherID,
 	}
 	if info.PublisherName != "" {
 		msg.From = fmt.Sprintf("%s <%s>", info.PublisherName, w.from)

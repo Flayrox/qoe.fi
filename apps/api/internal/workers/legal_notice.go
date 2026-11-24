@@ -176,10 +176,11 @@ func buildLegalNoticeEmail(ctx context.Context, q *db.Queries, item db.ClaimLega
 
 	subjectVersion := notice.Version
 	msg := EmailMessage{
-		From:    from,
-		To:      item.Email,
-		Subject: fmt.Sprintf("%s : nouvelle version (%s) — qoefi", notice.Title, subjectVersion),
-		HTML:    htmlBody,
+		From:        from,
+		To:          item.Email,
+		Subject:     fmt.Sprintf("%s : nouvelle version (%s) — qoefi", notice.Title, subjectVersion),
+		HTML:        htmlBody,
+		MessageType: "legal.version_notice",
 	}
 	return msg, nil
 }

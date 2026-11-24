@@ -22,6 +22,7 @@ import (
 	"github.com/qoefi/api/internal/adminauthz"
 	"github.com/qoefi/api/internal/antispam"
 	"github.com/qoefi/api/internal/cache"
+	"github.com/qoefi/api/internal/comms"
 	"github.com/qoefi/api/internal/config"
 	"github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/dbpool"
@@ -140,7 +141,7 @@ func run(ctx context.Context) error {
 		FlagsSigningKey:        cfg.FlagsSigningKey,
 		LegalExportSigningKey:  cfg.LegalExportSigningKey,
 		OAuth:                  oauthService,
-		EmailProvider: workers.NewEmailProvider(workers.EmailProviderConfig{
+		EmailProvider: comms.WrapTransport(pool, workers.NewEmailProvider(workers.EmailProviderConfig{
 			Provider: cfg.EmailProvider,
 			SMTP: workers.SMTPConfig{
 				Host: cfg.SMTPHost, Port: cfg.SMTPPort,
@@ -148,7 +149,7 @@ func run(ctx context.Context) error {
 				From: cfg.EmailFrom, Secure: cfg.SMTPSecure,
 			},
 			ResendAPIKey: cfg.ResendAPIKey,
-		}),
+		}), cfg.EmailFrom),
 		EmailFrom: cfg.EmailFrom,
 	})
 
@@ -357,8 +358,8 @@ func newRouter(d RouterDeps) *chi.Mux {
 		}
 	}
 
-	// Endpoints internes (émission d'événements → asynq), protégés par secret.
-	eventsHandler := events.NewHandler(asynqClient, d.InternalSecret)
+	// Endpoints internes (émission d'événements → asynq + mail-events Stalwart), protégés par secret.
+	eventsHandler := events.NewHandler(asynqClient, d.InternalSecret).SetPool(pool)
 	eventsHandler.Register(r)
 
 	// Webhooks Stripe (vérif signature + enqueue asynq).
@@ -391,6 +392,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 				HTML:            html,
 				ListUnsubscribe: unsubURL,
 				IsBulk:          false,
+				MessageType:     "newsletter.article_published",
 			})
 		})
 	}

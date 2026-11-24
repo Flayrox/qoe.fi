@@ -91,6 +91,7 @@ func (s *Service) SendTestEmail(ctx context.Context, userID, publisherID, locale
 		LogoURL:  workers.PubLogoURL(row.LogoUrl),
 	}, prefs)
 	// Marquage honnête : un test reste identifiable dans la boîte.
+	msg.MessageType = "service.transactional"
 	msg.Subject = "[TEST] " + msg.Subject
 	if msg.RefID != "" {
 		msg.RefID = "test-" + msg.RefID

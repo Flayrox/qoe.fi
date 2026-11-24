@@ -182,5 +182,7 @@ If this message is not for you, ignore it or unsubscribe in one click: %s`,
 		Text:            text,
 		ListUnsubscribe: unsub,
 		IsBulk:          true,
+		MessageType:     "import.reconfirm",
+		PublisherID:     info.PublisherID,
 	}, nil
 }

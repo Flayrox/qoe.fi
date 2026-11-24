@@ -48,7 +48,7 @@ func TestSMTPProvider_LocalSink(t *testing.T) {
 	msg := EmailMessage{
 		From:    "Qoe <noreply@qoe.test>",
 		To:      "lecteur@example.test",
-		Subject: "Vérification SMTP " + marker,
+		Subject: "Vérification SMTP R28 avec accents éàç et repli RFC 2047 " + marker,
 		HTML:    "<p>Bonjour <strong>lecteur</strong>.</p>",
 		Text:    "Bonjour lecteur.",
 	}

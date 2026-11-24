@@ -262,16 +262,26 @@ func TestListIDFor(t *testing.T) {
 }
 
 func TestQuotedPrintableEncode_LinesAndAccents(t *testing.T) {
-	enc := quotedPrintableEncode("Bonjour — voici un texte accentué éàç\nsur deux lignes.")
-	if strings.Contains(enc, "—") {
-		t.Error("le caractère non-ASCII doit être encodé")
+	raw, err := renderSMTPMessage("Ephe <news@qoe.fi>", EmailMessage{
+		To:      "lecteur@example.com",
+		Subject: "Test encodage",
+		Text:    "Bonjour — voici un texte accentué éàç\nsur deux lignes.",
+		HTML:    "<p>Bonjour — voici un texte accentué éàç</p>",
+	})
+	if err != nil {
+		t.Fatalf("renderSMTPMessage: %v", err)
 	}
-	if !strings.Contains(enc, "=\n") && !strings.Contains(enc, "=2") && !strings.Contains(enc, "=C3") {
-		t.Logf("encodage QP : %q", enc)
+	parts := strings.SplitN(raw, "\r\n\r\n", 2)
+	if len(parts) != 2 {
+		t.Fatalf("message MIME incomplet")
 	}
-	for _, line := range strings.Split(enc, "\r\n") {
-		if len(line) > 76 {
-			t.Errorf("ligne QP trop longue (%d chars) : %.40s", len(line), line)
+	body := parts[1]
+	if strings.Contains(body, "—") {
+		t.Error("le caractère non-ASCII doit être encodé en quoted-printable")
+	}
+	for _, line := range strings.Split(body, "\r\n") {
+		if len(line) > 78 {
+			t.Errorf("ligne MIME trop longue (%d chars) : %.40s", len(line), line)
 		}
 	}
 }

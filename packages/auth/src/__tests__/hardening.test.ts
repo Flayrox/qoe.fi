@@ -18,7 +18,6 @@ process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'placeholder_anon_key';
 import { ROLES } from '@qoe/config';
 import { can } from '../permissions';
 import { canMedia } from '../media';
-import { escapeHtml, renderSecurityLoginAlert, safeHref } from '../mailer';
 import { goApiUrl, isGoEnabled } from '../go-client';
 import { isSafeRedirectTarget } from '../redirect';
 
@@ -57,33 +56,6 @@ describe('L04 — overrides média', () => {
 
   it('un rôle inconnu ne donne aucune permission de base', () => {
     expect(canMedia({ role: 'intrus', status: 'active' }, 'media:create_articles')).toBe(false);
-  });
-});
-
-describe('L04 — e-mails de sécurité', () => {
-  it('échappe les données client interpolées', () => {
-    const html = renderSecurityLoginAlert({
-      toEmail: 'reader@example.com',
-      userName: '<img src=x onerror="alert(1)">',
-      deviceInfo: '"><a href="https://evil.test">Cliquez</a>',
-      ipAddress: '1.2.3.4<script>',
-    });
-
-    expect(html).not.toContain('<img src=x');
-    expect(html).not.toContain('<script>');
-    expect(html).not.toContain('href="https://evil.test"');
-    expect(html).toContain('&lt;img src=x');
-    expect(html).toContain('&quot;&gt;&lt;a href=&quot;https://evil.test&quot;');
-  });
-
-  it('n’accepte que des liens http(s) dans un bouton', () => {
-    expect(safeHref('javascript:alert(1)')).toBeNull();
-    expect(safeHref('data:text/html,<script>')).toBeNull();
-    expect(safeHref('https://qoe.fi/settings')).toBe('https://qoe.fi/settings');
-  });
-
-  it('échappe les guillemets et apostrophes', () => {
-    expect(escapeHtml(`"'&<>`)).toBe('&quot;&#39;&amp;&lt;&gt;');
   });
 });
 

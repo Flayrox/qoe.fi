@@ -33,6 +33,7 @@ var publicRouteAllowlist = map[string]string{
 	// ─── Événements internes & webhooks signés ──────────────────────────────
 	"POST /internal/events/article-published":  "Événement interne asynq (InternalSecret)",
 	"POST /internal/events/subscriber-created": "Événement interne asynq (InternalSecret)",
+	"POST /internal/events/mail-events":        "Webhook retours mail Stalwart (InternalSecret)",
 	"POST /v1/webhooks/stripe":                 "Webhook Stripe (signature HMAC Stripe)",
 	"POST /v1/webhooks/supabase":               "Webhook Supabase (signature / secret Supabase)",
 

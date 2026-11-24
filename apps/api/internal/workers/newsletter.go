@@ -598,6 +598,8 @@ func (n *NewsletterWorker) buildNewsletterEmail(issue db.GetNewsletterIssueWithP
 		HTML:            html,
 		ListUnsubscribe: unsub,
 		IsBulk:          true,
+		MessageType:     "creator.newsletter",
+		PublisherID:     issue.PublisherId,
 	}
 }
 
@@ -615,6 +617,8 @@ func (n *NewsletterWorker) buildArticleReleaseEmail(info db.GetArticleReleaseInf
 		HTML:            rendered.HTML,
 		ListUnsubscribe: rendered.ListUnsubscribe,
 		IsBulk:          true,
+		MessageType:     "newsletter.article_published",
+		PublisherID:     info.PublisherId,
 	}
 }
 

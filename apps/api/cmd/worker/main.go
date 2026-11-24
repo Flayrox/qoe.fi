@@ -13,6 +13,7 @@ import (
 	"github.com/joho/godotenv"
 
 	"github.com/qoefi/api/internal/cache"
+	"github.com/qoefi/api/internal/comms"
 	"github.com/qoefi/api/internal/config"
 	"github.com/qoefi/api/internal/dbpool"
 	"github.com/qoefi/api/internal/flags"
@@ -145,10 +146,10 @@ func main() {
 	// déclenche plus de DELETE sur le chemin de la réponse.
 	go workers.RunFeatureSignalRetention(ctx, pool, 24*time.Hour, workers.FeatureSignalRetention)
 
-	// Fournisseur email partagé (SMTP self-hosté / Resend) : utilisé par le
-	// drain NotificationDelivery ET les newsletters créateurs. Inactif si aucun
-	// fournisseur n'est configuré (EMAIL_PROVIDER absent).
-	emailProvider := workers.NewEmailProvider(workers.EmailProviderConfig{
+	// Fournisseur email partagé (SMTP go-mail / Resend) enveloppé dans la
+	// passerelle unifiée comms.Gateway (oppositions, circuit breaker, bounces,
+	// métriques Prometheus). Inactif si aucun fournisseur n'est configuré.
+	emailProvider := comms.WrapTransport(pool, workers.NewEmailProvider(workers.EmailProviderConfig{
 		Provider: cfg.EmailProvider,
 		SMTP: workers.SMTPConfig{
 			Host:   cfg.SMTPHost,
@@ -159,11 +160,12 @@ func main() {
 			Secure: cfg.SMTPSecure,
 		},
 		ResendAPIKey: cfg.ResendAPIKey,
-	})
+	}), cfg.EmailFrom)
 	newsletterWorker.SetEmailProvider(emailProvider, cfg.EmailFrom)
 	confirmWorker.SetEmailProvider(emailProvider, cfg.EmailFrom)
 	welcomeWorker.SetEmailProvider(emailProvider, cfg.EmailFrom)
 	importSendWorker.SetEmailProvider(emailProvider, cfg.EmailFrom)
+	staffCampaignWorker.SetEmailProvider(emailProvider, cfg.EmailFrom)
 	securityAlertWorker.SetEmailProvider(emailProvider, cfg.EmailFrom)
 	if emailProvider != nil {
 		go workers.RunEmailDeliveryLoop(ctx, pool, emailProvider, cfg.EmailFrom, 30*time.Second, 50)

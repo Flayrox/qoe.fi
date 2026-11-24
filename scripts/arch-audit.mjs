@@ -631,6 +631,60 @@ if (rogueNotifications.length > 0) {
   );
 }
 
+// ─── CHECK 13 : Centralisation SMTP / Mailer (go-mail + comms.Gateway uniquement) ──
+const rogueSmtp = [];
+for (const goDir of [join(ROOT, 'apps/api/internal'), join(ROOT, 'apps/api/cmd')]) {
+  if (!existsSync(goDir)) continue;
+  walk(goDir, (path) => {
+    const rel = relative(ROOT, path).replace(/\\/g, '/');
+    if (rel.endsWith('_test.go') || !rel.endsWith('.go')) return;
+    const content = readFileSync(path, 'utf8');
+    if (/^\s*(?:\w+\s+)?"net\/smtp"/m.test(content)) {
+      rogueSmtp.push(
+        `${rel} (import net/smtp brut interdit — utiliser go-mail via workers/email_provider.go)`
+      );
+    }
+  });
+}
+for (const baseDir of [join(ROOT, 'apps'), join(ROOT, 'packages')]) {
+  if (!existsSync(baseDir)) continue;
+  for (const pkgEntry of readdirSync(baseDir, { withFileTypes: true })) {
+    if (!pkgEntry.isDirectory()) continue;
+    const srcDir = join(baseDir, pkgEntry.name, 'src');
+    if (!existsSync(srcDir)) continue;
+    walk(srcDir, (path) => {
+      const rel = relative(ROOT, path).replace(/\\/g, '/');
+      if (
+        !/\.(ts|tsx|js|jsx|mjs|cjs)$/.test(rel) ||
+        rel.includes('__tests__/') ||
+        /\.test\./.test(rel) ||
+        rel.startsWith('apps/studio/src/features/stage/')
+      ) {
+        return;
+      }
+      const content = readFileSync(path, 'utf8');
+      const hasNodeMailer =
+        /\bfrom\s+['"]nodemailer['"]|\brequire\(\s*['"]nodemailer['"]\s*\)|\bcreateTransport\s*\(/.test(
+          content
+        );
+      const hasRawSmtpSocket =
+        /['"](?:node:)?(?:net|tls)['"]/.test(content) &&
+        /\b(?:STARTTLS|EHLO|RCPT TO)\b/.test(content);
+      if (hasNodeMailer || hasRawSmtpSocket) {
+        rogueSmtp.push(`${rel} (transport SMTP Node interdit — passer par Go comms.Gateway)`);
+      }
+    });
+  }
+}
+
+if (rogueSmtp.length > 0) {
+  errors.push(
+    `🚨 ${rogueSmtp.length} client(s) SMTP parallèle(s) détecté(s) !\n` +
+      `   Règle : tout envoi SMTP passe par Go (go-mail + comms.Gateway), jamais net/smtp brut ni Node SMTP.\n` +
+      rogueSmtp.map((f) => `   - ${f}`).join('\n')
+  );
+}
+
 if (asJson) {
   console.log(
     JSON.stringify({
@@ -650,6 +704,7 @@ if (asJson) {
         entityRegistryIssues: entityRegistryIssues.length,
         consumerIssues: consumerIssues.length,
         rogueNotifications: rogueNotifications.length,
+        rogueSmtp: rogueSmtp.length,
       },
       errors,
     })
@@ -695,6 +750,9 @@ if (asJson) {
   );
   console.log(
     `• Centralisation notifications: ${rogueNotifications.length === 0 ? '✅ 0 contournement' : `❌ ${rogueNotifications.length}`}`
+  );
+  console.log(
+    `• Centralisation SMTP / mail  : ${rogueSmtp.length === 0 ? '✅ 0 transport parallèle' : `❌ ${rogueSmtp.length}`}`
   );
   console.log(`─────────────────────────────────────────────────\n`);
 

@@ -119,13 +119,14 @@ func (w *SecurityAlertWorker) HandleSecurityAlert(ctx context.Context, t *asynq.
 
 	refID := fmt.Sprintf("sec-%s-%d@qoe.fi", p.EventType, time.Now().UnixNano())
 	return w.provider.Send(ctx, EmailMessage{
-		From:    w.fromAddress(),
-		To:      to,
-		Subject: subject,
-		HTML:    htmlBody,
-		Text:    strings.Join(textLines, "\n"),
-		RefID:   refID,
-		IsBulk:  false,
+		From:        w.fromAddress(),
+		To:          to,
+		Subject:     subject,
+		HTML:        htmlBody,
+		Text:        strings.Join(textLines, "\n"),
+		RefID:       refID,
+		IsBulk:      false,
+		MessageType: "security.alert",
 	})
 }
 

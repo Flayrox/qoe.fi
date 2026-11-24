@@ -174,7 +174,18 @@ func buildNotificationEmail(ctx context.Context, pool *pgxpool.Pool, recipient, 
   <p style="margin-top:20px;"><a href="` + html.EscapeString(link) + `" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;font-size:13px;font-weight:500;padding:10px 24px;border-radius:9999px;">Voir la notification</a></p>
   <p style="margin-top:24px;font-size:12px;color:#a1a1aa;">Cet e-mail automatique vous est envoyé par qoefi pour la protection de votre compte.</p>
 </div>`
-	return EmailMessage{From: from, To: recipient, Subject: subject, HTML: content}, nil
+	msgType := "service.transactional"
+	if nType == "SYSTEM_ALERT" {
+		msgType = "webhook.disabled"
+	}
+	return EmailMessage{
+		From:        from,
+		To:          recipient,
+		Subject:     subject,
+		HTML:        content,
+		MessageType: msgType,
+		PublisherID: publisherID,
+	}, nil
 }
 
 // notificationTypeLabel traduit le type de notification en libellé court.

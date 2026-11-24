@@ -77,6 +77,8 @@ type SubscriberEmailSpec struct {
 // subscriberEmailContent est le contenu localisé + personnalisé résolu
 // d'un email d'abonné (partagé par les deux workers et l'aperçu).
 type subscriberEmailContent struct {
+	msgType    string
+	pubID      string
 	locale     string
 	pubName    string
 	pubURL     string
@@ -101,12 +103,17 @@ func buildContent(spec SubscriberEmailSpec, prefs EmailPrefs) subscriberEmailCon
 	pubName := localizedPublisherName(locale, spec.PubName)
 
 	c := subscriberEmailContent{
+		msgType:    "subscriber.confirm",
+		pubID:      spec.PubID,
 		locale:     locale,
 		pubName:    pubName,
 		pubURL:     spec.PubURL,
 		fromName:   prefs.FromName,
 		replyTo:    prefs.ReplyTo,
 		footerNote: prefs.FooterNote,
+	}
+	if spec.Template == EmailTemplateWelcome {
+		c.msgType = "subscriber.welcome"
 	}
 	// Couleur/logo : réglages email > identité de la publication.
 	c.accent = prefs.AccentColor
@@ -186,14 +193,16 @@ func renderContent(m *subscriberMailer, email string, c subscriberEmailContent) 
 
 	refID := "sub-" + shortHash(email+"|"+c.title+"|"+c.ctaURL)
 	return EmailMessage{
-		From:    from,
-		To:      email,
-		Subject: c.title,
-		HTML:    htmlPart,
-		Text:    textPart,
-		ReplyTo: c.replyTo,
-		ListID:  listIDFor(fromName),
-		RefID:   refID,
+		From:        from,
+		To:          email,
+		Subject:     c.title,
+		HTML:        htmlPart,
+		Text:        textPart,
+		ReplyTo:     c.replyTo,
+		ListID:      listIDFor(fromName),
+		RefID:       refID,
+		MessageType: c.msgType,
+		PublisherID: c.pubID,
 	}
 }
 

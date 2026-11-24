@@ -214,10 +214,11 @@ func buildLegalReviewReminderEmail(ctx context.Context, q *db.Queries, item db.C
 	)
 
 	return EmailMessage{
-		From:    from,
-		To:      item.Email,
-		Subject: fmt.Sprintf("[qoefi] %s — %s", headline, rawTitle),
-		HTML:    body,
+		From:        from,
+		To:          item.Email,
+		Subject:     fmt.Sprintf("[qoefi] %s — %s", headline, rawTitle),
+		HTML:        body,
+		MessageType: "legal.version_notice",
 	}, nil
 }
 
