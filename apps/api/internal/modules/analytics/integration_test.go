@@ -133,7 +133,7 @@ func seedCounters(t *testing.T, ctx context.Context) {
 		t.Fatalf("bookmark: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "ArticleComment" (id, content, "articleId", "authorId", "createdAt", "updatedAt")
+		`INSERT INTO "Post" (id, content, "rootArticleId", "authorId", "createdAt", "updatedAt")
 		 VALUES (gen_random_uuid()::text, 'Super !', 'art_an_01', $1, now(), now())`, readerID); err != nil {
 		t.Fatalf("comment: %v", err)
 	}

@@ -68,7 +68,7 @@ func (s *Service) CreateComment(ctx context.Context, articleID, authorID, conten
 			}
 			return Comment{}, err
 		}
-		if parentRow.ArticleId != articleID {
+		if parentRow.ArticleID.String != articleID {
 			return Comment{}, errNotFound
 		}
 		if blocked, err := s.blockedBetween(ctx, authorID, parentRow.AuthorID); err != nil {
@@ -78,24 +78,55 @@ func (s *Service) CreateComment(ctx context.Context, articleID, authorID, conten
 		}
 	}
 
-	parent := pgtype.Text{}
-	if parentID != nil && *parentID != "" {
-		parent = pgtype.Text{String: *parentID, Valid: true}
+	// Un commentaire est un post : l'article est la racine du CONTEXTE
+	// ("rootArticleId"), le commentaire de niveau 1 est celle du FIL
+	// ("rootId"). Une réponse hérite de la racine de son parent, sinon elle
+	// serait elle-même sa propre racine et le fil se scinderait.
+	article := pgtype.Text{String: articleID, Valid: true}
+	var createdID string
+	if parentID == nil || *parentID == "" {
+		created, err := s.q.InsertArticleCommentRoot(ctx, db.InsertArticleCommentRootParams{
+			Content:       content,
+			AuthorId:      authorID,
+			RootArticleId: article,
+		})
+		if err != nil {
+			return Comment{}, err
+		}
+		createdID = created.ID
+	} else {
+		parentRow, err := s.q.GetCommentWithAuthor(ctx, *parentID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return Comment{}, errNotFound
+			}
+			return Comment{}, err
+		}
+		rootID := parentRow.ID
+		if parentRow.RootID.Valid && parentRow.RootID.String != "" {
+			rootID = parentRow.RootID.String
+		}
+		created, err := s.q.InsertArticleCommentReply(ctx, db.InsertArticleCommentReplyParams{
+			Content:       content,
+			AuthorId:      authorID,
+			RootArticleId: article,
+			ParentId:      pgtype.Text{String: parentRow.ID, Valid: true},
+			RootId:        pgtype.Text{String: rootID, Valid: true},
+		})
+		if err != nil {
+			return Comment{}, err
+		}
+		createdID = created.ID
+		// Même compteur que les pensées : le fil et le feed lisent
+		// "replyCount" sans savoir que le post est un commentaire.
+		if err := s.q.IncrementReplyCount(ctx, parentRow.ID); err != nil {
+			log.Printf("[articles] replyCount parent: %v", err)
+		}
 	}
 
-	created, err := s.q.InsertArticleComment(ctx, db.InsertArticleCommentParams{
-		Content:   content,
-		ArticleId: articleID,
-		AuthorId:  toUUID(authorID),
-		ParentId:  parent,
-	})
-	if err != nil {
-		return Comment{}, err
-	}
+	s.notifyComment(ctx, articleID, authorID, createdID, cfg, parentID)
 
-	s.notifyComment(ctx, articleID, authorID, created.ID, cfg, parentID)
-
-	return s.getComment(ctx, created.ID)
+	return s.getComment(ctx, createdID)
 }
 
 // ListComments renvoie tous les commentaires d'un article (flat, ordre chronologique).
@@ -103,7 +134,7 @@ func (s *Service) CreateComment(ctx context.Context, articleID, authorID, conten
 // d'un compte privé non suivi sont omis pour le viewer.
 func (s *Service) ListComments(ctx context.Context, articleID, viewerID string) ([]Comment, error) {
 	rows, err := s.q.ListArticleComments(ctx, db.ListArticleCommentsParams{
-		ArticleID: articleID,
+		ArticleID: pgtype.Text{String: articleID, Valid: true},
 		ViewerID:  toUUID(viewerID),
 	})
 	if err != nil {
@@ -111,12 +142,9 @@ func (s *Service) ListComments(ctx context.Context, articleID, viewerID string) 
 	}
 	out := make([]Comment, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, commentFromWithAuthorRow(db.GetCommentWithAuthorRow{
-			ID: r.ID, Content: r.Content, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
-			ArticleId: r.ArticleId, AuthorID: r.AuthorID, ParentId: r.ParentId,
-			AuthorName: r.AuthorName, AuthorUsername: r.AuthorUsername,
-			AuthorLogoUrl: r.AuthorLogoUrl, AuthorIsCertified: r.AuthorIsCertified,
-		}))
+		// Les deux formes de ligne sont identiques (même SELECT) : la
+		// conversion est un simple changement de type généré.
+		out = append(out, commentFromWithAuthorRow(db.GetCommentWithAuthorRow(r)))
 	}
 	return out, nil
 }
@@ -132,6 +160,13 @@ func (s *Service) DeleteComment(ctx context.Context, commentID, userID string) e
 	}
 	if author != userID {
 		return errForbidden
+	}
+	// Le compteur du parent est décrémenté avant la suppression : après, la
+	// ligne n'existe plus pour dire à quel fil elle appartenait.
+	if row, err := s.q.GetCommentWithAuthor(ctx, commentID); err == nil && row.ParentId.Valid {
+		if err := s.q.DecrementReplyCount(ctx, row.ParentId.String); err != nil {
+			log.Printf("[articles] replyCount parent (suppression): %v", err)
+		}
 	}
 	return s.q.DeleteArticleComment(ctx, commentID)
 }
@@ -185,7 +220,7 @@ func commentFromWithAuthorRow(r db.GetCommentWithAuthorRow) Comment {
 		Content:   r.Content,
 		CreatedAt: r.CreatedAt.Time.Format(time.RFC3339),
 		UpdatedAt: r.UpdatedAt.Time.Format(time.RFC3339),
-		ArticleID: r.ArticleId,
+		ArticleID: r.ArticleID.String,
 		AuthorID:  r.AuthorID,
 		ParentID:  textPtr(r.ParentId),
 		Author: CommentAuthor{

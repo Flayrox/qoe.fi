@@ -12,7 +12,7 @@ import (
 )
 
 const deleteArticleComment = `-- name: DeleteArticleComment :exec
-DELETE FROM "ArticleComment"
+DELETE FROM "Post"
 WHERE id = $1
 `
 
@@ -23,8 +23,8 @@ func (q *Queries) DeleteArticleComment(ctx context.Context, id string) error {
 
 const getArticleCommentAuthor = `-- name: GetArticleCommentAuthor :one
 SELECT "authorId"::text AS author_id
-FROM "ArticleComment"
-WHERE id = $1
+FROM "Post"
+WHERE id = $1 AND "deletedAt" IS NULL
 `
 
 func (q *Queries) GetArticleCommentAuthor(ctx context.Context, id string) (string, error) {
@@ -35,6 +35,7 @@ func (q *Queries) GetArticleCommentAuthor(ctx context.Context, id string) (strin
 }
 
 const getArticleCommentsConfig = `-- name: GetArticleCommentsConfig :one
+
 SELECT a."allowComments" AS article_allow_comments,
        a."authorId"::text AS author_id,
        a."publisherId" AS publisher_id,
@@ -51,6 +52,20 @@ type GetArticleCommentsConfigRow struct {
 	PublisherAllowComments bool   `json:"publisher_allow_comments"`
 }
 
+// =====================================================================
+// 💬 Commentaires d'article — désormais des posts (lot L41)
+// =====================================================================
+// Un commentaire EST un "Post" avec "rootArticleId" : il apparaît donc dans
+// les feeds, le profil et les fils comme n'importe quelle pensée, avec les
+// mêmes filtres de sécurité (blocks, mutes, visibilité de profil, mots
+// masqués) et les mêmes compteurs ("replyCount").
+//
+// Invariants :
+//   - niveau 1 : "rootId" NULL, "rootArticleId" = article ;
+//   - réponse   : "rootId" = racine du fil de commentaires (le commentaire de
+//     niveau 1), "rootArticleId" = même article que le parent.
+//
+// =====================================================================
 func (q *Queries) GetArticleCommentsConfig(ctx context.Context, id string) (GetArticleCommentsConfigRow, error) {
 	row := q.db.QueryRow(ctx, getArticleCommentsConfig, id)
 	var i GetArticleCommentsConfigRow
@@ -65,8 +80,8 @@ func (q *Queries) GetArticleCommentsConfig(ctx context.Context, id string) (GetA
 
 const getCommentParentAuthor = `-- name: GetCommentParentAuthor :one
 SELECT "authorId"::text AS author_id
-FROM "ArticleComment"
-WHERE id = $1
+FROM "Post"
+WHERE id = $1 AND "deletedAt" IS NULL
 `
 
 func (q *Queries) GetCommentParentAuthor(ctx context.Context, id string) (string, error) {
@@ -77,15 +92,16 @@ func (q *Queries) GetCommentParentAuthor(ctx context.Context, id string) (string
 }
 
 const getCommentWithAuthor = `-- name: GetCommentWithAuthor :one
-SELECT c.id, c."content", c."createdAt", c."updatedAt", c."articleId",
-       c."authorId"::text AS author_id, c."parentId",
+SELECT p.id, p."content", p."createdAt", p."updatedAt",
+       p."rootArticleId" AS article_id, p."authorId"::text AS author_id,
+       p."parentId", p."rootId" AS root_id,
        u.name AS author_name,
        u.username AS author_username,
        u."logoUrl" AS author_logo_url,
        u."isCertified" AS author_is_certified
-FROM "ArticleComment" c
-JOIN "User" u ON u.id = c."authorId"
-WHERE c.id = $1
+FROM "Post" p
+JOIN "User" u ON u.id = p."authorId"
+WHERE p.id = $1 AND p."deletedAt" IS NULL
 `
 
 type GetCommentWithAuthorRow struct {
@@ -93,9 +109,10 @@ type GetCommentWithAuthorRow struct {
 	Content           string           `json:"content"`
 	CreatedAt         pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt         pgtype.Timestamp `json:"updatedAt"`
-	ArticleId         string           `json:"articleId"`
+	ArticleID         pgtype.Text      `json:"article_id"`
 	AuthorID          string           `json:"author_id"`
 	ParentId          pgtype.Text      `json:"parentId"`
+	RootID            pgtype.Text      `json:"root_id"`
 	AuthorName        pgtype.Text      `json:"author_name"`
 	AuthorUsername    pgtype.Text      `json:"author_username"`
 	AuthorLogoUrl     pgtype.Text      `json:"author_logo_url"`
@@ -110,9 +127,10 @@ func (q *Queries) GetCommentWithAuthor(ctx context.Context, id string) (GetComme
 		&i.Content,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.ArticleId,
+		&i.ArticleID,
 		&i.AuthorID,
 		&i.ParentId,
+		&i.RootID,
 		&i.AuthorName,
 		&i.AuthorUsername,
 		&i.AuthorLogoUrl,
@@ -121,74 +139,120 @@ func (q *Queries) GetCommentWithAuthor(ctx context.Context, id string) (GetComme
 	return i, err
 }
 
-const insertArticleComment = `-- name: InsertArticleComment :one
-INSERT INTO "ArticleComment" (id, "content", "articleId", "authorId", "parentId", "createdAt", "updatedAt")
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4, now(), now())
-RETURNING id, "content", "createdAt", "updatedAt", "articleId", "authorId"::text AS author_id, "parentId"
+const insertArticleCommentReply = `-- name: InsertArticleCommentReply :one
+INSERT INTO "Post" (id, "content", "authorId", "createdAt", "updatedAt",
+                    "rootArticleId", "parentId", "rootId", "replyRestriction")
+VALUES (gen_random_uuid()::text, $1, $2, now(), now(), $3, $4, $5, 'everyone')
+RETURNING id, "content", "createdAt", "updatedAt", "rootArticleId" AS article_id,
+          "authorId"::text AS author_id, "parentId", "rootId" AS root_id
 `
 
-type InsertArticleCommentParams struct {
-	Content   string      `json:"content"`
-	ArticleId string      `json:"articleId"`
-	AuthorId  pgtype.UUID `json:"authorId"`
-	ParentId  pgtype.Text `json:"parentId"`
+type InsertArticleCommentReplyParams struct {
+	Content       string      `json:"content"`
+	AuthorId      string      `json:"authorId"`
+	RootArticleId pgtype.Text `json:"rootArticleId"`
+	ParentId      pgtype.Text `json:"parentId"`
+	RootId        pgtype.Text `json:"rootId"`
 }
 
-type InsertArticleCommentRow struct {
+type InsertArticleCommentReplyRow struct {
 	ID        string           `json:"id"`
 	Content   string           `json:"content"`
 	CreatedAt pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt pgtype.Timestamp `json:"updatedAt"`
-	ArticleId string           `json:"articleId"`
+	ArticleID pgtype.Text      `json:"article_id"`
 	AuthorID  string           `json:"author_id"`
 	ParentId  pgtype.Text      `json:"parentId"`
+	RootID    pgtype.Text      `json:"root_id"`
 }
 
-func (q *Queries) InsertArticleComment(ctx context.Context, arg InsertArticleCommentParams) (InsertArticleCommentRow, error) {
-	row := q.db.QueryRow(ctx, insertArticleComment,
+func (q *Queries) InsertArticleCommentReply(ctx context.Context, arg InsertArticleCommentReplyParams) (InsertArticleCommentReplyRow, error) {
+	row := q.db.QueryRow(ctx, insertArticleCommentReply,
 		arg.Content,
-		arg.ArticleId,
 		arg.AuthorId,
+		arg.RootArticleId,
 		arg.ParentId,
+		arg.RootId,
 	)
-	var i InsertArticleCommentRow
+	var i InsertArticleCommentReplyRow
 	err := row.Scan(
 		&i.ID,
 		&i.Content,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.ArticleId,
+		&i.ArticleID,
 		&i.AuthorID,
 		&i.ParentId,
+		&i.RootID,
+	)
+	return i, err
+}
+
+const insertArticleCommentRoot = `-- name: InsertArticleCommentRoot :one
+INSERT INTO "Post" (id, "content", "authorId", "createdAt", "updatedAt", "rootArticleId", "replyRestriction")
+VALUES (gen_random_uuid()::text, $1, $2, now(), now(), $3, 'everyone')
+RETURNING id, "content", "createdAt", "updatedAt", "rootArticleId" AS article_id,
+          "authorId"::text AS author_id, "parentId", "rootId" AS root_id
+`
+
+type InsertArticleCommentRootParams struct {
+	Content       string      `json:"content"`
+	AuthorId      string      `json:"authorId"`
+	RootArticleId pgtype.Text `json:"rootArticleId"`
+}
+
+type InsertArticleCommentRootRow struct {
+	ID        string           `json:"id"`
+	Content   string           `json:"content"`
+	CreatedAt pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt pgtype.Timestamp `json:"updatedAt"`
+	ArticleID pgtype.Text      `json:"article_id"`
+	AuthorID  string           `json:"author_id"`
+	ParentId  pgtype.Text      `json:"parentId"`
+	RootID    pgtype.Text      `json:"root_id"`
+}
+
+func (q *Queries) InsertArticleCommentRoot(ctx context.Context, arg InsertArticleCommentRootParams) (InsertArticleCommentRootRow, error) {
+	row := q.db.QueryRow(ctx, insertArticleCommentRoot, arg.Content, arg.AuthorId, arg.RootArticleId)
+	var i InsertArticleCommentRootRow
+	err := row.Scan(
+		&i.ID,
+		&i.Content,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ArticleID,
+		&i.AuthorID,
+		&i.ParentId,
+		&i.RootID,
 	)
 	return i, err
 }
 
 const listArticleComments = `-- name: ListArticleComments :many
-SELECT c.id, c."content", c."createdAt", c."updatedAt", c."articleId",
-       c."authorId"::text AS author_id, c."parentId",
+SELECT p.id, p."content", p."createdAt", p."updatedAt",
+       p."rootArticleId" AS article_id, p."authorId"::text AS author_id,
+       p."parentId", p."rootId" AS root_id,
        u.name AS author_name,
        u.username AS author_username,
        u."logoUrl" AS author_logo_url,
        u."isCertified" AS author_is_certified
-FROM "ArticleComment" c
-JOIN "User" u ON u.id = c."authorId"
-WHERE c."articleId" = $1
-  AND NOT EXISTS (
-    SELECT 1 FROM "BlockedUser" b
-    WHERE (b."readerId" = $2 AND b."creatorId" = u.id)
-       OR (b."readerId" = u.id AND b."creatorId" = $2)
-  )
-  AND (
-    COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us WHERE us."userId" = u.id), 'PUBLIC') = 'PUBLIC'
-    OR u.id = $2
-    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId" = $2 AND f."publisherId" = u."publisherId")
-  )
-ORDER BY c."createdAt" ASC
+FROM "Post" p
+JOIN "User" u ON u.id = p."authorId"
+WHERE p."rootArticleId" = $1
+  AND p."deletedAt" IS NULL
+  AND p."isDraft" = false
+  AND p."isHiddenByModerator" = false
+  AND p."isHiddenByAuthor" = false
+  AND p.visibility = 'public'
+  AND NOT is_blocked_bidirectional($2::uuid, p."authorId")
+  AND can_view_profile($2::uuid, u.id)
+  AND NOT is_muted_by($2::uuid, p."authorId")
+  AND NOT contains_muted_word($2::uuid, p."content")
+ORDER BY p."createdAt" ASC, p.id ASC
 `
 
 type ListArticleCommentsParams struct {
-	ArticleID string      `json:"article_id"`
+	ArticleID pgtype.Text `json:"article_id"`
 	ViewerID  pgtype.UUID `json:"viewer_id"`
 }
 
@@ -197,15 +261,18 @@ type ListArticleCommentsRow struct {
 	Content           string           `json:"content"`
 	CreatedAt         pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt         pgtype.Timestamp `json:"updatedAt"`
-	ArticleId         string           `json:"articleId"`
+	ArticleID         pgtype.Text      `json:"article_id"`
 	AuthorID          string           `json:"author_id"`
 	ParentId          pgtype.Text      `json:"parentId"`
+	RootID            pgtype.Text      `json:"root_id"`
 	AuthorName        pgtype.Text      `json:"author_name"`
 	AuthorUsername    pgtype.Text      `json:"author_username"`
 	AuthorLogoUrl     pgtype.Text      `json:"author_logo_url"`
 	AuthorIsCertified bool             `json:"author_is_certified"`
 }
 
+// Les filtres sont ceux des feeds (helpers SQL partagés) : un commentaire ne
+// peut pas être visible ici et caché là-bas.
 func (q *Queries) ListArticleComments(ctx context.Context, arg ListArticleCommentsParams) ([]ListArticleCommentsRow, error) {
 	rows, err := q.db.Query(ctx, listArticleComments, arg.ArticleID, arg.ViewerID)
 	if err != nil {
@@ -220,9 +287,10 @@ func (q *Queries) ListArticleComments(ctx context.Context, arg ListArticleCommen
 			&i.Content,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.ArticleId,
+			&i.ArticleID,
 			&i.AuthorID,
 			&i.ParentId,
+			&i.RootID,
 			&i.AuthorName,
 			&i.AuthorUsername,
 			&i.AuthorLogoUrl,

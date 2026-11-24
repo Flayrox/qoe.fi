@@ -230,6 +230,19 @@ type Querier interface {
 	// Résout aussi les slugs personnalisés par auteur (ArticleSlug).
 	GetArticleBySlugAny(ctx context.Context, slug string) (GetArticleBySlugAnyRow, error)
 	GetArticleCommentAuthor(ctx context.Context, id string) (string, error)
+	// =====================================================================
+	// 💬 Commentaires d'article — désormais des posts (lot L41)
+	// =====================================================================
+	// Un commentaire EST un "Post" avec "rootArticleId" : il apparaît donc dans
+	// les feeds, le profil et les fils comme n'importe quelle pensée, avec les
+	// mêmes filtres de sécurité (blocks, mutes, visibilité de profil, mots
+	// masqués) et les mêmes compteurs ("replyCount").
+	//
+	// Invariants :
+	//   * niveau 1 : "rootId" NULL, "rootArticleId" = article ;
+	//   * réponse   : "rootId" = racine du fil de commentaires (le commentaire de
+	//                 niveau 1), "rootArticleId" = même article que le parent.
+	// =====================================================================
 	GetArticleCommentsConfig(ctx context.Context, id string) (GetArticleCommentsConfigRow, error)
 	GetArticleEmailReleaseStatus(ctx context.Context, id string) (GetArticleEmailReleaseStatusRow, error)
 	// Retourne le vecteur d'un article sous forme texte ('' si absent). Le scan
@@ -463,7 +476,8 @@ type Querier interface {
 	// QueryExecModeExec (PgBouncer), où pgx encoderait []byte en bytea → 22P02.
 	InsertAdminAuditLog(ctx context.Context, arg InsertAdminAuditLogParams) error
 	InsertApiKey(ctx context.Context, arg InsertApiKeyParams) error
-	InsertArticleComment(ctx context.Context, arg InsertArticleCommentParams) (InsertArticleCommentRow, error)
+	InsertArticleCommentReply(ctx context.Context, arg InsertArticleCommentReplyParams) (InsertArticleCommentReplyRow, error)
+	InsertArticleCommentRoot(ctx context.Context, arg InsertArticleCommentRootParams) (InsertArticleCommentRootRow, error)
 	// Import bulk d'articles — jobs asynq + rapports d'erreurs.
 	InsertArticleImportJob(ctx context.Context, arg InsertArticleImportJobParams) (string, error)
 	InsertArticleReleaseCatchUpDeliveries(ctx context.Context, arg InsertArticleReleaseCatchUpDeliveriesParams) error
@@ -543,6 +557,8 @@ type Querier interface {
 	// un commentaire ne doit jamais révéler une annotation privée.
 	ListAnnotationComments(ctx context.Context, arg ListAnnotationCommentsParams) ([]ListAnnotationCommentsRow, error)
 	ListApiKeys(ctx context.Context, userid pgtype.UUID) ([]ListApiKeysRow, error)
+	// Les filtres sont ceux des feeds (helpers SQL partagés) : un commentaire ne
+	// peut pas être visible ici et caché là-bas.
 	ListArticleComments(ctx context.Context, arg ListArticleCommentsParams) ([]ListArticleCommentsRow, error)
 	ListArticleImportJobs(ctx context.Context, arg ListArticleImportJobsParams) ([]ListArticleImportJobsRow, error)
 	ListArticleSlugs(ctx context.Context, articleid string) ([]string, error)

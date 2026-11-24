@@ -40,6 +40,10 @@ WHERE p."authorId" = ANY(@author_ids::uuid[])
   AND p."isHiddenByModerator" = false
   AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
   AND p.visibility IN ('public', 'followers')
+  -- Un commentaire d'article est un post (L41), mais il n'a pas encore son
+  -- contexte d'article dans le feed : il reste hors des surfaces tant que
+  -- l'éligibilité et le rendu ne le portent pas (L43).
+  AND p."rootArticleId" IS NULL
   AND NOT is_blocked_bidirectional(@viewer_id, p."authorId")
   AND can_view_profile(@viewer_id, u.id)
   AND NOT is_muted_by(@viewer_id, p."authorId")
@@ -78,6 +82,7 @@ WHERE p."isDraft" = false
   AND p."deletedAt" IS NULL
   AND p."isHiddenByModerator" = false
   AND p.visibility = 'public'
+  AND p."rootArticleId" IS NULL -- commentaires : voir L43 (contexte + ranking)
   AND p."createdAt" >= now() - interval '7 days'
   AND u."isShadowbanned" = false
   AND u."isSuspended" = false
@@ -170,6 +175,7 @@ WHERE p."authorId" = @author_id::uuid
   AND p."isHiddenByModerator" = false
   AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
   AND p.visibility = 'public'
+  AND p."rootArticleId" IS NULL -- l'onglet « réponses » du profil arrive en L42
   AND NOT EXISTS (
     SELECT 1 FROM "BlockedUser" bu
     WHERE (bu."readerId" = @viewer_id AND bu."creatorId" = p."authorId")

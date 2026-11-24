@@ -86,8 +86,10 @@ func (s *Service) fetchViewsBatch(ctx context.Context, ids []string, cutoff *tim
 	return views, uniques, nil
 }
 
+// Les commentaires sont des posts (L41) : le compteur d'un article lit
+// "rootArticleId", jamais la table legacy.
 func (s *Service) fetchCommentsBatch(ctx context.Context, ids []string) (map[string]int, error) {
-	return s.fetchArticleCountBatch(ctx, ids, `SELECT "articleId", COUNT(*)::int FROM "ArticleComment" WHERE "articleId" = ANY($1) GROUP BY "articleId"`, "commentaires")
+	return s.fetchArticleCountBatch(ctx, ids, `SELECT "rootArticleId", COUNT(*)::int FROM "Post" WHERE "rootArticleId" = ANY($1) AND "deletedAt" IS NULL GROUP BY "rootArticleId"`, "commentaires")
 }
 
 func (s *Service) fetchLikesBatch(ctx context.Context, ids []string) (map[string]int, error) {

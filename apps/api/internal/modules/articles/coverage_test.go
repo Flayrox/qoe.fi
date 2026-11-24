@@ -157,7 +157,7 @@ func TestList_CommentsAndViewsBatch(t *testing.T) {
 	reader := seedReader(t, ctx)
 
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "ArticleComment" (id, content, "createdAt", "updatedAt", "articleId", "authorId")
+		`INSERT INTO "Post" (id, content, "createdAt", "updatedAt", "rootArticleId", "authorId")
 		 VALUES ('cmt_cov_1', 'super', now(), now(), 'art_test_000', $1::uuid)
 		      , ('cmt_cov_2', 'top',   now(), now(), 'art_test_000', $1::uuid)`, reader); err != nil {
 		t.Fatalf("comments: %v", err)

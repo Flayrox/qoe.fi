@@ -129,7 +129,7 @@ func TestRunWorld(t *testing.T) {
 	if n := count(t, `SELECT COUNT(*) FROM "Article" WHERE array_to_string("semanticTags", ',') LIKE '%romance%'`); n < 1 {
 		t.Fatalf("articles romance = %d, attendu >= 1", n)
 	}
-	if n := count(t, `SELECT COUNT(*) FROM "ArticleComment" WHERE id LIKE 'world_comment_%'`); n < 3 {
+	if n := count(t, `SELECT COUNT(*) FROM "Post" WHERE id LIKE 'world_comment_%'`); n < 3 {
 		t.Fatalf("commentaires articles = %d, attendu >= 3", n)
 	}
 	if n := count(t, `SELECT COUNT(*) FROM "Article" WHERE length(regexp_replace(content, '<[^>]+>', '', 'g')) >= 3000`); n < 1 {

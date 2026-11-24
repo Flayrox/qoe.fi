@@ -125,7 +125,7 @@ func TestHandlerArticles_SimilarAndComments(t *testing.T) {
 	// Récupère l'id du commentaire créé pour le supprimer.
 	var commentID string
 	if err := poolTest.QueryRow(context.Background(),
-		`SELECT id FROM "ArticleComment" ORDER BY "createdAt" DESC LIMIT 1`).Scan(&commentID); err != nil {
+		`SELECT id FROM "Post" WHERE "rootArticleId" IS NOT NULL ORDER BY "createdAt" DESC LIMIT 1`).Scan(&commentID); err != nil {
 		t.Fatalf("get comment id: %v", err)
 	}
 	if rr := doH(t, r, "DELETE", "/v1/articles/comments/"+commentID, ""); rr.Code != http.StatusOK {

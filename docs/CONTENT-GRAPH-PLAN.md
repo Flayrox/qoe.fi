@@ -216,3 +216,44 @@ Risques nommés :
 3. Faut-il un onglet « Commentaires » sur le profil (distinct de « Réponses ») ?
    **Proposition : non au premier lot** ; le filtre `rootArticleId IS NOT NULL` peut le
    produire plus tard sans migration.
+
+---
+
+## Journal d'avancement
+
+### 2026-11-24 — L41 livré (schéma + bascule)
+
+| Étape | État | Preuve |
+| --- | --- | --- |
+| Migration `00097_content_graph.sql` | ✅ | dry-run transactionnel (rollback) : 225 commentaires → 225 posts, contenu identique, 0 orphelin, 0 réponse perdue, FK `Notification` repointée |
+| `schema.sql` + `sqlc` | ✅ | `pnpm guard:sqlc` vert (38 fichiers, v1.31.1) |
+| `articles/comments.go` sur `Post` | ✅ | `go build ./...`, tests `articles`/`feed`/`posts`/`publishers`/`analytics`/`seed` verts |
+| Compteurs d'articles | ✅ | `fetchCommentsBatch`, `publishers`, `analytics` lisent `rootArticleId` |
+| Compteur de réponses | ✅ | `IncrementReplyCount` / `DecrementReplyCount` réutilisés (aucune arithmétique locale) |
+| Signalements | ✅ | `reportTargetExists("comment")` exige `rootArticleId IS NOT NULL` |
+| Seed | ✅ | `world`/`top` écrivent désormais des posts commentaires |
+| Surfaces de feed | ⏸️ | `FindFollowingFeed`, `FindTrending`, `FindPostsByAuthor` excluent `rootArticleId IS NOT NULL` : le contexte d'article et le ranking arrivent en L43, l'onglet « réponses » du profil en L42 |
+
+**Décisions prises pendant L41.**
+
+- *Suppression* : `DeleteArticleComment` reste un `DELETE` dur en L41 (comportement
+  actuel, cascade des notifications, aucun orphelin). Le tombstone arrive en L42 avec
+  l'arbre paginé, quand l'interface saura afficher « message supprimé » sans casser
+  un fil.
+- *Racine de fil* : `rootId` pointe le commentaire de niveau 1, jamais l'article.
+  `rootArticleId` porte le contexte sur toutes les lignes, ce qui rend la liste d'un
+  article indexable en une seule lecture.
+- *Filtres* : la liste réutilise `is_blocked_bidirectional`, `can_view_profile`,
+  `is_muted_by` et `contains_muted_word` — les mêmes helpers que les feeds, donc une
+  divergence de visibilité entre le tiroir de lecture et le feed devient impossible.
+
+### Reste à faire
+
+- **L41 (fin)** : SDK `ArticleCommentPayload` inchangé, aucune bascule cliente requise ;
+  supprimer la table `ArticleComment` après un cycle de déploiement (migration `00098`).
+- **L42** : fil infini paginé (curseur `(createdAt, id)` sur `rootId`), tombstone,
+  onglet « réponses » du profil, `GetRepliesForThought` branché ou supprimé (R314),
+  `ListArticleComments` remplacé par la pagination unique (R134). Les tests
+  d'intégration `articles` (Docker indisponible en local) restent à passer en CI.
+- **L43** : éligibilité par surface (`why`), ranking transparent pondéré
+  (`SystemConfig`), levée du drapeau `rootArticleId IS NULL` avec contexte d'article.

@@ -576,8 +576,8 @@ func seedWorldArticleComments(ctx context.Context, pool *pgxpool.Pool, cast []wo
 	batch := newBatchInserter(ctx, pool, "world comments")
 	for _, c := range comments {
 		if err := batch.add(`
-			INSERT INTO "ArticleComment" (id, content, "articleId", "authorId", "createdAt", "updatedAt")
-			VALUES ($1,$2,$3,$4,now() - interval '2 days',now() - interval '2 days')
+			INSERT INTO "Post" (id, content, "authorId", "rootArticleId", "createdAt", "updatedAt")
+			VALUES ($1,$2,$4,$3,now() - interval '2 days',now() - interval '2 days')
 			ON CONFLICT (id) DO UPDATE SET content=$2, "updatedAt"=now()`, c.id, c.content, c.article, c.author); err != nil {
 			return fmt.Errorf("world article comment: %w", err)
 		}

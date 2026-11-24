@@ -692,8 +692,8 @@ func seedArticleDiscussion(ctx context.Context, pool *pgxpool.Pool, res *TopResu
 				created = time.Now().UTC().Add(-time.Hour)
 			}
 			if err := batch.add(`
-				INSERT INTO "ArticleComment" (id, content, "articleId", "authorId", "createdAt", "updatedAt")
-				VALUES ($1,$2,$3,$4,$5,$5)
+				INSERT INTO "Post" (id, content, "authorId", "rootArticleId", "createdAt", "updatedAt")
+				VALUES ($1,$2,$4,$3,$5,$5)
 				ON CONFLICT (id) DO NOTHING`,
 				id, content, art.ID, c.ID, created); err != nil {
 				return fmt.Errorf("article comment %s: %w", id, err)

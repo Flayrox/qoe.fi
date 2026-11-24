@@ -1028,7 +1028,9 @@ func (s *Service) reportTargetExists(ctx context.Context, targetType, targetID s
 	case "user":
 		query = `SELECT 1 FROM "User" WHERE id::text = $1`
 	case "comment":
-		query = `SELECT 1 FROM "ArticleComment" WHERE id = $1`
+		// Un commentaire est un post (L41) : on exige la racine d'article
+		// pour qu'une pensée ne se déguise pas en commentaire.
+		query = `SELECT 1 FROM "Post" WHERE id = $1 AND "rootArticleId" IS NOT NULL AND "deletedAt" IS NULL`
 	default:
 		return false, errors.New("targetType invalide (thought, article, user, comment)")
 	}
