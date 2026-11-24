@@ -718,6 +718,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${UMAMI_DB_USER:-umami}:${UMAMI_DB_PASSWORD:?UMAMI_DB_PASSWORD requis}@umami-db:5432/umami
       DATABASE_TYPE: postgresql
+      APP_SECRET: ${UMAMI_APP_SECRET:-${UMAMI_HASH_SALT:?UMAMI_HASH_SALT requis (voir .env.docker.example)}}
       HASH_SALT: ${UMAMI_HASH_SALT:?UMAMI_HASH_SALT requis (voir .env.docker.example)}
       DISABLE_TELEMETRY: '1'
     depends_on:
