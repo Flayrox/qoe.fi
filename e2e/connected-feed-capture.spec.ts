@@ -73,11 +73,6 @@ test.describe('Capture du feed (connecté)', () => {
   }
 
   test.beforeAll(async () => {
-    expect(SUPABASE_URL, 'NEXT_PUBLIC_SUPABASE_URL requis').toBeTruthy();
-    expect(ANON_KEY, 'NEXT_PUBLIC_SUPABASE_ANON_KEY requis').toBeTruthy();
-    expect(SERVICE_ROLE_KEY, 'SUPABASE_SERVICE_ROLE_KEY requis').toBeTruthy();
-    expect(DATABASE_URL, 'DATABASE_URL requis').toBeTruthy();
-
     // 🚦 Prérequis explicite : sans GoTrue local (:54321) il n'y a pas de vrai
     // utilisateur à créer, donc rien à prouver. On saute AVEC une raison
     // visible dans le rapport, au lieu d'échouer sur un `fetch failed` opaque
@@ -89,9 +84,14 @@ test.describe('Capture du feed (connecté)', () => {
       .then((response) => response.ok)
       .catch(() => false);
     test.skip(
-      !supabaseReady,
-      `Supabase local injoignable sur ${SUPABASE_URL} : la capture connectée exige « supabase start ».`
+      !supabaseReady || !SERVICE_ROLE_KEY || !ANON_KEY,
+      `Supabase local injoignable sur ${SUPABASE_URL} ou clé manquante : la capture connectée exige « supabase start ».`
     );
+
+    expect(SUPABASE_URL, 'NEXT_PUBLIC_SUPABASE_URL requis').toBeTruthy();
+    expect(ANON_KEY, 'NEXT_PUBLIC_SUPABASE_ANON_KEY requis').toBeTruthy();
+    expect(SERVICE_ROLE_KEY, 'SUPABASE_SERVICE_ROLE_KEY requis').toBeTruthy();
+    expect(DATABASE_URL, 'DATABASE_URL requis').toBeTruthy();
 
     // 1. Signup (créé le user côté GoTrue/Supabase auth).
     const signup = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {

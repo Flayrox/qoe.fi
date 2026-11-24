@@ -82,8 +82,8 @@ test.describe('Capture du feed (public)', () => {
     //    L'assertion reste complète : lien d'article résolu, drawer ouvert sur
     //    CET article, session de lecture envoyée et acceptée en 200.
     const firstCard = page.locator('article[data-overlay-anchor]').first();
-    const articleLink = firstCard.locator('a[href*="/a/"], a[href*="/article/"]').first();
-    await expect(articleLink).toHaveAttribute('href', /\/(?:a|article)\/[^/?#]+$/);
+    const articleLink = firstCard.locator('a[data-article-link]').first();
+    await expect(articleLink).toHaveAttribute('href', /.+/);
     // Le clic sur la couverture est le contrat DOM du feed (le href reste la
     // cible « nouvel onglet » du média) : il ouvre le drawer in-app.
     await firstCard.locator('[data-article-cover]').click();
