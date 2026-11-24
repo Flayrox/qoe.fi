@@ -1484,6 +1484,7 @@ type Post struct {
 	ReplyCount          int32             `json:"replyCount"`
 	ParentId            pgtype.Text       `json:"parentId"`
 	RootId              pgtype.Text       `json:"rootId"`
+	RootArticleId       pgtype.Text       `json:"rootArticleId"`
 	RepostId            pgtype.Text       `json:"repostId"`
 	QuotedArticleId     pgtype.Text       `json:"quotedArticleId"`
 	QuotedExcerpt       pgtype.Text       `json:"quotedExcerpt"`

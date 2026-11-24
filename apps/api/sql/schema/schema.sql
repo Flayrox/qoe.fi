@@ -806,6 +806,7 @@ CREATE TABLE "Post" (
     "replyCount" INTEGER NOT NULL DEFAULT 0,
     "parentId" TEXT,
     "rootId" TEXT,
+    "rootArticleId" TEXT,
     "repostId" TEXT,
     "quotedArticleId" TEXT,
     "quotedExcerpt" TEXT,
@@ -1571,6 +1572,9 @@ CREATE INDEX "Post_parentId_idx" ON "Post"("parentId");
 CREATE INDEX "Post_rootId_idx" ON "Post"("rootId");
 
 -- CreateIndex
+CREATE INDEX "Post_rootArticleId_createdAt_idx" ON "Post"("rootArticleId", "createdAt") WHERE "rootArticleId" IS NOT NULL;
+
+-- CreateIndex
 CREATE INDEX "Post_repostId_idx" ON "Post"("repostId");
 
 -- CreateIndex
@@ -1912,6 +1916,12 @@ ALTER TABLE "Post" ADD CONSTRAINT "Post_parentId_fkey" FOREIGN KEY ("parentId") 
 
 -- AddForeignKey
 ALTER TABLE "Post" ADD CONSTRAINT "Post_rootId_fkey" FOREIGN KEY ("rootId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Post" ADD CONSTRAINT "Post_rootArticleId_fkey" FOREIGN KEY ("rootArticleId") REFERENCES "Article"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddCheckConstraint
+ALTER TABLE "Post" ADD CONSTRAINT "Post_content_root_exclusive" CHECK ("rootArticleId" IS NULL OR "quotedArticleId" IS NULL);
 
 -- AddForeignKey
 ALTER TABLE "Post" ADD CONSTRAINT "Post_repostId_fkey" FOREIGN KEY ("repostId") REFERENCES "Post"("id") ON DELETE SET NULL ON UPDATE CASCADE;
