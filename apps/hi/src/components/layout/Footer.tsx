@@ -22,6 +22,11 @@ interface FooterProps {
   locale?: string;
 }
 
+// Endonymes : le nom d'une langue s'écrit dans cette langue, jamais traduit.
+// C'est la seule copie du footer qui ne passe pas par Lingui (un francophone
+// doit retrouver « Français » même quand l'interface est en anglais).
+const LANGUAGE_LABELS = { fr: 'Français', en: 'English' } as const;
+
 // Garde de forme : la config vient de la console, en JSON libre.
 function isFooterSection(value: unknown): value is FooterSection {
   if (!isRecord(value) || !isFilledString(value.title)) return false;
@@ -35,112 +40,63 @@ function isFooterSection(value: unknown): value is FooterSection {
   );
 }
 
-const getDefaultSections = (locale: string): FooterSection[] => {
-  const isEn = locale === 'en';
-
-  if (isEn) {
-    return [
-      {
-        title: 'Platform',
-        links: [
-          { label: 'Reader Experience (/home)', href: `${URLS.APP}/home` },
-          { label: 'Creator Studio', href: URLS.STUDIO },
-          { label: 'Help Center & Support', href: '/support' },
-          { label: 'Report Content & Appeals', href: '/support#contacter' },
-          { label: 'API Documentation', href: URLS.DOCS, isExternal: true },
-        ],
-      },
-      {
-        title: 'Terms & Policies',
-        links: [
-          { label: 'Terms of Service', href: '/legal/terms' },
-          { label: 'Terms of Sale (CGV)', href: '/legal/sales' },
-          { label: 'Creator Agreement', href: '/legal/creators' },
-          { label: 'Acceptable Use Policy', href: '/legal/acceptable-use' },
-          { label: 'Accessibility Commitment', href: '/legal/accessibility' },
-        ],
-      },
-      {
-        title: 'Privacy & Legal',
-        links: [
-          { label: 'Legal Notice', href: '/legal/legal-notice' },
-          { label: 'Privacy Policy', href: '/legal/privacy' },
-          { label: 'GDPR & Data Processing', href: '/legal/dpa' },
-          { label: 'Cookie Policy', href: '/legal/cookies' },
-          { label: 'Sub-processors', href: '/legal/subprocessors' },
-          { label: 'All Legal Documents', href: '/legal' },
-        ],
-      },
-      {
-        title: 'Connect',
-        links: [
-          { label: 'X (Twitter)', href: 'https://x.com/qoefi', isExternal: true },
-          { label: 'LinkedIn', href: 'https://www.linkedin.com/company/qoefi', isExternal: true },
-          { label: 'GitHub', href: 'https://github.com/qoefi', isExternal: true },
-        ],
-      },
-    ];
-  }
-
-  return [
-    {
-      title: 'Plateforme',
-      links: [
-        { label: 'Espace Lecteur (/home)', href: `${URLS.APP}/home` },
-        { label: 'Studio Créateur', href: URLS.STUDIO },
-        { label: "Centre d'aide & Support", href: '/support' },
-        { label: 'Signaler un contenu / Recours', href: '/support#contacter' },
-        { label: 'Documentation API', href: URLS.DOCS, isExternal: true },
-      ],
-    },
-    {
-      title: 'Conditions & Vente',
-      links: [
-        { label: "Conditions d'utilisation", href: '/legal/terms' },
-        { label: 'Conditions de vente (CGV)', href: '/legal/sales' },
-        { label: 'Accord créateur', href: '/legal/creators' },
-        { label: 'Utilisation acceptable', href: '/legal/acceptable-use' },
-        { label: 'Accessibilité', href: '/legal/accessibility' },
-      ],
-    },
-    {
-      title: 'Confidentialité & Légal',
-      links: [
-        { label: 'Mentions légales', href: '/legal/legal-notice' },
-        { label: 'Politique de confidentialité', href: '/legal/privacy' },
-        { label: 'Conformité RGPD', href: '/legal/dpa' },
-        { label: 'Politique des cookies', href: '/legal/cookies' },
-        { label: 'Liste des sous-traitants', href: '/legal/subprocessors' },
-        { label: 'Tous les documents', href: '/legal' },
-      ],
-    },
-    {
-      title: 'Réseaux',
-      links: [
-        { label: 'X (Twitter)', href: 'https://x.com/qoefi', isExternal: true },
-        { label: 'LinkedIn', href: 'https://www.linkedin.com/company/qoefi', isExternal: true },
-        { label: 'GitHub', href: 'https://github.com/qoefi', isExternal: true },
-      ],
-    },
-  ];
-};
+// Colonnes par défaut résolues au rendu : la langue vient du catalogue Lingui
+// (activé par le layout), plus d'un couple FR/EN recopié à la main.
+const getDefaultSections = (): FooterSection[] => [
+  {
+    title: t`Plateforme`,
+    links: [
+      { label: t`Espace Lecteur (/home)`, href: `${URLS.APP}/home` },
+      { label: t`Studio Créateur`, href: URLS.STUDIO },
+      { label: t`Centre d'aide & Support`, href: '/support' },
+      { label: t`Signaler un contenu / Recours`, href: '/support#contacter' },
+      { label: t`Documentation API`, href: URLS.DOCS, isExternal: true },
+    ],
+  },
+  {
+    title: t`Conditions & Vente`,
+    links: [
+      { label: t`Conditions d'utilisation`, href: '/legal/terms' },
+      { label: t`Conditions de vente (CGV)`, href: '/legal/sales' },
+      { label: t`Accord créateur`, href: '/legal/creators' },
+      { label: t`Utilisation acceptable`, href: '/legal/acceptable-use' },
+      { label: t`Accessibilité`, href: '/legal/accessibility' },
+    ],
+  },
+  {
+    title: t`Confidentialité & Légal`,
+    links: [
+      { label: t`Mentions légales`, href: '/legal/legal-notice' },
+      { label: t`Politique de confidentialité`, href: '/legal/privacy' },
+      { label: t`Conformité RGPD`, href: '/legal/dpa' },
+      { label: t`Politique des cookies`, href: '/legal/cookies' },
+      { label: t`Liste des sous-traitants`, href: '/legal/subprocessors' },
+      { label: t`Tous les documents`, href: '/legal' },
+    ],
+  },
+  {
+    title: t`Réseaux`,
+    links: [
+      { label: 'X (Twitter)', href: 'https://x.com/qoefi', isExternal: true },
+      { label: 'LinkedIn', href: 'https://www.linkedin.com/company/qoefi', isExternal: true },
+      { label: 'GitHub', href: 'https://github.com/qoefi', isExternal: true },
+    ],
+  },
+];
 
 export const Footer = async ({ config, locale }: FooterProps) => {
   // Resolve locale if not passed
   const resolvedLocale = locale || (await getLanguage());
-  const isEn = resolvedLocale === 'en';
 
   // Get copyright from config or use default
   const copyrightText =
     config?.['footer_copyright'] ||
-    (isEn
-      ? t`© ${new Date().getFullYear()} QOEFI. Built for the curious minds of Europe's creative economy.`
-      : t`© ${new Date().getFullYear()} QOEFI. Conçu pour les esprits curieux de l'économie créative européenne.`);
+    t`© ${new Date().getFullYear()} QOEFI. Conçu pour les esprits curieux de l'économie créative européenne.`;
 
   // Get sections based on active language
   const customSectionsJson =
     config?.[`footer_sections_${resolvedLocale}`] || config?.['footer_sections'];
-  let footerSections = getDefaultSections(resolvedLocale);
+  let footerSections = getDefaultSections();
 
   if (customSectionsJson) {
     // Une section sans titre ou un lien sans intitulé n'a rien à faire à
@@ -192,8 +148,7 @@ export const Footer = async ({ config, locale }: FooterProps) => {
       {/* Sub-footer bar */}
       <div className="max-w-6xl mx-auto px-6 pb-12 pt-8 mt-4 border-t border-border/20 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
         <p className="text-xs text-muted-foreground">
-          © {new Date().getFullYear()} QOEFI.
-          {isEn ? ' All rights reserved.' : ' Tous droits réservés.'}
+          © {new Date().getFullYear()} QOEFI. {t`Tous droits réservés.`}
         </p>
         <div className="flex items-center gap-3 text-xs">
           <Link
@@ -205,7 +160,7 @@ export const Footer = async ({ config, locale }: FooterProps) => {
                 : 'text-muted-foreground'
             )}
           >
-            Français
+            {LANGUAGE_LABELS.fr}
           </Link>
           <span className="text-muted-foreground/40">·</span>
           <Link
@@ -217,7 +172,7 @@ export const Footer = async ({ config, locale }: FooterProps) => {
                 : 'text-muted-foreground'
             )}
           >
-            English
+            {LANGUAGE_LABELS.en}
           </Link>
         </div>
       </div>

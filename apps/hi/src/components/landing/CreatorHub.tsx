@@ -14,8 +14,13 @@ interface CreatorHubProps {
   config: Record<string, string>;
 }
 
-const TABS = ['Créateurs', 'Médias & CMS', 'API'] as const;
+// Identifiants stables, libellés traduits au rendu : une valeur d'état n'a pas
+// à changer de langue (sinon changer de langue casse l'onglet actif).
+const TABS = ['creators', 'media', 'api'] as const;
 type CreatorTab = (typeof TABS)[number];
+
+// Hôte affiché dans la maquette de la console API (pas de la copie).
+const API_HOST = 'api.qoe.fi';
 
 interface TabContent {
   eyebrow: string;
@@ -46,16 +51,16 @@ function toTabContent(value: unknown): TabContent | null {
 
 // Libellés d'onglets résolus au rendu (t`...` au module resterait figé).
 const getTabLabel = (tab: CreatorTab): string => {
-  if (tab === 'Créateurs') return t`Créateurs`;
-  if (tab === 'Médias & CMS') return t`Médias & CMS`;
+  if (tab === 'creators') return t`Créateurs`;
+  if (tab === 'media') return t`Médias & CMS`;
   return t`API`;
 };
 
 export const CreatorHub = ({ config }: CreatorHubProps) => {
-  const [activeTab, setActiveTab] = useState<CreatorTab>('Créateurs');
+  const [activeTab, setActiveTab] = useState<CreatorTab>('creators');
 
   const TAB_CONTENT: Record<CreatorTab, TabContent> = {
-    Créateurs: {
+    creators: {
       eyebrow: t`Journalistes, essayistes, collectifs`,
       headline: t`Votre média en 3 minutes.`,
       body: t`Pas de code. Pas de serveur. Pas de comptable. Vous avez une voix — nous vous donnons l'infrastructure. Sous-domaine personnalisé, SSL automatique, éditeur riche, newsletter intégrée, paiement direct.`,
@@ -70,7 +75,7 @@ export const CreatorHub = ({ config }: CreatorHubProps) => {
       cta: t`Créer mon média`,
       ctaHref: URLS.STUDIO,
     },
-    'Médias & CMS': {
+    media: {
       eyebrow: t`Rédactions, titres indépendants`,
       headline: t`Votre CMS. Votre audience. Votre ligne.`,
       body: t`Synchronisation bidirectionnelle avec vos bases existantes. Importez vos archives, continuez à publier où vous êtes, diffusez ici en temps réel. Votre audience grandit — nos serveurs absorbent.`,
@@ -85,7 +90,7 @@ export const CreatorHub = ({ config }: CreatorHubProps) => {
       cta: t`Rejoindre l'écosystème`,
       ctaHref: URLS.STUDIO,
     },
-    API: {
+    api: {
       eyebrow: t`Développeurs, intégrateurs`,
       headline: t`Headless. Ouvert. Souverain.`,
       body: t`Accédez à l'intégralité de notre infrastructure via une API REST sémantique. Construisez votre front, votre app mobile, votre propre CMS. Nos données, votre interface.`,
@@ -223,7 +228,7 @@ export const CreatorHub = ({ config }: CreatorHubProps) => {
 
             {/* Right: visual panel */}
             <div className="rounded-2xl border border-border overflow-hidden bg-white shadow-sm">
-              {activeTab === 'API' ? (
+              {activeTab === 'api' ? (
                 /* Code block for API tab */
                 <div className="bg-foreground h-full min-h-[380px] flex flex-col">
                   <div className="flex items-center gap-1.5 px-5 py-4 border-b border-border">
@@ -231,7 +236,7 @@ export const CreatorHub = ({ config }: CreatorHubProps) => {
                     <span className="w-2.5 h-2.5 rounded-full bg-highlight" />
                     <span className="w-2.5 h-2.5 rounded-full bg-success" />
                     <span className="ml-3 text-[10px] text-muted-foreground font-mono">
-                      api.qoe.fi
+                      {API_HOST}
                     </span>
                   </div>
                   <pre className="flex-1 p-6 text-[11px] font-mono leading-relaxed text-muted-foreground overflow-auto">
@@ -240,7 +245,7 @@ export const CreatorHub = ({ config }: CreatorHubProps) => {
   -H "Content-Type: application/json"`}</code>
                   </pre>
                 </div>
-              ) : activeTab === 'Médias & CMS' ? (
+              ) : activeTab === 'media' ? (
                 /* Dashboard mockup for Media tab */
                 <div className="p-8 min-h-[380px] flex flex-col gap-5">
                   <div className="flex items-center justify-between">

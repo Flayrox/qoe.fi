@@ -9,23 +9,16 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { FileText } from 'lucide-react';
+import { t } from '@lingui/core/macro';
 import { getLanguage } from '@qoe/i18n/server';
 import { fetchLegalDocuments } from '@qoe/sdk/actions/legal';
 import { CookiePreferencesButton } from '@qoe/ui';
 import { toPublicLegalSlug } from '@qoe/config/legal';
+import { getCategoryLabel } from '@/lib/legal-categories';
 
 export const dynamic = 'force-dynamic';
 
 const LANDING_URL = (process.env.NEXT_PUBLIC_LANDING_URL || 'https://hi.qoe.fi').replace(/\/$/, '');
-
-const CATEGORY_LABELS: Record<string, { fr: string; en: string }> = {
-  legal: { fr: 'Juridique', en: 'Legal' },
-  privacy: { fr: 'Vie privée', en: 'Privacy' },
-  commerce: { fr: 'Paiements', en: 'Billing' },
-  creator: { fr: 'Créateurs', en: 'Creators' },
-  security: { fr: 'Sécurité', en: 'Security' },
-  general: { fr: 'Informations', en: 'Information' },
-};
 
 export async function generateMetadata(): Promise<Metadata> {
   const lang = await getLanguage();
@@ -54,7 +47,6 @@ export async function generateMetadata(): Promise<Metadata> {
     },
   };
 }
-
 export default async function LegalIndexPage() {
   const locale = await getLanguage();
   const isFr = !locale.startsWith('en');
@@ -69,19 +61,12 @@ export default async function LegalIndexPage() {
     grouped.set(doc.category, list);
   }
 
-  const categoryLabel = (category: string) =>
-    CATEGORY_LABELS[category]?.[isFr ? 'fr' : 'en'] ?? category;
-
   return (
     <div className="mx-auto max-w-5xl px-6 py-16 lg:px-10">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
-          {isFr ? 'Informations légales' : 'Legal information'}
-        </h1>
+        <h1 className="text-3xl font-bold tracking-tight md:text-4xl">{t`Informations légales`}</h1>
         <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground">
-          {isFr
-            ? 'Toutes les règles du service, en clair : ce que qoefi s’engage à faire, ce que vous acceptez, comment vos données sont traitées et comment exercer vos droits. Chaque document est versionné et l’historique reste consultable.'
-            : 'Every rule of the service, in plain language: what qoefi commits to, what you accept, how your data is processed and how to exercise your rights. Each document is versioned and its history stays available.'}
+          {t`Toutes les règles du service, en clair : ce que qoefi s’engage à faire, ce que vous acceptez, comment vos données sont traitées et comment exercer vos droits. Chaque document est versionné et l’historique reste consultable.`}
         </p>
       </header>
 
@@ -89,7 +74,7 @@ export default async function LegalIndexPage() {
         {[...grouped.entries()].map(([category, docs]) => (
           <section key={category}>
             <h2 className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              {categoryLabel(category)}
+              {getCategoryLabel(category)}
             </h2>
             <div className="grid gap-3 sm:grid-cols-2">
               {docs.map((doc) => (
@@ -112,11 +97,11 @@ export default async function LegalIndexPage() {
                         </p>
                       )}
                       <p className="mt-3 text-[11px] uppercase tracking-wide text-muted-foreground">
-                        {isFr ? 'Version' : 'Version'} {doc.version}
+                        {t`Version`} {doc.version}
                         {doc.effectiveAt
-                          ? ` · ${isFr ? 'en vigueur le' : 'effective'} ${new Date(
-                              doc.effectiveAt
-                            ).toLocaleDateString(isFr ? 'fr-FR' : 'en-GB')}`
+                          ? ` · ${t`en vigueur le`} ${new Date(doc.effectiveAt).toLocaleDateString(
+                              isFr ? 'fr-FR' : 'en-GB'
+                            )}`
                           : ''}
                       </p>
                     </div>
@@ -129,24 +114,18 @@ export default async function LegalIndexPage() {
 
         {documents.length === 0 && (
           <p className="rounded-2xl border border-dashed border-border px-6 py-16 text-center text-muted-foreground">
-            {isFr
-              ? 'Les documents légaux sont en cours de publication.'
-              : 'Legal documents are being published.'}
+            {t`Les documents légaux sont en cours de publication.`}
           </p>
         )}
       </div>
 
       <section className="mt-12 rounded-2xl border border-border bg-card p-6">
-        <h2 className="text-lg font-semibold">
-          {isFr ? 'Vos préférences de cookies' : 'Your cookie preferences'}
-        </h2>
+        <h2 className="text-lg font-semibold">{t`Vos préférences de cookies`}</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          {isFr
-            ? 'Vous pouvez revenir sur votre choix concernant les traceurs non essentiels à tout moment.'
-            : 'You can change your choice about non-essential trackers at any time.'}
+          {t`Vous pouvez revenir sur votre choix concernant les traceurs non essentiels à tout moment.`}
         </p>
         <div className="mt-4">
-          <CookiePreferencesButton label={isFr ? 'Gérer mes cookies' : 'Manage my cookies'} />
+          <CookiePreferencesButton label={t`Gérer mes cookies`} />
         </div>
       </section>
     </div>

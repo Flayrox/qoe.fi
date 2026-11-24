@@ -248,6 +248,26 @@ const KEYWORD_PROP = /(key|keyword|synonym|alias|tag)s?$/i;
 const ACCENT = /[àâäéèêëîïôöùûüçœÀÂÄÉÈÊËÎÏÔÖÙÛÜÇŒ]/;
 const URLISH = /^(https?:|\/|#|mailto:|tel:|data:|application\/|image\/|text\/)/i;
 const CSS_STACK = /sans-serif|serif|monospace|system-ui/;
+// Pile de classes utilitaires (Tailwind) : « bg-white text-black font-sans »
+// n'est pas de la copie, même quand un jeton (« sans ») existe aussi en
+// français. Chaque jeton doit être une utilité connue : un seul mot hors de ce
+// vocabulaire rend la chaîne suspecte, on ne blanchit jamais une phrase.
+const UTILITY_TOKEN =
+  /^(?:[a-z-]+:)*(?:bg|text|font|leading|tracking|border|rounded|p[xytrbl]?|m[xytrbl]?|min-w|max-w|min-h|max-h|w|h|flex|grid|gap|space|items|justify|self|place|order|col|row|block|inline|hidden|absolute|relative|fixed|sticky|overflow|opacity|shadow|ring|z|object|aspect|inset|top|right|bottom|left|list|align|table|whitespace|break|truncate|line-clamp|transition|duration|ease|delay|animate|cursor|select|pointer|resize|sr-only|antialiased|backdrop|blur|brightness|contrast|drop|grayscale|hue|invert|saturate|sepia|transform|scale|rotate|translate|skew|italic|underline|uppercase|lowercase|capitalize)(?:-|$)/;
+function isUtilityStack(text) {
+  const tokens = text.trim().split(/\s+/).filter(Boolean);
+  return tokens.length > 0 && tokens.every((token) => UTILITY_TOKEN.test(token));
+}
+// Méthodes DOM : leur argument est un sélecteur, jamais de la copie affichée
+// (« [data-logo] » contient « logo », un mot du lexique).
+const DOM_QUERY_CALLEES = new Set([
+  'querySelector',
+  'querySelectorAll',
+  'closest',
+  'matches',
+  'getElementById',
+  'getElementsByClassName',
+]);
 
 const strip = (s) =>
   s
@@ -386,7 +406,7 @@ for (const file of files) {
       if (ts.isPropertyAssignment(p) && p.name === node) return;
       if (ts.isPropertySignature(p) || ts.isImportSpecifier(p) || ts.isExportSpecifier(p)) return;
       if (comparisonOperand(node) || keywordArray(node)) return;
-      if (CSS_STACK.test(node.text)) return;
+      if (CSS_STACK.test(node.text) || isUtilityStack(node.text)) return;
       if (ts.isPropertyAssignment(p)) {
         const name = p.name.getText();
         if (CONTRACT_PROPS.has(name) || name === 'family') return;
@@ -401,7 +421,12 @@ for (const file of files) {
       }
       if (ts.isCallExpression(p)) {
         const callee = p.expression.getText();
-        if (callee === 'require' || callee.startsWith('console.')) return;
+        if (
+          callee === 'require' ||
+          callee.startsWith('console.') ||
+          DOM_QUERY_CALLEES.has(callee.split('.').pop())
+        )
+          return;
         report(node, 'call:' + callee.split('.').pop());
         return;
       }

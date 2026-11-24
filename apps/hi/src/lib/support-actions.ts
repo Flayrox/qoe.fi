@@ -9,6 +9,10 @@
 // distingue seul (auth optionnelle) — ici on ne fait que transmettre.
 // Rate-limit Redis (5/h) + budget 3/j/adresse côté Go (429/409 explicites).
 // =====================================================================
+// L'action ne renvoie pas de copie : elle tourne hors du rendu (pas de
+// catalogue actif garanti) et la langue de l'interface appartient au client.
+// Elle renvoie un code, le formulaire le traduit.
+// =====================================================================
 
 import { createClient } from '@qoe/supabase/server';
 
@@ -23,8 +27,11 @@ const KINDS = [
   'other',
 ] as const;
 
+export type SupportPublicError =
+  'invalid_email' | 'missing_content' | 'unavailable' | 'rate_limited' | 'duplicate' | 'failed';
+
 export type SupportPublicResult =
-  { ok: true; id: string; account: boolean } | { ok: false; error: string };
+  { ok: true; id: string; account: boolean } | { ok: false; error: SupportPublicError };
 
 async function accessToken(): Promise<string> {
   try {
@@ -51,15 +58,15 @@ export async function submitPublicTicket(input: {
   const subject = input.subject.trim();
   const message = input.message.trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return { ok: false, error: 'Adresse e-mail invalide / Invalid email address' };
+    return { ok: false, error: 'invalid_email' };
   }
   if (subject.length < 5 || message.length < 1) {
-    return { ok: false, error: 'Sujet (5 min) et message requis / Subject and message required' };
+    return { ok: false, error: 'missing_content' };
   }
 
   const base = process.env.QOE_API_URL;
   if (!base) {
-    return { ok: false, error: 'Service indisponible / Service unavailable' };
+    return { ok: false, error: 'unavailable' };
   }
   const token = await accessToken();
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -75,24 +82,16 @@ export async function submitPublicTicket(input: {
       cache: 'no-store',
     });
   } catch {
-    return { ok: false, error: 'Service indisponible / Service unavailable' };
+    return { ok: false, error: 'unavailable' };
   }
   if (res.status === 429) {
-    return {
-      ok: false,
-      error:
-        'Trop de demandes aujourd’hui, réessayez demain / Too many requests, try again tomorrow',
-    };
+    return { ok: false, error: 'rate_limited' };
   }
   if (res.status === 409) {
-    return {
-      ok: false,
-      error:
-        'Un dossier est déjà ouvert pour ce motif avec cette adresse / A case is already open for this topic',
-    };
+    return { ok: false, error: 'duplicate' };
   }
   if (!res.ok) {
-    return { ok: false, error: 'Dépôt impossible / Submission failed' };
+    return { ok: false, error: 'failed' };
   }
   const data = (await res.json().catch(() => ({}))) as { id?: string };
   return { ok: true, id: typeof data.id === 'string' ? data.id : '', account: token !== '' };

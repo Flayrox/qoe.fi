@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { ArrowLeft, History } from 'lucide-react';
+import { t } from '@lingui/core/macro';
 import { markdownHeadings, markdownToHtml } from '@qoe/utils';
 import { getLanguage } from '@qoe/i18n/server';
 import { JsonLd, CookiePreferencesButton } from '@qoe/ui';
@@ -15,6 +16,7 @@ import {
   fetchLegalDocuments,
   fetchLegalVersions,
 } from '@qoe/sdk/actions/legal';
+import { getCategoryLabel } from '@/lib/legal-categories';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,15 +26,8 @@ interface PageProps {
 
 const LANDING_URL = (process.env.NEXT_PUBLIC_LANDING_URL || 'https://hi.qoe.fi').replace(/\/$/, '');
 
-const CATEGORY_LABELS: Record<string, { fr: string; en: string }> = {
-  legal: { fr: 'Juridique', en: 'Legal' },
-  privacy: { fr: 'Vie privée', en: 'Privacy' },
-  commerce: { fr: 'Paiements', en: 'Billing' },
-  creator: { fr: 'Créateurs', en: 'Creators' },
-  security: { fr: 'Sécurité', en: 'Security' },
-  general: { fr: 'Informations', en: 'Information' },
-};
-
+// La locale ne sert plus qu'au format de date et aux métadonnées : la copie
+// passe par le catalogue Lingui (activé par le layout).
 function formatDate(value: string | undefined, isFr: boolean): string {
   if (!value) return '';
   const date = new Date(value);
@@ -88,7 +83,7 @@ export default async function LegalDocumentPage({ params }: PageProps) {
   const html = markdownToHtml(doc.body ?? '');
   const headings = markdownHeadings(doc.body ?? '').filter((heading) => heading.level === 2);
   const history = versions.filter((version) => version.status !== 'DRAFT');
-  const categoryLabel = CATEGORY_LABELS[doc.category]?.[isFr ? 'fr' : 'en'] ?? doc.category;
+  const categoryLabel = getCategoryLabel(doc.category);
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -112,13 +107,13 @@ export default async function LegalDocumentPage({ params }: PageProps) {
         className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
       >
         <ArrowLeft className="h-4 w-4" />
-        {isFr ? 'Toutes les informations légales' : 'All legal information'}
+        {t`Toutes les informations légales`}
       </Link>
 
       <div className="grid gap-10 lg:grid-cols-[260px_1fr]">
         <nav className="lg:sticky lg:top-8 lg:self-start">
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-            {isFr ? 'Informations légales' : 'Legal information'}
+            {t`Informations légales`}
           </p>
           <ul className="space-y-1.5 border-l border-border pl-3">
             {documents.map((item) => {
@@ -150,16 +145,16 @@ export default async function LegalDocumentPage({ params }: PageProps) {
             <h1 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">{doc.title}</h1>
             <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
               <span className="rounded-full bg-muted px-2.5 py-1 font-semibold text-foreground">
-                {isFr ? 'Version' : 'Version'} {doc.version}
+                {t`Version`} {doc.version}
               </span>
               {doc.effectiveAt && (
                 <span>
-                  {isFr ? 'En vigueur le' : 'Effective'} {formatDate(doc.effectiveAt, isFr)}
+                  {t`En vigueur le`} {formatDate(doc.effectiveAt, isFr)}
                 </span>
               )}
               {doc.updatedAt && (
                 <span>
-                  {isFr ? 'Mise à jour le' : 'Updated'} {formatDate(doc.updatedAt, isFr)}
+                  {t`Mise à jour le`} {formatDate(doc.updatedAt, isFr)}
                 </span>
               )}
             </div>
@@ -171,7 +166,7 @@ export default async function LegalDocumentPage({ params }: PageProps) {
           {headings.length >= 3 && (
             <nav className="mt-8 rounded-2xl border border-border bg-card p-5">
               <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-                {isFr ? 'Sommaire' : 'Contents'}
+                {t`Sommaire`}
               </p>
               <ol className="space-y-1.5 text-sm">
                 {headings.map((heading) => (
@@ -194,9 +189,9 @@ export default async function LegalDocumentPage({ params }: PageProps) {
           />
 
           <div className="mt-12 flex flex-wrap items-center gap-3 border-t border-border pt-6">
-            <CookiePreferencesButton label={isFr ? 'Gérer mes cookies' : 'Manage my cookies'} />
+            <CookiePreferencesButton label={t`Gérer mes cookies`} />
             <Link href="/legal" className="text-sm text-muted-foreground underline">
-              {isFr ? 'Tous les documents' : 'All documents'}
+              {t`Tous les documents`}
             </Link>
           </div>
 
@@ -204,9 +199,7 @@ export default async function LegalDocumentPage({ params }: PageProps) {
             <section className="mt-10 rounded-2xl border border-border bg-card p-5">
               <div className="flex items-center gap-2">
                 <History className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-sm font-semibold">
-                  {isFr ? 'Historique des versions' : 'Version history'}
-                </h2>
+                <h2 className="text-sm font-semibold">{t`Historique des versions`}</h2>
               </div>
               <ul className="mt-4 space-y-3 text-sm">
                 {history.map((version) => (
@@ -223,18 +216,12 @@ export default async function LegalDocumentPage({ params }: PageProps) {
                             : 'bg-muted text-muted-foreground'
                         }`}
                       >
-                        {version.status === 'PUBLISHED'
-                          ? isFr
-                            ? 'en vigueur'
-                            : 'in force'
-                          : isFr
-                            ? 'archivée'
-                            : 'archived'}
+                        {version.status === 'PUBLISHED' ? t`en vigueur` : t`archivée`}
                       </span>
                     </div>
                     <p className="mt-1 text-muted-foreground">
                       {version.effectiveAt
-                        ? `${isFr ? 'En vigueur le' : 'Effective'} ${formatDate(version.effectiveAt, isFr)}`
+                        ? `${t`En vigueur le`} ${formatDate(version.effectiveAt, isFr)}`
                         : ''}
                       {version.effectiveAt && version.changelog ? ' · ' : ''}
                       {version.changelog ?? ''}
@@ -243,9 +230,7 @@ export default async function LegalDocumentPage({ params }: PageProps) {
                 ))}
               </ul>
               <p className="mt-4 text-xs text-muted-foreground">
-                {isFr
-                  ? 'Les versions archivées restent conservées comme preuve : une acceptation renvoie toujours à la version exacte qui a été acceptée.'
-                  : 'Archived versions are retained as evidence: an acceptance always points to the exact version accepted.'}
+                {t`Les versions archivées restent conservées comme preuve : une acceptation renvoie toujours à la version exacte qui a été acceptée.`}
               </p>
             </section>
           )}

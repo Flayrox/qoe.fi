@@ -4,18 +4,42 @@ import React, { useState } from 'react';
 import { Button } from '@qoe/ui/button';
 import { Input, Textarea } from '@qoe/ui/input';
 import { Select } from '@qoe/ui/select';
-import { submitPublicTicket } from '@/lib/support-actions';
+import { t } from '@lingui/core/macro';
+import { submitPublicTicket, type SupportPublicError } from '@/lib/support-actions';
 
-const KINDS = [
-  { id: 'account_lost', label: 'Compte perdu / Lost account' },
-  { id: 'account_restricted', label: 'Compte restreint / Restricted account' },
-  { id: 'content_moderation', label: 'Contenu / Content' },
-  { id: 'api_access', label: 'API' },
-  { id: 'import_issue', label: 'Import' },
-  { id: 'delivery', label: 'E-mails / Email delivery' },
-  { id: 'report_issue', label: 'Signalement / Report' },
-  { id: 'other', label: 'Autre / Other' },
-];
+// Libellés résolus au rendu : une table au module resterait figée dans la
+// langue par défaut.
+function getKinds(): { id: string; label: string }[] {
+  return [
+    { id: 'account_lost', label: t`Compte perdu` },
+    { id: 'account_restricted', label: t`Compte restreint` },
+    { id: 'content_moderation', label: t`Contenu` },
+    { id: 'api_access', label: t`API` },
+    { id: 'import_issue', label: t`Import` },
+    { id: 'delivery', label: t`E-mails` },
+    { id: 'report_issue', label: t`Signalement` },
+    { id: 'other', label: t`Autre` },
+  ];
+}
+
+// Le code vient du serveur, la copie du catalogue : la langue affichée reste
+// celle de l'interface, même quand l'action serveur répond en anglais.
+function errorMessage(code: SupportPublicError): string {
+  switch (code) {
+    case 'invalid_email':
+      return t`Adresse e-mail invalide.`;
+    case 'missing_content':
+      return t`Sujet (5 caractères minimum) et message requis.`;
+    case 'unavailable':
+      return t`Service indisponible pour le moment — réessayez dans un instant.`;
+    case 'rate_limited':
+      return t`Trop de demandes aujourd’hui, réessayez demain.`;
+    case 'duplicate':
+      return t`Un dossier est déjà ouvert pour ce motif avec cette adresse.`;
+    case 'failed':
+      return t`Envoi impossible — réessayez dans un instant.`;
+  }
+}
 
 export function SupportForm() {
   const [name, setName] = useState('');
@@ -37,15 +61,13 @@ export function SupportForm() {
         setSubject('');
         setMessage('');
       } else {
-        setError(res.error);
+        setError(errorMessage(res.error));
       }
     } catch {
       // L'action serveur peut lever (réseau coupé, redéploiement, 502 de la
       // passerelle) : sans ce message le bouton semblait n'avoir rien fait et
       // le visiteur renvoyait le même dossier en boucle.
-      setError(
-        'Envoi impossible pour le moment — réessayez dans un instant. / Sending failed, please retry.'
-      );
+      setError(t`Envoi impossible pour le moment — réessayez dans un instant.`);
     } finally {
       setSending(false);
     }
@@ -54,11 +76,11 @@ export function SupportForm() {
   if (done) {
     return (
       <div className="rounded-xl border border-border/60 p-6 text-center space-y-2">
-        <p className="text-sm font-semibold">Dossier ouvert — Request received ✓</p>
+        <p className="text-sm font-semibold">{t`Dossier ouvert — demande reçue ✓`}</p>
         <p className="text-xs text-muted-foreground leading-relaxed">
           {done.account
-            ? 'Il est ouvert sur votre compte : suivez-le depuis votre espace. / Opened on your account.'
-            : 'Il est lié à votre e-mail : conservez cette référence. / Linked to your email — keep this reference:'}
+            ? t`Il est ouvert sur votre compte : suivez-le depuis votre espace.`
+            : t`Il est lié à votre e-mail : conservez cette référence.`}
         </p>
         {done.id && (
           <code className="block text-xs font-mono bg-muted/60 rounded-lg px-3 py-2 break-all">
@@ -71,7 +93,7 @@ export function SupportForm() {
           onClick={() => setDone(null)}
           className="underline underline-offset-2"
         >
-          Ouvrir un autre dossier / Open another
+          {t`Ouvrir un autre dossier`}
         </Button>
       </div>
     );
@@ -88,35 +110,35 @@ export function SupportForm() {
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Nom / Name (optionnel)"
+          placeholder={t`Nom (optionnel)`}
           maxLength={100}
         />
         <Input
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="E-mail *"
+          placeholder={t`E-mail *`}
           type="email"
         />
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <Select
-          label="Type de demande / Request type"
+          label={t`Type de demande`}
           hideLabel
           value={kind}
           onValueChange={setKind}
-          options={KINDS.map((supportKind) => ({ id: supportKind.id, label: supportKind.label }))}
+          options={getKinds()}
         />
         <Input
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
-          placeholder="Sujet / Subject (5 min) *"
+          placeholder={t`Sujet (5 caractères minimum) *`}
           maxLength={200}
         />
       </div>
       <Textarea
         value={message}
         onChange={(e) => setMessage(e.target.value)}
-        placeholder="Décrivez le problème… / Describe the issue… *"
+        placeholder={t`Décrivez le problème… *`}
         rows={5}
       />
       {error && <p className="text-xs text-destructive-text">{error}</p>}
@@ -126,10 +148,10 @@ export function SupportForm() {
         disabled={sending || !valid}
         onClick={() => void submit()}
       >
-        {sending ? 'Envoi… / Sending…' : 'Envoyer / Send'}
+        {sending ? t`Envoi…` : t`Envoyer`}
       </Button>
       <p className="text-[11px] text-muted-foreground">
-        3 dossiers max par jour et par adresse (anti-spam). / Max 3 cases per day per address.
+        {t`3 dossiers maximum par jour et par adresse (anti-spam).`}
       </p>
     </div>
   );

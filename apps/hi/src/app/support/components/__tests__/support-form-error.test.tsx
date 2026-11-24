@@ -12,13 +12,14 @@ import { SupportForm } from '../support-form';
 
 // Une action serveur peut lever (réseau coupé, redéploiement, 502 de la
 // passerelle) : le formulaire doit le dire, pas rester muet en laissant le
-// visiteur devant un bouton qui semble n'avoir rien fait.
+// visiteur devant un bouton qui semble n'avoir rien fait. L'action renvoie un
+// code, jamais de la copie : le test vérifie que le formulaire le traduit.
 
 function fillValidForm() {
   fireEvent.change(screen.getByPlaceholderText('E-mail *'), {
     target: { value: 'lecteur@exemple.fr' },
   });
-  fireEvent.change(screen.getByPlaceholderText('Sujet / Subject (5 min) *'), {
+  fireEvent.change(screen.getByPlaceholderText('Sujet (5 caractères minimum) *'), {
     target: { value: 'Compte perdu' },
   });
   fireEvent.change(screen.getByPlaceholderText(/Décrivez le problème/), {
@@ -42,14 +43,14 @@ describe('SupportForm — échec de l’action', () => {
     });
   });
 
-  it('affiche le message serveur quand l’action répond un refus', async () => {
-    submitPublicTicket.mockResolvedValue({ ok: false, error: 'Adresse e-mail invalide' });
+  it('traduit le code d’erreur renvoyé par l’action', async () => {
+    submitPublicTicket.mockResolvedValue({ ok: false, error: 'invalid_email' });
     render(<SupportForm />);
     fillValidForm();
     fireEvent.click(screen.getByRole('button', { name: /Envoyer/ }));
 
     await waitFor(() => {
-      expect(screen.getByText('Adresse e-mail invalide')).toBeInTheDocument();
+      expect(screen.getByText('Adresse e-mail invalide.')).toBeInTheDocument();
     });
   });
 });

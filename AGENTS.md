@@ -110,12 +110,14 @@ campagne`) : jamais « plus tard » implicite, jamais de correctif mobile non de
 
 ## Traductions — le studio est fait, les autres apps non
 
-- **État mesuré le 2026-11-23** (`QOE_I18N_ZONES=apps/<app>/src node scripts/check-i18n-hardcoded.mjs`) :
-  `hi` **79** copies FR / 11 fichiers, `tenants` **45** / 16, `core` **349** / 67, `admin` **1 551** / 123.
-  Le studio est à **0** et gardé en CI.
-- **Ordre imposé** : `hi` → `tenants` → `core` → `admin`. Une app se traite **entièrement** dans le
+- **État mesuré le 2026-11-24** (`QOE_I18N_ZONES=apps/<app>/src node scripts/check-i18n-hardcoded.mjs`) :
+  studio et `hi` à **0**, `tenants` **45** copies FR / 16 fichiers, `core` **345** / 65,
+  `admin` **1 548** / 123.
+- **Ordre imposé** : `tenants` → `core` → `admin`. Une app se traite **entièrement** dans le
   même tour (jamais une surface mi-traduite) : critère de sortie `QOE_I18N_ZONES=apps/<app>/src` à
   **0**, catalogues régénérés, EN traduit à **100 %** (aucun `msgstr` vide).
+- **Exception documentée** : les endonymes du sélecteur de langue (`Français`, `English`) ne se
+  traduisent pas ; ils vivent dans une constante de `apps/hi/src/components/layout/Footer.tsx`.
 - `mobile` (L26) et Stage restent hors périmètre, y compris pour l'i18n.
 
 ## Conventions

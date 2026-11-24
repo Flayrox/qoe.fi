@@ -19,6 +19,9 @@ msgstr " · Premium"
 msgid " · réservé"
 msgstr " · members only"
 
+msgid " si besoin."
+msgstr " if needed."
+
 msgid "-- Créateur --"
 msgstr "-- Creator --"
 
@@ -392,8 +395,8 @@ msgid "••••••••••••••••"
 msgstr "••••••••••••••••"
 
 #. placeholder {0}: new Date().getFullYear()
-msgid "© {0} QOEFI. Built for the curious minds of Europe's creative economy."
-msgstr "© {0} QOEFI. Built for the curious minds of Europe's creative economy."
+#~ msgid "© {0} QOEFI. Built for the curious minds of Europe's creative economy."
+#~ msgstr "© {0} QOEFI. Built for the curious minds of Europe's creative economy."
 
 #. placeholder {0}: new Date().getFullYear()
 msgid "© {0} QOEFI. Conçu pour les esprits curieux de l'économie créative européenne."
@@ -479,6 +482,9 @@ msgstr "24 hours"
 
 msgid "25-34 ans"
 msgstr "25-34"
+
+msgid "3 dossiers maximum par jour et par adresse (anti-spam)."
+msgstr "Up to 3 cases per day per address (anti-spam)."
 
 msgid "3 jours"
 msgstr "3 days"
@@ -880,6 +886,9 @@ msgstr "Accessibility"
 msgid "Accessible librement. Contenu distribué intégralement aux abonnés."
 msgstr "Freely accessible. Content delivered in full to subscribers."
 
+msgid "Accord créateur"
+msgstr "Creator Agreement"
+
 msgid "Accordé"
 msgstr "Granted"
 
@@ -977,6 +986,9 @@ msgstr "Account address: change it in the account settings (Account & security).
 
 msgid "Adresse e-mail"
 msgstr "Email address"
+
+msgid "Adresse e-mail invalide."
+msgstr "Invalid email address."
 
 msgid "Adresse email"
 msgstr "Email address"
@@ -1097,6 +1109,9 @@ msgstr "Show on my profile"
 
 msgid "Agrandir"
 msgstr "Enlarge"
+
+msgid "Aide"
+msgstr "Help"
 
 msgid "Aide & recours"
 msgstr "Help & appeals"
@@ -1583,6 +1598,9 @@ msgstr "Media archive (read-only)"
 msgid "Archive ZIP complète : articles en Markdown et HTML, abonnés en CSV et manifest d'export. Aucune donnée n'est conservée par le studio."
 msgstr "Full ZIP archive: posts in Markdown and HTML, subscribers in CSV and an export manifest. The studio keeps no data."
 
+msgid "archivée"
+msgstr "archived"
+
 msgid "Ardoise"
 msgstr "Slate"
 
@@ -1845,6 +1863,9 @@ msgstr "No messages yet. Say hello 👋"
 
 msgid "Aucun mot masqué pour le moment."
 msgstr "No muted words yet."
+
+msgid "Aucun point traité ne correspond — décrivez votre cas ci-dessous."
+msgstr "No matching entry — describe your case below."
 
 msgid "Aucun résultat trouvé pour"
 msgstr "No results found for"
@@ -2371,6 +2392,10 @@ msgstr "category"
 msgid "Catégorie"
 msgstr "Category"
 
+#. placeholder {0}: article.publisher.name
+msgid "Catégorie affichée sur votre profil personnel (n'affecte pas {0})"
+msgstr "Category shown on your personal profile (does not affect {0})"
+
 msgid "Catégorie parente"
 msgstr "Parent category"
 
@@ -2448,6 +2473,12 @@ msgstr "This slug is reserved by a site page; rename the category in Posts."
 
 msgid "Centré"
 msgstr "Centered"
+
+msgid "Centre d'aide"
+msgstr "Help Center"
+
+msgid "Centre d'aide & Support"
+msgstr "Help Center & Support"
 
 msgid "Centrer auto (margin auto)"
 msgstr "Auto center (margin auto)"
@@ -3054,20 +3085,38 @@ msgstr "Account"
 msgid "Compte & sécurité"
 msgstr "Account & security"
 
+msgid "Compte perdu"
+msgstr "Lost account"
+
 msgid "Compte personnel"
 msgstr "Personal account"
 
 msgid "Compte privé"
 msgstr "Private account"
 
+msgid "Compte restreint"
+msgstr "Restricted account"
+
 msgid "Comptes suivis"
 msgstr "Followed accounts"
+
+msgid "Conditions & Vente"
+msgstr "Terms & Sales"
+
+msgid "Conditions d'utilisation"
+msgstr "Terms of Service"
+
+msgid "Conditions de vente (CGV)"
+msgstr "Terms of Sale (CGV)"
 
 msgid "Conditions, confidentialité, cookies et consentements enregistrés."
 msgstr "Terms, privacy, cookies and recorded consents."
 
 msgid "Confidentialité"
 msgstr "Privacy"
+
+msgid "Confidentialité & Légal"
+msgstr "Privacy & Legal"
 
 msgid "Confidentielle"
 msgstr "Confidential"
@@ -3123,6 +3172,9 @@ msgstr "Confirm password"
 msgid "Confirmez votre abonnement — {publisherName}"
 msgstr "Confirm your subscription — {publisherName}"
 
+msgid "Conformité RGPD"
+msgstr "GDPR Compliance"
+
 msgid "Confort"
 msgstr "Comfort"
 
@@ -3137,6 +3189,9 @@ msgstr "Signed in with"
 
 msgid "Connectez-vous"
 msgstr "Sign in"
+
+msgid "Connectez-vous à votre espace pour suivre vos dossiers et recours —"
+msgstr "Log in to your space to follow your cases and appeals —"
 
 msgid "Connectez-vous pour aimer ce post et soutenir cet auteur"
 msgstr "Log in to like this post and support this author"
@@ -3529,6 +3584,9 @@ msgstr "Growth without a hidden meter."
 msgid "Croissant"
 msgstr "Ascending"
 
+msgid "Culture Libre"
+msgstr "Free Culture"
+
 msgid "Cumul des réactions, sauvegardes, notes et partages"
 msgstr "Total reactions, saves, notes and shares"
 
@@ -3634,6 +3692,9 @@ msgstr "Describe the cover for screen readers"
 msgid "Décrivez la ligne éditoriale du média..."
 msgstr "Describe the media's editorial line..."
 
+msgid "Décrivez le problème… *"
+msgstr "Describe the issue… *"
+
 msgid "Décrivez les données utilisées et la façon dont vous comptez appeler l’API."
 msgstr "Describe the data used and how you plan to call the API."
 
@@ -3675,6 +3736,9 @@ msgstr "Already sent to subscribers"
 
 msgid "Déjà un compte ? Connexion"
 msgstr "Already have an account? Log in"
+
+msgid "Déjà un dossier ?"
+msgstr "Already have a case?"
 
 msgid "Délivrés"
 msgstr "Delivered"
@@ -3922,6 +3986,9 @@ msgstr "Design"
 msgid "Design & SEO"
 msgstr "Design & SEO"
 
+msgid "Design Éthique"
+msgstr "Ethical Design"
+
 msgid "Désimbriquer l'élément"
 msgstr "Unnest the element"
 
@@ -4006,6 +4073,9 @@ msgstr "Built-in newsletter distribution"
 msgid "Diversité des Formats"
 msgstr "Format Diversity"
 
+msgid "Documentation API"
+msgstr "API Documentation"
+
 msgid "Documents légaux"
 msgstr "Legal documents"
 
@@ -4035,6 +4105,9 @@ msgstr "Full data sent: views, uniques, timeseries, sources (hostname / referrer
 
 msgid "Donnez un titre à votre livre."
 msgstr "Give your book a title."
+
+msgid "Dossier ouvert — demande reçue ✓"
+msgstr "Case opened — request received ✓"
 
 msgid "Double authentification (TOTP) activée"
 msgstr "Two-factor authentication (TOTP) enabled"
@@ -4080,6 +4153,12 @@ msgstr "Dyslexia Friendly"
 
 msgid "Dyslexique"
 msgstr "Dyslexic"
+
+msgid "E-mail *"
+msgstr "Email *"
+
+msgid "E-mails"
+msgstr "Emails"
 
 msgid "E-mails soignés, sujets et textes par défaut localisés."
 msgstr "Polished emails, localized default subjects and copy."
@@ -4417,6 +4496,9 @@ msgstr "Automated emails"
 msgid "Emails automatiques, messages directs et historique des envois."
 msgstr "Automated emails, direct messages and send history."
 
+msgid "Émancipation"
+msgstr "Emancipation"
+
 msgid "Émeraude"
 msgstr "Emerald"
 
@@ -4476,6 +4558,15 @@ msgstr "Learn more"
 
 msgid "En une phrase, ce que publie le site."
 msgstr "In one sentence, what the site publishes."
+
+msgid "en vigueur"
+msgstr "in force"
+
+msgid "en vigueur le"
+msgstr "effective"
+
+msgid "En vigueur le"
+msgstr "Effective"
 
 msgid "En voulant tout garder, nous n'avons peut-être rien retenu. L'oubli sélectif n'est pas une défaillance. C'est une fonction."
 msgstr "By wanting to keep everything, we may have retained nothing. Selective forgetting is not a failure. It is a function."
@@ -4605,6 +4696,12 @@ msgstr "Uploading…"
 msgid "Envoi impossible"
 msgstr "Cannot send"
 
+msgid "Envoi impossible — réessayez dans un instant."
+msgstr "Sending failed — please retry in a moment."
+
+msgid "Envoi impossible pour le moment — réessayez dans un instant."
+msgstr "Sending failed for now — please retry in a moment."
+
 msgid "Envoi lancé. L'email part dans quelques minutes."
 msgstr "Send started. The email goes out in a few minutes."
 
@@ -4631,7 +4728,7 @@ msgstr "Send"
 
 #. placeholder {0}: issue.subject
 msgid "Envoyer « {0} » ?"
-msgstr "Send "{0}"?"
+msgstr "Send \"{0}\"?"
 
 #. placeholder {0}: issue.subject
 #~ msgid "Envoyer « {0} » à tous les abonnés actifs ? L'envoi ne peut pas être annulé."
@@ -4855,6 +4952,9 @@ msgstr "Workspace"
 
 msgid "Espace indisponible"
 msgstr "Space unavailable"
+
+msgid "Espace Lecteur (/home)"
+msgstr "Reader Experience (/home)"
 
 msgid "Espaces de travail"
 msgstr "Workspaces"
@@ -5323,6 +5423,9 @@ msgstr "Manage members"
 msgid "Gérer mes accès"
 msgstr "Manage my access"
 
+msgid "Gérer mes cookies"
+msgstr "Manage my cookies"
+
 msgid "Gérer mes facteurs"
 msgstr "Manage my factors"
 
@@ -5479,6 +5582,9 @@ msgstr "Security history"
 msgid "Historique des envois"
 msgstr "Send history"
 
+msgid "Historique des versions"
+msgstr "Version history"
+
 msgid "Homme"
 msgstr "Male"
 
@@ -5551,6 +5657,12 @@ msgstr "II. The conditions of depth"
 msgid "III. Comment se donner ces conditions"
 msgstr "III. How to give yourself these conditions"
 
+msgid "Il est lié à votre e-mail : conservez cette référence."
+msgstr "It is linked to your email address: keep this reference."
+
+msgid "Il est ouvert sur votre compte : suivez-le depuis votre espace."
+msgstr "It is opened on your account: follow it from your space."
+
 msgid "Il sera immédiatement retiré du site public et repassera en brouillon. Le contenu est conservé."
 msgstr "It will be immediately removed from the public site and go back to draft. The content is kept."
 
@@ -5621,6 +5733,9 @@ msgstr "images without alt"
 
 msgid "Imbriquer l'élément"
 msgstr "Nest the element"
+
+msgid "Import"
+msgstr "Import"
 
 msgid "Import d'archives (RSS, JSON, CSV)"
 msgstr "Archive import (RSS, JSON, CSV)"
@@ -5877,6 +5992,12 @@ msgstr "Unavailable."
 msgid "INFOGRAPHIES & DATA"
 msgstr "INFOGRAPHICS & DATA"
 
+msgid "Informations"
+msgstr "Information"
+
+msgid "Informations légales"
+msgstr "Legal information"
+
 msgid "Infrastructure européenne souveraine & Option auto-hébergée"
 msgstr "Sovereign European infrastructure & Self-hosted option"
 
@@ -5942,6 +6063,9 @@ msgstr "Label (e.g. Contact, My Podcast, Shop...)"
 
 msgid "Inverser l'ordre de tri"
 msgstr "Reverse the sort order"
+
+msgid "Investigation"
+msgstr "Investigation"
 
 msgid "Invitation à"
 msgstr "Invitation to"
@@ -6075,6 +6199,9 @@ msgstr "Journalists, essayists, collectives"
 msgid "Julien Roche · Technologie · 5 min"
 msgstr "Julien Roche · Technology · 5 min"
 
+msgid "Juridique"
+msgstr "Legal"
+
 msgid "L'abonnement en ligne n'est pas encore ouvert pour cette publication."
 msgstr "Online subscription is not open yet for this publication."
 
@@ -6186,6 +6313,9 @@ msgstr "The quote could not be published."
 msgid "La co-édition est indisponible."
 msgstr "Co-editing is unavailable."
 
+msgid "La confiance de voix indépendantes partout en Europe"
+msgstr "Trusted by independent voices across Europe"
+
 msgid "La date de programmation doit être dans le futur."
 msgstr "The scheduling date must be in the future."
 
@@ -6212,6 +6342,9 @@ msgstr "The note could not be saved."
 
 msgid "La personne retrouve la demande ici et choisit de l’accepter ou de la refuser."
 msgstr "The person finds the request here and chooses to accept or decline it."
+
+msgid "La plupart des demandes ont une réponse immédiate ci-dessous. Sinon, ouvrez un dossier en bas de page —"
+msgstr "Most requests get an immediate answer below. Otherwise, open a case at the bottom of the page —"
 
 msgid "la publication sélectionnée"
 msgstr "the selected publication"
@@ -6571,6 +6704,9 @@ msgstr "Co-editing requests will appear here."
 msgid "Les discussions sous vos articles. La suppression est immédiate pour les commentaires de votre publication."
 msgstr "Discussions under your posts. Deletion is immediate for comments on your publication."
 
+msgid "Les documents légaux sont en cours de publication."
+msgstr "Legal documents are being published."
+
 msgid "Les données démographiques sont renseignées volontairement à l'onboarding (genre, tranche d'âge, pays, langue) et restent optionnelles. Elles ne sont jamais exposées individuellement."
 msgstr "Demographic data is provided voluntarily at onboarding (gender, age range, country, language) and stays optional. It is never exposed individually."
 
@@ -6642,6 +6778,9 @@ msgstr "The results on this page are all filtered — keep going to find posts."
 
 msgid "Les transferts sont terminés, mais la liste n'a pas pu être rafraîchie."
 msgstr "The transfers are complete, but the list could not be refreshed."
+
+msgid "Les versions archivées restent conservées comme preuve : une acceptation renvoie toujours à la version exacte qui a été acceptée."
+msgstr "Archived versions are retained as evidence: an acceptance always points to the exact version that was accepted."
 
 msgid "Lettrine (grande initiale)"
 msgstr "Drop cap (large initial)"
@@ -6820,6 +6959,9 @@ msgstr "Feature list (Bullets)"
 
 msgid "Liste des publications."
 msgstr "List of publications."
+
+msgid "Liste des sous-traitants"
+msgstr "Sub-processors"
 
 msgid "Liste numérotée"
 msgstr "Numbered list"
@@ -7065,6 +7207,9 @@ msgstr "My annotations only"
 msgid "Mes données"
 msgstr "My data"
 
+msgid "mes dossiers support"
+msgstr "my support cases"
+
 msgid "Mes livres"
 msgstr "My books"
 
@@ -7073,6 +7218,9 @@ msgstr "My books (imported EPUBs)"
 
 msgid "Mes notes"
 msgstr "My notes"
+
+msgid "mes recours"
+msgstr "my appeals"
 
 msgid "Mes recours"
 msgstr "My appeals"
@@ -7122,8 +7270,14 @@ msgstr "Bookmark"
 msgid "Mettre le brouillon en ligne"
 msgstr "Put the draft live"
 
+msgid "Militantisme"
+msgstr "Activism"
+
 msgid "min de lecture"
 msgstr "min read"
+
+msgid "Mise à jour le"
+msgstr "Updated"
 
 msgid "Mise à jour majeure (PRO)"
 msgstr "Major update (PRO)"
@@ -7404,6 +7558,9 @@ msgstr "Black"
 
 msgid "Nom"
 msgstr "Name"
+
+msgid "Nom (optionnel)"
+msgstr "Name (optional)"
 
 msgid "Nom & Préfixe"
 msgstr "Name & Prefix"
@@ -7849,6 +8006,9 @@ msgstr "Open my personal version"
 msgid "Ouvrir ou fermer l'espace de débat."
 msgstr "Open or close the debate space."
 
+msgid "Ouvrir un autre dossier"
+msgstr "Open another case"
+
 msgid "Ouvrir une annotation"
 msgstr "Open an annotation"
 
@@ -7881,6 +8041,9 @@ msgstr "Page views over the period"
 
 msgid "Paiement momentanément indisponible."
 msgstr "Payment temporarily unavailable."
+
+msgid "Paiements"
+msgstr "Billing"
 
 msgid "Pan"
 msgstr "Pan"
@@ -8317,6 +8480,12 @@ msgstr "Media font"
 msgid "Politique"
 msgstr "Politics"
 
+msgid "Politique de confidentialité"
+msgstr "Privacy Policy"
+
+msgid "Politique des cookies"
+msgstr "Cookie Policy"
+
 msgid "Portail de facturation"
 msgstr "Billing portal"
 
@@ -8488,6 +8657,9 @@ msgstr "Media profile"
 
 msgid "Profil mis à jour avec succès !"
 msgstr "Profile updated successfully!"
+
+msgid "Profil perso"
+msgstr "Personal profile"
 
 msgid "Profil personnel"
 msgstr "Personal profile"
@@ -8887,6 +9059,9 @@ msgstr "Search, summaries"
 msgid "Recherche…"
 msgstr "Search…"
 
+msgid "Rechercher : compte perdu, confirmation, désabonnement…"
+msgstr "Search: lost account, confirmation, unsubscribe…"
+
 msgid "Rechercher dans la médiathèque"
 msgstr "Search the media library"
 
@@ -9235,6 +9410,9 @@ msgstr "Republish or quote this post"
 msgid "Republier sur mon profil"
 msgstr "Republish on my profile"
 
+msgid "Réseaux"
+msgstr "Connect"
+
 msgid "Réseaux sociaux"
 msgstr "Social networks"
 
@@ -9582,6 +9760,9 @@ msgstr "Free test sandbox"
 msgid "Sans"
 msgstr "Without"
 
+msgid "sans créer de compte"
+msgstr "without creating an account"
+
 msgid "Sans défaut"
 msgstr "No issues"
 
@@ -9782,6 +9963,9 @@ msgstr "Serif"
 msgid "Serré"
 msgstr "Tight"
 
+msgid "Service indisponible pour le moment — réessayez dans un instant."
+msgstr "Service unavailable for now — please retry in a moment."
+
 msgid "Ses sous-catégories seront conservées et promues en catégories principales."
 msgstr "Its subcategories will be kept and promoted to top-level categories."
 
@@ -9824,6 +10008,9 @@ msgstr "If this option is disabled, search engines will not index the site."
 msgid "Siège / Rédaction"
 msgstr "Office / Newsroom"
 
+msgid "Signalement"
+msgstr "Report"
+
 msgid "Signalement envoyé"
 msgstr "Report Submitted"
 
@@ -9838,6 +10025,9 @@ msgstr "Report content"
 
 msgid "Signaler un contenu"
 msgstr "Report Content"
+
+msgid "Signaler un contenu / Recours"
+msgstr "Report Content & Appeals"
 
 msgid "Signet retiré"
 msgstr "Bookmark removed"
@@ -9979,6 +10169,9 @@ msgstr "Subscribing..."
 msgid "Souscrire à Qoefi Plus (3,99 €/mois)"
 msgstr "Subscribe to Qoefi Plus (€3.99/month)"
 
+msgid "Souveraineté"
+msgstr "Sovereignty"
+
 msgid "Souveraineté des données"
 msgstr "Data sovereignty"
 
@@ -10045,6 +10238,9 @@ msgstr "Reading timeline structure"
 msgid "Studio"
 msgstr "Studio"
 
+msgid "Studio Créateur"
+msgstr "Creator Studio"
+
 msgid "Studio du média"
 msgstr "Media studio"
 
@@ -10084,6 +10280,12 @@ msgstr "Follow the reading"
 
 msgid "Sujet"
 msgstr "Subject"
+
+msgid "Sujet (5 caractères minimum) *"
+msgstr "Subject (5 characters minimum) *"
+
+msgid "Sujet (5 caractères minimum) et message requis."
+msgstr "Subject (5 characters minimum) and message required."
 
 msgid "Sujet de la confirmation"
 msgstr "Confirmation subject"
@@ -10165,7 +10367,7 @@ msgstr "Delete this thought from the thread"
 
 #. placeholder {0}: article.title
 msgid "Supprimer définitivement « {0} » ?"
-msgstr "Permanently delete "{0}"?"
+msgstr "Permanently delete \"{0}\"?"
 
 #. placeholder {0}: article.title
 #~ msgid "Supprimer définitivement « {0} » ? Cette action est irréversible."
@@ -10188,7 +10390,7 @@ msgstr "Delete the application"
 
 #. placeholder {0}: client.name
 msgid "Supprimer l'application « {0} » ?"
-msgstr "Delete the application "{0}"?"
+msgstr "Delete the application \"{0}\"?"
 
 #. placeholder {0}: client.name
 #~ msgid "Supprimer l'application « {0} » ?\n"
@@ -10397,6 +10599,9 @@ msgstr "Reading time"
 msgid "Temps de lecture actif"
 msgstr "Active reading time"
 
+msgid "Temps Long"
+msgstr "Long-form"
+
 msgid "Tendances actuelles"
 msgstr "Current trends"
 
@@ -10573,6 +10778,9 @@ msgstr "All rights reserved."
 msgid "Tous les accès"
 msgstr "All access"
 
+msgid "Tous les documents"
+msgstr "All documents"
+
 msgid "Tous les lecteurs (Gratuit)"
 msgstr "All readers (Free)"
 
@@ -10627,11 +10835,17 @@ msgstr "All categories"
 msgid "Toutes les destinations sont valides."
 msgstr "All destinations are valid."
 
+msgid "Toutes les informations légales"
+msgstr "All legal information"
+
 msgid "Toutes les lectures (feed, direct, tenant) sur cet articleId — plein par co-auteur"
 msgstr "All reads (feed, direct, tenant) on this articleId — full as co-author"
 
 msgid "Toutes les lectures de cet article, tous canaux confondus."
 msgstr "All reads of this post, across all channels."
+
+msgid "Toutes les règles du service, en clair : ce que qoefi s’engage à faire, ce que vous acceptez, comment vos données sont traitées et comment exercer vos droits. Chaque document est versionné et l’historique reste consultable."
+msgstr "Every rule of the service, in plain language: what qoefi commits to, what you accept, how your data is processed and how to exercise your rights. Each document is versioned and its history stays available."
 
 msgid "Toutes les rubriques"
 msgstr "All sections"
@@ -10706,6 +10920,9 @@ msgstr "Very large size"
 msgid "Trier par"
 msgstr "Sort by"
 
+msgid "Trop de demandes aujourd’hui, réessayez demain."
+msgstr "Too many requests today, please try again tomorrow."
+
 msgid "Trop de demandes en ce moment — réessayez dans quelques minutes."
 msgstr "Too many requests right now — try again in a few minutes."
 
@@ -10735,6 +10952,9 @@ msgstr "Client type"
 
 msgid "Type de compte"
 msgstr "Account type"
+
+msgid "Type de demande"
+msgstr "Request type"
 
 msgid "Type de vue article"
 msgstr "Post view type"
@@ -10780,6 +11000,9 @@ msgstr "Absolute reading comfort."
 
 msgid "un créateur"
 msgstr "a creator"
+
+msgid "Un dossier est déjà ouvert pour ce motif avec cette adresse."
+msgstr "A case is already open for this topic with this address."
 
 msgid "Un email à vos abonnés, sans article."
 msgstr "An email to your subscribers, without a post."
@@ -10970,6 +11193,9 @@ msgstr "Blocked users"
 msgid "Utilisateurs masqués"
 msgstr "Muted users"
 
+msgid "Utilisation acceptable"
+msgstr "Acceptable Use Policy"
+
 msgid "Utilisations"
 msgstr "Uses"
 
@@ -11126,6 +11352,9 @@ msgstr "Empty: the post title will be used."
 msgid "Vide : un extrait public sera généré."
 msgstr "Empty: a public excerpt will be generated."
 
+msgid "Vie privée"
+msgstr "Privacy"
+
 msgid "Ville ou région affichée sur votre profil public."
 msgstr "City or region shown on your public profile."
 
@@ -11260,6 +11489,9 @@ msgstr "Your changes stay in the local document and will be merged on reconnecti
 
 msgid "Vos notifications créateur et média sur qoefi."
 msgstr "Your creator and media notifications on qoefi."
+
+msgid "Vos préférences de cookies"
+msgstr "Your cookie preferences"
 
 msgid "Vos prochains uploads apparaîtront ici."
 msgstr "Your next uploads will appear here."
@@ -11465,6 +11697,9 @@ msgstr "You can add up to 4 images per post."
 
 msgid "Vous pouvez continuer à écrire et publier normalement. Aucun email n’est envoyé aux abonnés du fait d’un import."
 msgstr "You can keep writing and publishing as usual. No email is sent to subscribers because of an import."
+
+msgid "Vous pouvez revenir sur votre choix concernant les traceurs non essentiels à tout moment."
+msgstr "You can change your choice about non-essential trackers at any time."
 
 msgid "Vous pouvez soumettre un nouveau dossier avec un cas d’usage plus détaillé."
 msgstr "You can submit a new request with a more detailed use case."

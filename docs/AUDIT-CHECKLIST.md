@@ -10004,23 +10004,71 @@ concurrente) n'a pas été joué : il demande la base partagée (`pnpm test:api`
 validation et la boucle front sont couverts ; l'exécution SQL est à jouer au prochain passage
 complet.
 
-## Traductions hors studio — état mesuré et plan (2026-11-23)
+## Traductions hors studio — état mesuré et plan (2026-11-24)
 
-La garde `scripts/check-i18n-hardcoded.mjs` accepte désormais `QOE_I18N_ZONES` : on mesure un
+La garde `scripts/check-i18n-hardcoded.mjs` accepte `QOE_I18N_ZONES` : on mesure un
 périmètre candidat avec **la même règle** que la garde studio, sans dupliquer de script.
 
 | App       | Copies FR hors macro | Fichiers | Fichiers déjà sous `t` |
 | --------- | -------------------: | -------: | ---------------------- |
-| `hi`      |                   79 |       11 | 11/29                  |
+| `hi`      |                **0** |        0 | 28/28                  |
 | `tenants` |                   45 |       16 | 7/54                   |
-| `core`    |                  349 |       67 | 47/189                 |
-| `admin`   |                 1551 |      123 | 1/162                  |
+| `core`    |                  345 |       65 | 47/189                 |
+| `admin`   |                 1548 |      123 | 1/162                  |
 
-**Ordre retenu** : `hi` → `tenants` → `core` → `admin` (du plus petit au plus gros, pour
-valider la méthode sur une surface courte avant les 1 551 copies admin). Chaque app se traite
-**d’un seul tour** (précédent R140/R143/R146/R149 : jamais une surface mi-traduite), avec
+**Ordre retenu** : `tenants` → `core` → `admin` (du plus petit au plus gros, pour valider la
+méthode sur une surface courte avant les 1 548 copies admin). Chaque app se traite **d’un seul
+tour** (précédent R140/R143/R146/R149 : jamais une surface mi-traduite), avec
 `QOE_I18N_ZONES=apps/<app>/src` à **0** comme critère de sortie, catalogues régénérés et EN
 traduit à 100 %. `mobile` (L26) et Stage restent hors périmètre.
+
+## L22k — la vitrine `hi` est traduite — clos le 2026-11-24
+
+**Constat.** `hi` portait sa copie en double, choisie par une ternaire `isFr` dans le JSX et dans
+les métadonnées : 79 copies hors macro dans 11 fichiers. Le footer, les pages légales, le centre
+d’aide et le formulaire de support gardaient chacun leur version française **et** leur version
+anglaise ; le reste de la vitrine (Hero, CTA, Bento) passait déjà par Lingui. Un fichier de
+config, `apps/hi/src/config/landing.ts`, gardait 15 copies d’une landing abandonnée dont seule la
+liste `marquee` était encore lue.
+
+**Correctifs.**
+
+- `config/landing.ts` supprimé (aucun autre consommateur) ; `Marquee` porte ses libellés sous `t`,
+  et sa ligne anglaise en dur (« Trusted by independent voices… ») devient une copie traduite.
+- `Footer` : une seule table de colonnes, résolue au rendu par le catalogue ; les **endonymes** du
+  sélecteur de langue restent hors traduction par décision (un francophone doit retrouver
+  « Français » même en anglais) et vivent dans une constante nommée.
+- Pages légales : `getCategoryLabel` extrait dans `apps/hi/src/lib/legal-categories.ts` (module
+  partagé, `t` résolu au rendu) ; toutes les ternaires de copie passent sous `t`. Le 404 et
+  `/support` passent de `export const metadata` à `generateMetadata()` lisant `getLanguage()`,
+  comme le 404 racine du studio.
+- Centre d’aide : la FAQ (données FR+EN, gérées par le staff) n’affiche plus que la **langue
+  active** ; la recherche continue d’interroger les deux langues, donc rien n’est perdu pour un
+  visiteur anglophone qui cherche en français.
+- `submitPublicTicket` ne renvoie plus de copie mais un **code** (`invalid_email`, `unavailable`,
+  `rate_limited`, `duplicate`…) que le formulaire traduit. L’action tourne hors du rendu : elle
+  n’a pas de catalogue garanti, et ses anciennes chaînes bilingues échappaient à la garde (elles
+  étaient invisibles : ni texte JSX, ni propriété de copie).
+- `CreatorHub` : les onglets ont des identifiants stables (`creators`/`media`/`api`) ; l’état ne
+  porte plus de copie, donc changer de langue ne casse plus l’onglet actif.
+
+**Garde durcie (deux faux positifs mesurés, pas des exemptions).** Une pile de classes Tailwind
+(`bg-white text-black font-sans leading-relaxed`) n’est pas de la copie même si « sans » existe
+aussi en français ; une méthode DOM (`querySelector('[data-logo]')`) reçoit un sélecteur, pas du
+texte affiché. Les deux règles sont structurelles (tous les jetons doivent être des utilités
+connues), aucune chaîne n’est blanchée en bloc.
+
+**Preuves exécutées.** `QOE_I18N_ZONES=apps/hi/src node scripts/check-i18n-hardcoded.mjs` :
+**0 copie / 0 fichier** (exit 0) ; garde par défaut (studio) : **0** (exit 0) ;
+`pnpm intl:extract` : **78** `msgid` neufs, `messages/en.po` **0** `msgstr` vide (hors en-tête),
+`pnpm intl:compile` 0 ; `pnpm --filter @qoe/hi typecheck` 0 ; `eslint` 0 erreur (1 avertissement
+`<img>` préexistant dans `Hero.tsx`) ; `pnpm --filter @qoe/hi test` **21/21** (6 fichiers, dont le
+formulaire qui prouve désormais la traduction du code d’erreur et le footer qui prouve la
+surlignage de la locale active et la surcharge console) ; `prettier --check apps/hi/src` propre.
+
+**Limite assumée.** Aucun rendu navigateur n’a été regardé : les chaînes anglaises sont plus
+longues que les françaises (footer, colonnes légales), la mise en page n’est couverte que par les
+tests et la compilation, pas par une capture.
 
 ---
 
