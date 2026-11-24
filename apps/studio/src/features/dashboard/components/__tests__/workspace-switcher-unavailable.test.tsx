@@ -12,6 +12,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // `setupFiles` rend un routeur neuf à chaque appel : l'effet se relancerait à
 // chaque rendu. Le vrai `useRouter` est stable, on reproduit ce contrat.
@@ -92,5 +93,48 @@ describe('HeaderWorkspaceSwitcher — lecture échouée', () => {
     expect(
       await screen.findByRole('button', { name: 'Changer d’espace de travail' })
     ).toBeInTheDocument();
+  });
+
+  it('vide le cache React Query, émet qoe:workspace-changed et rafraîchit au changement d’espace', async () => {
+    const MEDIA = {
+      id: 'media_1',
+      name: "L'Assez",
+      slug: 'lassez',
+      logoUrl: null,
+      type: 'MEDIA' as const,
+      role: 'EDITOR',
+    };
+    actions.getUserWorkspacesAction.mockResolvedValue({
+      success: true,
+      personal: PERSONAL,
+      medias: [MEDIA],
+    });
+    router.refresh.mockReset();
+
+    const queryClient = new QueryClient();
+    const clearSpy = vi.spyOn(queryClient, 'clear');
+    const eventListener = vi.fn();
+    window.addEventListener('qoe:workspace-changed', eventListener);
+
+    const user = userEvent.setup();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <HeaderWorkspaceSwitcher />
+      </QueryClientProvider>
+    );
+
+    const trigger = await screen.findByRole('button', { name: 'Changer d’espace de travail' });
+    await user.click(trigger);
+
+    const mediaItem = await screen.findByText("L'Assez");
+    await user.click(mediaItem);
+
+    await waitFor(() => {
+      expect(clearSpy).toHaveBeenCalledTimes(1);
+      expect(router.refresh).toHaveBeenCalledTimes(1);
+      expect(eventListener).toHaveBeenCalledTimes(1);
+    });
+
+    window.removeEventListener('qoe:workspace-changed', eventListener);
   });
 });

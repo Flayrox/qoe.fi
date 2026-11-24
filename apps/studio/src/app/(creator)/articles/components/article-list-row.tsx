@@ -229,11 +229,19 @@ export function ArticleListRow({
           {columns.category && (
             <span
               className={cn(
-                'max-w-40 truncate',
+                'max-w-48 truncate',
                 !article.category && 'italic text-muted-foreground/75'
               )}
+              title={
+                article.publisher?.type === 'MEDIA' && article.canEdit === false
+                  ? t`Catégorie affichée sur votre profil personnel (n'affecte pas ${article.publisher.name})`
+                  : undefined
+              }
             >
               {article.category?.name?.trim() || article.category?.slug || t`Non catégorisé`}
+              {article.publisher?.type === 'MEDIA' && article.canEdit === false
+                ? ` · ${t`Profil perso`}`
+                : null}
             </span>
           )}
           {columns.category && columns.updatedAt && <span className="text-border">·</span>}

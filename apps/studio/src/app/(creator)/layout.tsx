@@ -63,14 +63,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const workspace = await getActiveWorkspace(user.id).catch(() => null);
   const workspacePermissions = workspace?.type === 'MEDIA' ? workspace.permissions : undefined;
 
+  const workspaceKey = `${workspace?.type ?? 'NONE'}:${workspace?.publisherId ?? 'default'}`;
+
   return (
     <div className="relative flex min-h-screen bg-background">
       <SurfaceHotkeys />
       <AppSidebar />
       <DashboardLayoutContent>
         <FeatureAnnouncements locale={locale}>
-          <GlobalCommandMenu permissions={workspacePermissions} />
-          <div key={workspace?.publisherId ?? 'default'} className="contents">
+          <GlobalCommandMenu key={`cmd:${workspaceKey}`} permissions={workspacePermissions} />
+          <div key={`ws:${workspaceKey}`} className="contents">
             {children}
           </div>
         </FeatureAnnouncements>

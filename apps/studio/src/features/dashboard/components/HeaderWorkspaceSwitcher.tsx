@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect, useState, useTransition } from 'react';
+import React, { useContext, useEffect, useState, useTransition } from 'react';
+import { QueryClientContext } from '@tanstack/react-query';
 import {
   ChevronsUpDown,
   Check,
@@ -54,6 +55,7 @@ function writeCookie(ws: Pick<Workspace, 'type' | 'id'>) {
 
 export function HeaderWorkspaceSwitcher() {
   const router = useRouter();
+  const queryClient = useContext(QueryClientContext);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
   const [pendingInvites, setPendingInvites] = useState<PendingMediaInvite[]>([]);
@@ -108,14 +110,24 @@ export function HeaderWorkspaceSwitcher() {
     setLoadAttempt((attempt) => attempt + 1);
   };
 
-  const handleSelect = (ws: Workspace) => {
-    const same = activeWorkspace?.id === ws.id && activeWorkspace?.type === ws.type;
-    if (same) return;
+  const activateWorkspace = (ws: Workspace) => {
     setActiveWorkspace(ws);
     writeCookie(ws);
+    // Vide le cache client React Query et notifie d'éventuels listeners pour
+    // qu'aucune donnée de la publication précédente ne survive au basculement.
+    queryClient?.clear();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('qoe:workspace-changed', { detail: ws }));
+    }
     // On reste sur la section courante : le layout et la page sont re-rendus
     // avec le nouveau workspace (le cookie seul ne rafraîchit pas la sidebar).
     startTransition(() => router.refresh());
+  };
+
+  const handleSelect = (ws: Workspace) => {
+    const same = activeWorkspace?.id === ws.id && activeWorkspace?.type === ws.type;
+    if (same) return;
+    activateWorkspace(ws);
   };
 
   const acceptInvite = async (invite: PendingMediaInvite) => {
@@ -148,9 +160,7 @@ export function HeaderWorkspaceSwitcher() {
       } else {
         setWorkspaces((prev) => [...prev, accepted]);
       }
-      setActiveWorkspace(accepted);
-      writeCookie(accepted);
-      startTransition(() => router.refresh());
+      activateWorkspace(accepted);
     } finally {
       setAcceptingId(null);
     }
