@@ -21,6 +21,11 @@ Dernière mise à jour : **2026-11-24**.
 | D6  | **Un article est repostable et aimable** (arête générique)                                     | table d'interactions `subjectType`/`subjectId`                            |
 | D7  | **Réutilisation obligatoire des briques existantes** (modération, notifications, quotas, flags, analytics, observabilité) | aucune troisième voie parallèle ; cf. § 7                     |
 
+Ces lignes sont des décisions **produit**, pas un état d'implémentation : D1, D2, D5 (like
+de commentaire via les compteurs existants), D7 sont en place ; D3/D4/D6 (éligibilité par
+surface, article repostable) restent L43. L'état livré, lot par lot, est dans le journal en
+fin de fichier.
+
 ## 2. Correspondance avec les standards
 
 Objectif : **emprunter les sémantiques**, pas implémenter un protocole. Le jour où l'on
@@ -57,14 +62,21 @@ séparés. On garde **un** service et des **surfaces** nommées.
 
 Invariants :
 
-1. `parentId` ⇒ le parent existe, n'est pas supprimé, et partage le même `rootArticleId`.
-2. `rootId` est soit `NULL` (racine), soit l'id d'un post **non supprimé** du même fil.
+1. `parentId` ⇒ le parent existe et partage le même `rootArticleId`. Depuis L42 il peut
+   être un **tombstone** (`deletedAt` non nul) : c'est précisément ce qui garde ses
+   enfants atteignables et le fil lisible.
+2. `rootId` est soit `NULL` (racine), soit l'id du post racine du fil — y compris quand
+   cette racine est devenue un tombstone.
 3. Un post ne peut pas être à la fois `rootArticleId` et `quotedArticleId`.
 4. Un commentaire d'article n'a jamais `isDraft = true` ni `scheduledAt` (il est publié).
-5. La profondeur n'est jamais stockée : elle se calcule (`parentId` récursif) et se borne
-   à la lecture.
+5. La profondeur n'est jamais stockée : elle se calcule (`parentId` récursif) et n'est
+   pas bornée à la lecture — elle est paginée (L42).
 
-### 3.2 Arêtes — `Interaction`
+### 3.2 Arêtes — `Interaction` (cible, **non livrée**)
+
+> État réel au 2026-11-24 : la table `Interaction` n'existe pas. L41/L42 n'ont livré que
+> `Post.rootArticleId` et les fils ; le like/repost génériques (article, commentaire)
+> restent à faire et ne sont pas annoncés comme disponibles.
 
 ```
 Interaction(id, userId, kind, subjectType, subjectId, createdAt)
@@ -90,18 +102,29 @@ Interaction(id, userId, kind, subjectType, subjectId, createdAt)
    - niveau 1 : `rootId = NULL`, `rootArticleId = articleId` ;
    - réponses : `rootId = COALESCE(parent.rootId, parent.id)`, même `rootArticleId` ;
    - `replyCount` recalculé depuis les enfants directs ;
-   - `visibility = 'public'`, `contentVisibility = 'PUBLIC'` (les feeds réappliquent
-     `can_view_profile`, `is_muted_by`, blocks, mots masqués).
+   - `visibility`/`contentVisibility` laissés à leurs valeurs par défaut (`public` /
+     `PUBLIC`) : les feeds réappliquent `can_view_profile`, `is_muted_by`, blocks et mots
+     masqués.
 3. `Notification."commentId"` : drop FK → `ArticleComment`, add FK → `Post` (valeurs
    inchangées).
 4. `ArticleComment` **gelée** (plus aucun écrivain, plus aucun lecteur), supprimée par
    une migration ultérieure après un cycle de déploiement.
 
-Rollback : `00097_down.sql` supprime la colonne et les index, remet la FK sur
-`ArticleComment` et supprime les posts marqués migrés (table de correspondance
-temporaire `_migrated_article_comments` créée puis droppée dans la même migration).
+Rollback : le bloc `-- +goose Down` **du même fichier** `00097_content_graph.sql`
+(supprime les notifications dont le `commentId` n'existe pas dans `ArticleComment`, remet
+la FK sur `ArticleComment`, supprime les posts dont `rootArticleId` est non nul, puis la
+colonne, la FK et l'index). Aucune table de correspondance temporaire n'existe : la
+colonne `rootArticleId` sert de marqueur. Ce down n'est sûr que pendant la fenêtre de
+déploiement L41 — après, il supprimerait des commentaires légitimes (documenté dans le
+fichier de migration).
 
-## 4. Contrat de lecture — `FeedItem`
+## 4. Contrat de lecture — `FeedItem` (cible L43, **non livré**)
+
+> État réel au 2026-11-24 : aucune structure `FeedItem` n'existe dans le code. Les fils
+> rendent `posts.ReplyItem` (`id`, `parentId`, `rootId`, `createdAt`, `updatedAt`,
+> `content`, `tombstone`, `replyCount`, `likeCount`, `repostCount`, `author` nullable) ou,
+> pour le feed et le profil, `posts.FeedSlice`. Le contrat ci-dessous décrit la cible de
+> L43.
 
 ```ts
 interface FeedItem {
@@ -143,8 +166,10 @@ plus de deux niveaux de contexte.
 | **Profil / Réponses** | l'auteur a écrit | visibilité du profil, blocks, suppression | —                                            |
 | **Fil**       | structure         | gates de commentaires de l'article, profondeur demandée, curseur             | tri (chronologique / populaire)              |
 
-Un commentaire d'article n'est **jamais** éligible à « Pour toi » tant que le drapeau
-`content_graph.comments_in_discover` est faux (migration sans changement de production).
+Un commentaire d'article n'est **jamais** éligible à « Pour toi » aujourd'hui : le garde
+réel est le prédicat SQL `p."rootArticleId" IS NULL`, présent dans `FindFollowingFeed`,
+`FindTrending` et `FindPostsByAuthor`. Aucun drapeau `comments_in_discover` n'existe ; son
+remplacement par une éligibilité par surface est justement le travail de L43.
 
 ## 6. Recommandation (L43)
 
@@ -177,9 +202,9 @@ classement.
 | `internal/notifications.Dispatch` (P3)                   | notification `COMMENT` conservée, `commentId` = id du post      |
 | `internal/antispam`                                      | validation de texte inchangée                                   |
 | `internal/abuse` + `SecurityEvent`                       | détection de rafales de réponses (L43)                          |
-| `internal/feed/assembly.go`                              | **seul** assembleur d'items de feed (contexte + raison)          |
+| `internal/modules/posts/assembly.go` + `internal/modules/feed/service.go` | **seuls** assembleurs d'items (`BuildFeedPost`, `FeedSlice`) : les fils réutilisent cette hydratation en L42 |
 | `internal/modules/posts` (`AttachmentsFor`, `PollsFor`, `QuotedArticlesFor`) | réutilisés pour les commentaires           |
-| `internal/observability/metrics.go`                       | compteurs `feed_items_total{surface,reason}`, durée de ranking   |
+| `internal/observability/metrics.go`                       | métriques disponibles ; **aucun** compteur `feed_items_total{surface,reason}` n'existe encore (cible L43) |
 | `packages/analytics`                                     | impressions et interactions pour l'évaluation hors ligne         |
 | `packages/flags` + `SystemConfig`                        | drapeaux de déploiement et poids de score                        |
 | `Post.embedding` + index HNSW                            | récupération thématique, aucune infra nouvelle                   |
@@ -188,27 +213,33 @@ classement.
 
 | Lot  | Contenu | Preuve de sortie |
 | ---- | ------- | ---------------- |
-| **L41** — graphe de contenu | colonne `rootArticleId`, backfill 225 commentaires (ids conservés), FK notification repointée, `Interaction` (like/repost/bookmark génériques), assembleur `FeedItem` étendu, commentaires **exclus** de « Pour toi » par drapeau | `pnpm guard:sqlc` 0 ; `go build ./...` 0 ; `go test ./internal/modules/articles ./internal/feed` verts ; test d'intégration base : 225 posts migrés, 0 orphelin, notification liée, comptes identiques ; `pnpm typecheck` 0 |
-| **L42** — fils infinis | lecture par branche (curseur par parent), profondeur demandée, suppression du plafond muet de 500, UI récursive (core, tenants, studio), `{items, nextCursor, total}` | test d'intégration : fil de 120 réponses sur 4 niveaux, pages sans doublon ni perte, `depth=1` sur 5000 réponses < 100 ms ; 3 suites UI vertes ; absorbe **R134** et **R314** |
+| **L41** — graphe de contenu ✅ | colonne `Post.rootArticleId` + index partiel, backfill 225 commentaires (ids conservés), FK `Notification."commentId"` repointée, service `articles/comments.go` branché sur `Post`, compteurs (`fetchCommentsBatch`, `publishers`, `analytics`) sur `parentId IS NULL AND deletedAt IS NULL`, seed adapté. **Non livré** : table `Interaction`, assembleur `FeedItem`, like/repost génériques (cible L43). | dry-run transactionnel 00097 (225 → 225, 0 orphelin, FK OK) ; `pnpm guard:sqlc` (38 fichiers) ; `go build ./...` ; `go test` articles/feed/posts/publishers/analytics/seed |
+| **L42** — fils paginés ✅ | une requête `ListThreadPage` à trois portées (`roots`, `children`, `thread`), curseur opaque `(createdAt, id)`, `{ items, nextCursor, hasMore }`, tombstones, `Thread()` = première page (≤ `MaxReplyLimit` = 50) + `repliesCursor`/`repliesTruncated`, UI récursive (core, studio) + onglet profil paginé + surfaces `tenants` | dry-run transactionnel : pages 3/3/1 sans doublon, insertion concurrente, antidatée non ressuscitée, tombstone + enfants + profondeur 3, deux viewers, compteurs, profil 2/2/2/1 ; `guard:sqlc` 39 fichiers ; `go build`/`go vet`/`go test` posts/articles/feed ; vitest core 68 / studio 101 / tenants 6 ; absorbe **R134** et **R314** |
 | **L43** — éligibilité + ranking | politiques par surface, features, score pondéré, `why`, logs d'exposition, métriques | tableau de bord + test : un commentaire hors seuil n'apparaît pas ; un compte suivi qui répond apparaît dans Abonnement ; NDCG mesuré sur 7 jours ; `pnpm arch:audit` 0 |
 
 Risques nommés :
 
-- **Volume** : les commentaires deviennent des posts → les feeds doivent filtrer par
-  éligibilité dès L41 (drapeau), sinon explosion du fil Abonnement.
+- **Volume** : les commentaires deviennent des posts → les feeds filtrent par un prédicat
+  SQL (`p."rootArticleId" IS NULL` dans `FindFollowingFeed`, `FindTrending`,
+  `FindPostsByAuthor`) ; L43 le remplacera par une éligibilité par surface, sinon
+  explosion du fil Abonnement.
 - **Compteurs** : `FindTrending` additionne `likeCount + repostCount + replyCount` ;
   les commentaires gonfleraient les articles. Le score de L43 remplace cette somme.
 - **Données** : ids conservés pour les notifications ; table legacy gelée, pas droppée
   avant un cycle de déploiement.
 - **Mobile** : n'appelle pas l'endpoint des commentaires aujourd'hui — vérifié le
-  2026-11-24 — donc la bascule de contrat ne casse rien en pause.
+  2026-11-24 — donc la bascule des commentaires ne casse rien en pause. En revanche
+  `Thread()` a changé de contrat en L42 (`replies` = première page + `repliesCursor`) :
+  le mobile en pause devra paginer à la reprise (dette nommée dans le reste-à-faire).
 - **SEO** : un commentaire a désormais une URL de post ; canonical vers l'article,
   permalien en `noindex`.
 
 ## 9. Questions encore ouvertes
 
-1. Un commentaire d'article doit-il compter dans l'onglet « Réponses » du profil comme
-   une réponse ordinaire ? **Proposition : oui** (c'est un post que l'auteur a écrit).
+1. ~~Un commentaire d'article doit-il compter dans l'onglet « Réponses » du profil ?~~
+   **Tranché et livré en L42 : oui.** `/v1/users/{username}/replies` liste toutes les
+   réponses (`parentId IS NOT NULL`), commentaires d'article compris, avec le même
+   curseur que les fils.
 2. Les réponses à un commentaire apparaissent-elles dans « Abonnement » quand on suit
    l'auteur de la réponse, ou seulement quand on suit l'auteur du commentaire racine ?
    **Proposition :** l'auteur de la réponse suffit, avec préférence « seulement les
@@ -247,16 +278,13 @@ Risques nommés :
   `is_muted_by` et `contains_muted_word` — les mêmes helpers que les feeds, donc une
   divergence de visibilité entre le tiroir de lecture et le feed devient impossible.
 
-### Reste à faire
+### Reste à faire au sortir de L41 (historique)
 
-- **L41 (fin)** : SDK `ArticleCommentPayload` inchangé, aucune bascule cliente requise ;
-  supprimer la table `ArticleComment` après un cycle de déploiement (migration `00098`).
-- **L42** : fil infini paginé (curseur `(createdAt, id)` sur `rootId`), tombstone,
-  onglet « réponses » du profil, `GetRepliesForThought` branché ou supprimé (R314),
-  `ListArticleComments` remplacé par la pagination unique (R134). Les tests
-  d'intégration `articles` (Docker indisponible en local) restent à passer en CI.
-- **L43** : éligibilité par surface (`why`), ranking transparent pondéré
-  (`SystemConfig`), levée du drapeau `rootArticleId IS NULL` avec contexte d'article.
+Tout ce qui était listé ici a été livré par L42 (section suivante) : **R134** et **R314**
+sont absorbés dans la pagination unique, `ListArticleComments` a disparu au profit de
+`ListThreadPage`, et le tombstone a remplacé la suppression dure. Il ne reste de L41 que la
+suppression de la table `ArticleComment` (migration `00099`, après un cycle de
+déploiement) — reprise dans le reste-à-faire final.
 
 ### 2026-11-24 — L42 livré (fils paginés, tombstones, R134 + R314 absorbés)
 
@@ -270,6 +298,13 @@ Risques nommés :
 | `Thread()` sans plafond silencieux | ✅ | `replies` = première page, `repliesCursor` + `repliesTruncated` ; `GetPostThread`, `GetRepliesForThought`, `GetReplyIDsForThought` supprimées |
 | Suppression = tombstone | ✅ | `DeleteArticleComment` passe en `UPDATE deletedAt` ; structure et `replyCount` conservés |
 | Surfaces | ✅ | `ArticleComments` (arbre récursif, chargement par nœud), studio communauté, onglet profil, surfaces `tenants` adaptées |
+| Curseur testé unitairement | ✅ | `posts/replies_test.go` : aller-retour exact, curseur vide = première page, curseur illisible = `ErrInvalidCursor`, bornes `NormalizeReplyLimit` |
+
+**R134 et R314 absorbés, aucun cas séparé.** Il n'existe plus de liste de commentaires
+« complète » ni de fil de pensée plafonné : `ListArticleComments`,
+`GetRepliesForThought`, `GetReplyIDsForThought` et `GetPostThread` ont été **supprimées**,
+et `ListThreadPage` (via `posts.ReplyPageFor`) est la seule lecture de fil, pour les
+articles, les pensées et les commentaires.
 
 **Décisions prises pendant L42.**
 
@@ -303,7 +338,18 @@ Risques nommés :
 
 ### Reste à faire après L42
 
-- **L43** : éligibilité par surface avec `why`, ranking transparent pondéré
-  (`SystemConfig`), levée du drapeau `rootArticleId IS NULL` dans les feeds avec rendu du
-  contexte d'article, et compteur total de discussion si l'UI le demande.
-- Supprimer la table `ArticleComment` (migration `00099`) après un cycle de déploiement.
+- **L43** : éligibilité par surface avec `why` ; ranking transparent pondéré
+  (`SystemConfig`) ; levée du prédicat `rootArticleId IS NULL` dans les feeds avec rendu
+  du contexte d'article ; compteur total de discussion si l'UI le demande ; table
+  `Interaction` (like/repost génériques article/commentaire) et métriques de ranking.
+- **Suppression de la table `ArticleComment`** : migration `00099`, après un cycle de
+  déploiement (la table est gelée depuis L41, plus aucun lecteur ni écrivain).
+- **Dette `Thread()` côté clients** : le web (`ThoughtThreadRoot`) rend la première page
+  et n'a pas encore de bouton branché sur `repliesCursor` ; au-delà de 50 descendants,
+  seuls les 50 premiers s'affichent. Le mobile, en pause, porte la même dette à sa
+  reprise. Les fils d'article et de commentaire, eux, paginent déjà par nœud.
+- **Tests d'intégration Go non exécutés** : `articles` et `feed` exigent
+  Docker/testcontainers, indisponibles en local ; le dry-run SQL documenté en tient lieu,
+  mais le code Go contre une vraie base reste à prouver en CI.
+- **Compteur total** : l'API de fil ne renvoie pas de total ; l'en-tête « Discussion (n) »
+  affiche les commentaires chargés, pas ceux de l'article.
