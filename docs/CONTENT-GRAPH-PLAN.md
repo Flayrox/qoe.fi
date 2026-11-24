@@ -636,17 +636,17 @@ milliseconde, dix lectures consécutives strictement identiques, pagination
 lecture complète, sans doublon ni trou. Package `conversations` exécuté
 intégralement trois fois de suite : trois `ok`.
 
-## L46b — ordre total des verdicts de modération (2026-11-24)
+## L46b — ordre total des verdicts de revue (2026-11-24)
 
-Même défaut de fond que le listing : `RiskDecision."createdAt"` en
-`TIMESTAMP(3)`, départagé par `decidedBy` puis `id`. « Le dernier verdict »
-n'était donc pas défini, et `TestAppeal_FullCycle` pouvait contester une
-fixture humaine au lieu du verdict d'essaim inséré après elle.
-`00102` ajoute `RiskDecision.seq BIGSERIAL` (unique, index
-`(subjectType, subjectId, seq DESC)`) ; `contestableDecision`,
-`ListOpenDecisions` et `ResolveDecision` lisent `seq DESC`. Le recours prend
-le dernier verdict non-allow **réellement inséré**, sans choix de politique
-entre humain et automate. La boucle de vidage de file de la revue a aussi été
-rendue convergente (elle s'arrête quand la file est stable). Preuves :
-`TestAppeal_FullCycle` et `TestReview_OpenResolveClose` PASS sur Postgres 16
-local.
+`RiskDecision."createdAt"` est un `TIMESTAMP(3)` : à la milliseconde près, la
+revue n'avait pas d'ordre total. `00102` ajoute `RiskDecision.seq BIGSERIAL`
+(unique, index `(subjectType, subjectId, seq DESC)`), utilisé **uniquement**
+comme tie-breaker déterministe par `ListOpenDecisions` et `ResolveDecision`.
+La boucle de vidage de file de la revue converge (elle s'arrête quand la file
+est stable) ; `TestReview_OpenResolveClose` PASS sur Postgres 16 local.
+
+Le recours (`contestableDecision`) reste volontairement hors de ce changement :
+il garde son ordre d'origine et **la question produit reste ouverte** — un
+recours conteste-t-il le dernier verdict automatique d'essaim, ou n'importe
+quel verdict humain ? `TestAppeal_FullCycle` reste rouge, non modifié, non
+skippé, et documenté comme bloqué sur cet arbitrage (seul point en attente).

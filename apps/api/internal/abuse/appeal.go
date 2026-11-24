@@ -127,7 +127,7 @@ func contestableDecision(ctx context.Context, pool SignalDB, subjectType, subjec
 		SELECT "id", "policy", "version", "result", "reasonCodes" FROM "RiskDecision"
 		WHERE "subjectType" = $1 AND "subjectId" = $2
 		  AND "result" <> 'allow' AND ("expiresAt" IS NULL OR "expiresAt" > $3)
-		ORDER BY "seq" DESC LIMIT 1`,
+		ORDER BY "createdAt" DESC, "decidedBy" DESC, "id" DESC LIMIT 1`,
 		subjectType, subjectID, now).Scan(&c.ID, &c.Policy, &c.Version, &c.Result, &c.Reasons)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
