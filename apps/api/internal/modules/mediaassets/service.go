@@ -133,10 +133,135 @@ type Service struct {
 	// mediaPolicy valide l'origine des URLs enregistrées (fail-closed : sans
 	// origine configurée, aucune URL absolue n'est acceptée).
 	mediaPolicy antispam.MediaPolicy
+	// uploadStatsFn permet d'injecter comptage/volume en test unitaire sans Postgres.
+	uploadStatsFn func(ctx context.Context, ownerID string) (recentCount, totalBytes int64, err error)
 }
 
 func NewService(pool *pgxpool.Pool) *Service {
 	return &Service{pool: pool, q: db.New(pool), quotaBytes: defaultQuotaBytes, uploadsPerHour: defaultUploadsPerHour}
+}
+
+// PreflightInput décrit un média candidat avant lecture mémoire / Sharp / OpenAI.
+type PreflightInput struct {
+	SizeBytes  int32  `json:"sizeBytes"`
+	MimeType   string `json:"mimeType"`
+	TargetType string `json:"targetType"`
+	Sha256     string `json:"sha256"`
+}
+
+// PreflightResult résume l'autorisation préalable d'upload retournée par Go.
+type PreflightResult struct {
+	Allowed          bool   `json:"allowed"`
+	Deduplicated     bool   `json:"deduplicated"`
+	ExistingURL      string `json:"existingUrl,omitempty"`
+	RemainingBytes   int64  `json:"remainingBytes"`
+	RemainingUploads int64  `json:"remainingUploads"`
+}
+
+// Preflight contrôle taille brute, type MIME déclaré, destination cible,
+// dédoublonnage CAS éventuel, throttle horaire et quota utilisateur AVANT
+// tout traitement coûteux (Sharp / modération OpenAI / stockage).
+func (s *Service) Preflight(ctx context.Context, ownerID string, in PreflightInput) (PreflightResult, error) {
+	if strings.TrimSpace(ownerID) == "" {
+		return PreflightResult{}, invalid("propriétaire requis")
+	}
+	if in.SizeBytes <= 0 {
+		return PreflightResult{}, invalid("sizeBytes doit être positif")
+	}
+	if int64(in.SizeBytes) > maxUploadBytes {
+		return PreflightResult{}, invalid("fichier trop volumineux (maximum %d octets)", maxUploadBytes)
+	}
+
+	mime := strings.ToLower(strings.TrimSpace(in.MimeType))
+	if mime != "" && !allowedImageMimes[mime] && mime != "image/svg+xml" {
+		return PreflightResult{}, invalid("mimeType non supporté (jpeg, png, gif, webp, avif, svg)")
+	}
+
+	targetType := strings.TrimSpace(in.TargetType)
+	if targetType != "" && !validTargetTypes[targetType] {
+		return PreflightResult{}, invalid("targetType invalide")
+	}
+
+	sha := strings.ToLower(strings.TrimSpace(in.Sha256))
+	if s.pool != nil && sha != "" && sha256Re.MatchString(sha) {
+		existing, err := s.q.GetMediaAssetBySha256(ctx, db.GetMediaAssetBySha256Params{
+			OwnerID: ownerID,
+			Sha256:  sha,
+		})
+		if err == nil && existing.Status != "PURGED" && existing.Status != "SOFT_DELETED" {
+			return PreflightResult{
+				Allowed:          true,
+				Deduplicated:     true,
+				ExistingURL:      existing.Url,
+				RemainingBytes:   s.quotaBytes,
+				RemainingUploads: s.uploadsPerHour,
+			}, nil
+		}
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return PreflightResult{}, err
+		}
+	}
+
+	out := PreflightResult{
+		Allowed:          true,
+		RemainingBytes:   s.quotaBytes,
+		RemainingUploads: s.uploadsPerHour,
+	}
+
+	if s.uploadStatsFn != nil {
+		recent, totalBytes, err := s.uploadStatsFn(ctx, ownerID)
+		if err != nil {
+			return PreflightResult{}, err
+		}
+		if s.uploadsPerHour > 0 {
+			if recent >= s.uploadsPerHour {
+				return PreflightResult{}, fmt.Errorf("%w (%d/heure maximum, réessayez plus tard)",
+					ErrThrottled, s.uploadsPerHour)
+			}
+			out.RemainingUploads = s.uploadsPerHour - recent
+		}
+		if s.quotaBytes > 0 {
+			if totalBytes+int64(in.SizeBytes) > s.quotaBytes {
+				return PreflightResult{}, fmt.Errorf("%w (%d octets utilisés, limite %d)",
+					ErrQuotaExceeded, totalBytes, s.quotaBytes)
+			}
+			out.RemainingBytes = s.quotaBytes - totalBytes
+		}
+		return out, nil
+	}
+
+	if s.pool == nil {
+		return out, nil
+	}
+
+	if s.uploadsPerHour > 0 {
+		recent, err := s.q.CountRecentUploads(ctx, db.CountRecentUploadsParams{
+			OwnerId:   ownerID,
+			CreatedAt: pgtype.Timestamp{Time: time.Now().UTC().Add(-uploadThrottleWindow), Valid: true},
+		})
+		if err != nil {
+			return PreflightResult{}, err
+		}
+		if recent >= s.uploadsPerHour {
+			return PreflightResult{}, fmt.Errorf("%w (%d/heure maximum, réessayez plus tard)",
+				ErrThrottled, s.uploadsPerHour)
+		}
+		out.RemainingUploads = s.uploadsPerHour - recent
+	}
+
+	if s.quotaBytes > 0 {
+		usage, err := s.q.OwnerMediaUsage(ctx, ownerID)
+		if err != nil {
+			return PreflightResult{}, err
+		}
+		if usage.TotalBytes+int64(in.SizeBytes) > s.quotaBytes {
+			return PreflightResult{}, fmt.Errorf("%w (%d octets utilisés, limite %d)",
+				ErrQuotaExceeded, usage.TotalBytes, s.quotaBytes)
+		}
+		out.RemainingBytes = s.quotaBytes - usage.TotalBytes
+	}
+
+	return out, nil
 }
 
 // SetQuotaBytes surcharge la limite de stockage par utilisateur (0 = illimité).

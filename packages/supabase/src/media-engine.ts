@@ -23,6 +23,16 @@ export const MAX_IMAGE_PIXELS = 50_000_000;
 export const MAX_DIMENSION = 8192;
 export const MAX_UPLOAD_BYTES = 12 * 1024 * 1024; // 12MB
 
+export class MediaValidationError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status = 400) {
+    super(message);
+    this.name = 'MediaValidationError';
+    this.status = status;
+  }
+}
+
 export interface MagicBytesResult {
   valid: boolean;
   mime: string;
@@ -194,6 +204,7 @@ export async function moderateImageBuffer(
           },
         ],
       }),
+      signal: AbortSignal.timeout(8_000),
     });
 
     if (!response.ok) {
@@ -257,7 +268,9 @@ export async function processAndSecureImage(
   // 1. Validation Magic Bytes
   const magic = detectMagicBytes(rawBuffer);
   if (!magic.valid) {
-    throw new Error('Type de fichier invalide ou corrompu. Seules les images sont autorisées.');
+    throw new MediaValidationError(
+      'Type de fichier invalide ou corrompu. Seules les images sont autorisées.'
+    );
   }
 
   // Traitement SVG : désinfection XML d'abord (défense en profondeur avant
@@ -281,11 +294,11 @@ export async function processAndSecureImage(
   const height = metadata.height || 0;
 
   if (width === 0 || height === 0) {
-    throw new Error('Impossible de lire les dimensions de l’image.');
+    throw new MediaValidationError('Impossible de lire les dimensions de l’image.');
   }
 
   if (width * height > MAX_IMAGE_PIXELS || width > MAX_DIMENSION || height > MAX_DIMENSION) {
-    throw new Error(
+    throw new MediaValidationError(
       `Image trop volumineuse en résolution (${width}x${height}). Limite maximale : 50 Mégapixels.`
     );
   }
@@ -370,14 +383,17 @@ export async function uploadAndProcessMedia(
 
   // 1. Validation de la taille brute
   if (fileBuffer.length > MAX_UPLOAD_BYTES) {
-    throw new Error('Fichier trop volumineux. La taille maximale autorisée est de 12 Mo.');
+    throw new MediaValidationError(
+      'Fichier trop volumineux. La taille maximale autorisée est de 12 Mo.',
+      413
+    );
   }
 
   // 2. Modération multimodale OpenAI (Zéro-NSFW)
   if (!options.skipModeration) {
     const mod = await moderateImageBuffer(fileBuffer, declaredMime);
     if (!mod.safe) {
-      throw new Error(mod.reason || 'Image bloquée par les filtres de sécurité.');
+      throw new MediaValidationError(mod.reason || 'Image bloquée par les filtres de sécurité.');
     }
   }
 

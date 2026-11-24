@@ -622,7 +622,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 		// Même instance que le chemin d'upload créateur : la médiathèque HTTP
 		// applique donc le quota/le throttle configurés (une instance neuve
 		// repartait sur les défauts en ignorant MEDIA_QUOTA_BYTES).
-		mediaAssetsHandler := mediaassets.NewHandler(mediaAssetsSvc)
+		mediaAssetsHandler := mediaassets.NewHandler(mediaAssetsSvc).SetSecurityGuard(secGuard)
 		mediaAssetsHandler.Register(protected)
 
 		collaborationsHandler := collaborations.NewHandler(collaborations.NewService(pool))

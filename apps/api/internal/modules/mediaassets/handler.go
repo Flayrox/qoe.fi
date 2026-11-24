@@ -10,20 +10,73 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/qoefi/api/internal/middleware"
+	"github.com/qoefi/api/internal/observability"
 	"github.com/qoefi/api/internal/response"
+	"github.com/qoefi/api/internal/secguard"
 )
 
 type Handler struct {
-	svc *Service
+	svc   *Service
+	guard *secguard.Guard
 }
 
 func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
 }
 
+// SetSecurityGuard branche le contrôle de débit GCRA + Trust Tier sur le preflight.
+func (h *Handler) SetSecurityGuard(g *secguard.Guard) *Handler {
+	h.guard = g
+	return h
+}
+
 func (h *Handler) Register(r chi.Router) {
+	r.Post("/v1/media-assets/preflight", h.preflight)
 	r.Post("/v1/media-assets", h.register)
 	r.Get("/v1/media-assets", h.list)
+}
+
+// POST /v1/media-assets/preflight — contrôle rapide (rate limit GCRA, taille,
+// MIME, throttle horaire, quota utilisateur) exécuté AVANT Sharp / OpenAI.
+func (h *Handler) preflight(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok || userID == "" {
+		response.Unauthorized(w, "Non authentifié")
+		return
+	}
+	var in PreflightInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		observability.Default().IncMediaPreflightRejection("validation")
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+
+	if h.guard != nil {
+		prof := h.guard.EvaluateRequest(r.Context(), r, userID)
+		if !h.guard.EnforceRateLimit(r.Context(), w, r, "media-upload", userID, prof.Tier, secguard.QuotasMediaUpload) {
+			observability.Default().IncMediaPreflightRejection("rate_limit")
+			return
+		}
+	}
+
+	res, err := h.svc.Preflight(r.Context(), userID, in)
+	if err != nil {
+		var verr ValidationError
+		switch {
+		case errors.As(err, &verr):
+			observability.Default().IncMediaPreflightRejection("validation")
+		case errors.Is(err, ErrThrottled):
+			observability.Default().IncMediaPreflightRejection("rate_limit")
+		case errors.Is(err, ErrQuotaExceeded):
+			observability.Default().IncMediaPreflightRejection("quota")
+		default:
+			observability.Default().IncMediaPreflightRejection("internal")
+		}
+		h.fail(w, "preflight", err)
+		return
+	}
+
+	response.OK(w, res)
 }
 
 // GET /v1/media-assets — bibliothèque personnelle paginée du Studio.

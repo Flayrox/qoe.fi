@@ -109,6 +109,13 @@ var (
 		Standard:   QuotaWindow{PerHour: 10},
 		Trusted:    QuotaWindow{PerHour: 15},
 	}
+	QuotasMediaUpload = TierQuotas{
+		Restricted: QuotaWindow{PerHour: 3, PerDay: 5},
+		Low:        QuotaWindow{PerMin: 3, PerHour: 15},
+		Standard:   QuotaWindow{PerMin: 10, PerHour: 60},
+		Trusted:    QuotaWindow{PerMin: 20, PerHour: 150},
+		UseSubnet:  true,
+	}
 )
 
 // Guard centralise l'orchestration Trust + GCRA + AntiSpam + Modération + Abuse.

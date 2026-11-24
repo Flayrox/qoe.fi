@@ -33,6 +33,10 @@
     "./media-engine": {
       "types": "./src/media-engine.ts",
       "default": "./src/media-engine.ts"
+    },
+    "./next-upload-handler": {
+      "types": "./src/next-upload-handler.ts",
+      "default": "./src/next-upload-handler.ts"
     }
   },
   "scripts": {
