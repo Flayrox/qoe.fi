@@ -754,10 +754,10 @@ lieu d'un comportement par défaut.
 
 | #   | Tâche                                                                                                                 | Sévérité | Motif                                                                                      |
 | --- | --------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------ |
-| R25 | Vérifier si `sendTransactionalEmail` doit respecter le coupe-feu `workers-email-kill` (aujourd'hui : non)             | haute    | Les e-mails de sécurité partent hors file Go : pendant un arrêt d'urgence, ils continuent. |
-| R26 | Unifier l'envoi d'e-mails : le SMTP direct depuis Next contourne la file asynq (rate-limit, budgets, journal d'envoi) | moyenne  | Deux chemins d'envoi, deux comportements en cas d'incident.                                |
+| R25 | **clos le 2026-11-24 (lot P1, `b1bc644f2`)** — `sendTransactionalEmail` et le mailer Node supprimés ; tout transit par Go `comms.Gateway` (`workers-email-kill` appliqué aux workers, sécurité/auth explicitement préservées). | haute    | Suppression du second chemin d'envoi Node (`@qoe/auth`).                          |
+| R26 | **clos le 2026-11-24 (lot P1, `b1bc644f2`)** — Chemin SMTP Node (`packages/auth/src/{mailer,smtp}.ts`) supprimé + garde Check 13 (`rogueSmtp`) dans `arch-audit.mjs`. | moyenne  | Source de vérité unique Go (`comms.Gateway` + `go-mail`).                        |
 | R27 | Garde CI de parité pour `MEDIA_ROLE_PERMISSIONS` (TS) ↔ `internal/permissions` (Go)                                   | moyenne  | Même classe de divergence que les flags (F28) : la matrice est écrite deux fois.           |
-| R28 | Découper les sujets RFC 2047 (ligne > 75 caractères)                                                                  | faible   | Un sujet long accentué peut être replié/mangé par certains relais.                         |
+| R28 | **clos le 2026-11-24 (lot P1, `b1bc644f2`)** — Transport SMTP migré sur `github.com/wneessen/go-mail v0.8.2` avec repli automatique RFC 2047 (`TestBuildGoMailMessage_LongUTF8SubjectFolding`). | faible   | Plus aucun encodage RFC 2047 manuel en ligne unique.                               |
 
 ---
 
@@ -10021,3 +10021,29 @@ valider la méthode sur une surface courte avant les 1 551 copies admin). Chaque
 **d’un seul tour** (précédent R140/R143/R146/R149 : jamais une surface mi-traduite), avec
 `QOE_I18N_ZONES=apps/<app>/src` à **0** comme critère de sortie, catalogues régénérés et EN
 traduit à 100 %. `mobile` (L26) et Stage restent hors périmètre.
+
+---
+
+## Entonnoirs transverses & durcissement de bout en bout (lots P1–P5) — clos le 2026-11-24
+
+**Objectif.** Remplacer les tuyaux parallèles (notifications hors garde, e-mail scindé Go/Node,
+webhooks directs fragiles, modération dispersée, upload média dupliqué sur 4 apps sans preflight)
+par cinq entonnoirs uniques ayant **Go (`apps/api`) comme source de vérité**, mesurables par
+Prometheus et protégés par des gardes CI.
+
+| Lot | Périmètre & livrables | Commits |
+| --- | --- | --- |
+| **P3 — Notifications** | 100 % des notifications routées par `apps/api/internal/notifications` (`Dispatch`, `DispatchWithID`, fan-outs médias, `AllowSelf`, `BypassPreferences`, `SYSTEM_ALERT`) ; retrait des `INSERT INTO "Notification"` directs (9 appelants + `admin/sandbox.go`) et Check 12 (`rogueNotifications`) dans `scripts/arch-audit.mjs`. | `b23d4e42a` |
+| **P5 — Résilience & observabilité** | Migration `00096_webhook_resilience_and_comms_registry.sql` (`ExpectedMigrationVersion = 96`) ; livraison webhooks asynchrone via `TaskWebhookDeliver` avec désactivation automatique à 10 échecs consécutifs + alerte `SYSTEM_ALERT` ; 4 compteurs Prometheus dans `internal/observability/metrics.go` ; `resilience.CircuitBreaker` sur 5 clients sortants (`ai/openai`, `workers/embedding`, `workers/search`, `supastorage`, `modules/billing/stripe`). | `7ea1be924`, `22372ca87` |
+| **P4 — Modération** | Entonnoir Go `internal/moderation` (heuristiques fast-path + tâche `TaskModerationScreen` OpenAI `omni-moderation-latest` → `internal/abuse` & `SecurityEvent`), câblé sur `secguard.EnforceContentWrite`, articles créateurs et `posts.Service.Report` ; suppression des modules serveur morts `packages/moderation/src/{ai,image,text}.ts`. | `098628f4b` |
+| **P1 — E-mail & délivrabilité** | Passerelle `comms.Gateway` / `comms.WrapTransport` (`EmailSuppression`, disjoncteur transitoire, détection automatique des bounces 5xx, métriques) ; transport `github.com/wneessen/go-mail v0.8.2` (repli RFC 2047 pour sujets UTF-8 longs) ; câblage `cmd/server` et `cmd/worker` (dont `staffCampaignWorker.SetEmailProvider`) avec `MessageType` et `PublisherID` ; webhook Stalwart `POST /internal/events/mail-events` ; suppression du doublon SMTP Node `packages/auth/src/{mailer,smtp}.ts` (+ tests `auth-helpers.test.ts`, couverture `@qoe/auth` à 93,75 % stmts / 97,52 % lines) et Check 13 (`rogueSmtp`) dans `scripts/arch-audit.mjs`. Clôt **R25**, **R26** et **R28**. | `b1bc644f2`, `6352dd9b3` |
+| **P2 — Upload média** | `secguard.QuotasMediaUpload` + `POST /v1/media-assets/preflight` (400/413/429 avant traitement coûteux + `qoe_media_preflight_rejections_total`) ; `MediaValidationError` + `AbortSignal.timeout(8_000)` sur `moderateImageBuffer` dans `packages/supabase/src/media-engine.ts` ; factory `packages/supabase/src/next-upload-handler.ts` et déduplication des 4 routes upload (`core`, `studio`, `admin`, `tenants`). | `a769b6921` |
+
+**Preuves exécutées (vertes après le dernier edit code) :**
+- `cd apps/api && go build ./... && go vet ./internal/... ./cmd/...` : **ok (exit 0)**.
+- `cd apps/api && QOE_DB_TESTS_OPTIONAL=1 go test -count=1 ./...` : **ok sur l’ensemble des paquets Go** (`QOE_DB_TESTS_OPTIONAL=1` ignore les tests nécessitant PostgreSQL/Docker en local).
+- `pnpm typecheck` : **25 successful, 25 total**.
+- `pnpm lint` : **25 successful, 25 total**.
+- `pnpm exec turbo run test --concurrency=1` : **25 successful, 25 total** (`@qoe/core` 68 fichiers / 421 tests, `@qoe/supabase` 6 fichiers / 69 tests, `@qoe/auth` 4 fichiers / 25 tests, `@qoe/studio`, `@qoe/ui`, etc. ; un premier passage à `--concurrency=4` avait subi 4 timeouts CPU de 5 s sur tests UI préexistants, tous passés à l’identique en isolé et en `--concurrency=1`).
+- `pnpm test:coverage` (`vitest.coverage.config.mts`) : **145 fichiers de test passés, tous les seuils respectés** (`packages/auth/src` mesuré à 93,75 % stmts / 83,33 % branch / 100 % funcs / 97,52 % lines).
+- Gardes CI : `pnpm guard:sqlc` (sqlc v1.31.1), `pnpm arch:audit` (13/13 contrôles dont notifications + SMTP), `pnpm ui:audit`, `pnpm guard:article-links` — **tous verts (exit 0)**.
