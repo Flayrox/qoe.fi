@@ -37,7 +37,7 @@ SELECT p.id,
        (CASE WHEN r.id IS NOT NULL THEN true ELSE false END)      AS viewer_reposted
 FROM "Post" p
 JOIN "User" u ON u.id = p."authorId"
-LEFT JOIN "Like" l ON l."postId" = p.id AND l."userId" = $1
+LEFT JOIN "Interaction" l ON l."targetType" = 'POST' AND l.kind = 'LIKE' AND l."targetId" = p.id AND l."userId" = $1
 LEFT JOIN "Post" r ON r."repostId" = p.id AND r."authorId" = $1 AND r."deletedAt" IS NULL AND (r.content = '' OR r.content = ' ')
 WHERE p."authorId" = ANY($2::uuid[])
   AND u."isShadowbanned" = false
@@ -163,7 +163,7 @@ SELECT p.id,
        (CASE WHEN r.id IS NOT NULL THEN true ELSE false END)      AS viewer_reposted
 FROM "Post" p
 JOIN "User" u ON u.id = p."authorId"
-LEFT JOIN "Like" l ON l."postId" = p.id AND l."userId" = $1
+LEFT JOIN "Interaction" l ON l."targetType" = 'POST' AND l.kind = 'LIKE' AND l."targetId" = p.id AND l."userId" = $1
 LEFT JOIN "Post" r ON r."repostId" = p.id AND r."authorId" = $1 AND r."deletedAt" IS NULL AND (r.content = '' OR r.content = ' ')
 WHERE p."authorId" = $2::uuid
   AND u."isShadowbanned" = false
@@ -291,7 +291,7 @@ SELECT p.id,
        (CASE WHEN r.id IS NOT NULL THEN true ELSE false END)      AS viewer_reposted
 FROM "Post" p
 JOIN "User" u ON u.id = p."authorId"
-LEFT JOIN "Like" l ON l."postId" = p.id AND l."userId" = $1
+LEFT JOIN "Interaction" l ON l."targetType" = 'POST' AND l.kind = 'LIKE' AND l."targetId" = p.id AND l."userId" = $1
 LEFT JOIN "Post" r ON r."repostId" = p.id AND r."authorId" = $1 AND r."deletedAt" IS NULL AND (r.content = '' OR r.content = ' ')
 WHERE p."isDraft" = false
   AND p."deletedAt" IS NULL
@@ -484,7 +484,7 @@ SELECT p.id,
        (CASE WHEN r.id IS NOT NULL THEN true ELSE false END)      AS viewer_reposted
 FROM "Post" p
 JOIN "User" u ON u.id = p."authorId"
-LEFT JOIN "Like" l ON l."postId" = p.id AND l."userId" = $1
+LEFT JOIN "Interaction" l ON l."targetType" = 'POST' AND l.kind = 'LIKE' AND l."targetId" = p.id AND l."userId" = $1
 LEFT JOIN "Post" r ON r."repostId" = p.id AND r."authorId" = $1 AND r."deletedAt" IS NULL AND (r.content = '' OR r.content = ' ')
 WHERE p.id = ANY($2::text[])
   AND p."deletedAt" IS NULL

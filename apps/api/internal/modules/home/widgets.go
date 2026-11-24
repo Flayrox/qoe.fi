@@ -347,19 +347,16 @@ func (s *Service) GetSemanticTrends(ctx context.Context, limit int) ([]SemanticT
 			  AND cardinality(a."semanticTags") > 0
 			UNION ALL
 			SELECT unnest(p.tags) AS topic, l."createdAt" AS ts
-			FROM "Like" l JOIN "Post" p ON p.id = l."postId"
-			WHERE p."isDraft" = false AND l."createdAt" >= $3
+			FROM "Interaction" l JOIN "Post" p ON p.id = l."targetId"
+			WHERE l.kind = 'LIKE' AND l."targetType" = 'POST'
+			  AND p."isDraft" = false AND l."createdAt" >= $3
 			  AND cardinality(p.tags) > 0
 			UNION ALL
-			SELECT unnest(a."semanticTags") AS topic, cf."createdAt" AS ts
-			FROM "ContentFeedback" cf JOIN "Article" a ON a.id = cf."articleId"
-			WHERE cf."articleId" IS NOT NULL AND cf."createdAt" >= $3
+			SELECT unnest(a."semanticTags") AS topic, l."createdAt" AS ts
+			FROM "Interaction" l JOIN "Article" a ON a.id = l."targetId"
+			WHERE l.kind = 'LIKE' AND l."targetType" = 'ARTICLE'
+			  AND l."createdAt" >= $3
 			  AND cardinality(a."semanticTags") > 0
-			UNION ALL
-			SELECT unnest(p.tags) AS topic, cf."createdAt" AS ts
-			FROM "ContentFeedback" cf JOIN "Post" p ON p.id = cf."thoughtId"
-			WHERE cf."thoughtId" IS NOT NULL AND cf."createdAt" >= $3
-			  AND cardinality(p.tags) > 0
 		),
 		buckets AS (
 			SELECT topic,

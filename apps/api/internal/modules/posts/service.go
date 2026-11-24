@@ -19,6 +19,7 @@ import (
 	"github.com/qoefi/api/internal/cache"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/domainevents"
+	"github.com/qoefi/api/internal/eligibility"
 	"github.com/qoefi/api/internal/identity"
 	"github.com/qoefi/api/internal/moderation"
 	"github.com/qoefi/api/internal/notifications"
@@ -314,20 +315,14 @@ func (s *Service) ToggleLike(ctx context.Context, postID, userID string) (bool, 
 		return false, err
 	}
 
-	// Un like ne s'ajoute jamais sur le contenu d'un compte bloqué (dans un
-	// sens ou l'autre). Le retrait d'un like existant reste possible.
-	if authorID, err := tq.GetPostAuthor(ctx, postID); err == nil {
-		blocked, err := isBlockedBetween(ctx, tq, userID, authorID)
-		if err != nil {
-			return false, err
+	// Un like ne s'ajoute jamais sur un contenu que le viewer ne peut pas
+	// voir. La règle est celle d'eligibility.Decide, pas une copie locale :
+	// suppression, brouillon, modération, visibilité, blocage.
+	if err := s.ensureReactionEligible(ctx, tq, postID, userID); err != nil {
+		if errors.Is(err, errReactionTargetMissing) {
+			_ = tx.Rollback(ctx)
+			return s.toggleArticleLike(ctx, postID, userID)
 		}
-		if blocked {
-			return false, ErrBlockedContent
-		}
-	} else if errors.Is(err, pgx.ErrNoRows) {
-		_ = tx.Rollback(ctx)
-		return s.toggleArticleLike(ctx, postID, userID)
-	} else {
 		return false, err
 	}
 
@@ -557,6 +552,12 @@ func (s *Service) toggleArticleRepost(ctx context.Context, articleID, userID str
 		if _, delErr := s.pool.Exec(ctx, `DELETE FROM "Post" WHERE id = $1`, existingPostID); delErr != nil {
 			return false, delErr
 		}
+		if _, delErr := s.pool.Exec(ctx, `
+			DELETE FROM "Interaction"
+			WHERE "userId" = $1 AND kind = 'REPOST' AND "targetType" = 'ARTICLE' AND "targetId" = $2`,
+			toUUID(userID), articleID); delErr != nil {
+			return false, delErr
+		}
 		if delErr := s.deleteArticleEngagementNotification(ctx, "REPOST", articleID, userID); delErr != nil {
 			log.Printf("[posts] article repost notification: %v", delErr)
 		}
@@ -592,6 +593,12 @@ func (s *Service) toggleArticleRepost(ctx context.Context, articleID, userID str
 	if insErr != nil {
 		return false, insErr
 	}
+	if _, intErr := s.pool.Exec(ctx, `
+		INSERT INTO "Interaction" (id, "userId", kind, "targetType", "targetId")
+		VALUES (gen_random_uuid()::text, $1, 'REPOST', 'ARTICLE', $2)
+		ON CONFLICT DO NOTHING`, toUUID(userID), articleID); intErr != nil {
+		return false, intErr
+	}
 
 	if articleAuthorID != "" && articleAuthorID != userID {
 		_ = s.notifyArticleEngagement(ctx, "REPOST", articleID, articleAuthorID, userID)
@@ -601,35 +608,12 @@ func (s *Service) toggleArticleRepost(ctx context.Context, articleID, userID str
 }
 
 func (s *Service) toggleArticleLike(ctx context.Context, articleID, userID string) (bool, error) {
-	articleAuthorID, err := s.articleAuthorForEngagement(ctx, articleID)
+	authorID, err := s.articleAuthorForEngagement(ctx, articleID)
 	if err != nil {
 		return false, err
 	}
-
-	userUUID := toUUID(userID)
-	var feedbackID string
-	err = s.pool.QueryRow(ctx, `
-		SELECT id FROM "ContentFeedback" 
-		WHERE "userId" = $1 AND "articleId" = $2 AND "type" = 'LIKE'
-		LIMIT 1
-	`, userUUID, articleID).Scan(&feedbackID)
-
-	if err == nil && feedbackID != "" {
-		if _, delErr := s.pool.Exec(ctx, `DELETE FROM "ContentFeedback" WHERE id = $1`, feedbackID); delErr != nil {
-			// Ne jamais annoncer « unlike » quand la ligne est toujours là.
-			return false, delErr
-		}
-		if delErr := s.deleteArticleEngagementNotification(ctx, "LIKE", articleID, userID); delErr != nil {
-			log.Printf("[posts] article like notification: %v", delErr)
-		}
-		return false, nil
-	}
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-		return false, err
-	}
-
-	if articleAuthorID != "" {
-		blocked, err := isBlockedBetween(ctx, s.q, userID, articleAuthorID)
+	if authorID != "" {
+		blocked, err := isBlockedBetween(ctx, s.q, userID, authorID)
 		if err != nil {
 			return false, err
 		}
@@ -638,23 +622,44 @@ func (s *Service) toggleArticleLike(ctx context.Context, articleID, userID strin
 		}
 	}
 
-	newID := "cf_" + strings.ReplaceAll(uuid.New().String(), "-", "")
-	_, insErr := s.pool.Exec(ctx, `
-		INSERT INTO "ContentFeedback" (id, "userId", "articleId", "type", "createdAt")
-		VALUES ($1, $2, $3, 'LIKE', now())
-	`, newID, userUUID, articleID)
-	if insErr != nil {
-		if isUniqueViolation(insErr) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	tq := s.q.WithTx(tx)
+
+	kind, targetType, targetID := ArticleReactionTarget(articleID)
+	params := db.DeleteInteractionParams{
+		UserId: toUUID(userID), Kind: kind, TargetType: targetType, TargetId: targetID,
+	}
+	_, err = tq.GetInteraction(ctx, db.GetInteractionParams(params))
+	if err == nil {
+		if err := tq.DeleteInteraction(ctx, params); err != nil {
+			return false, err
+		}
+		if err := deleteEngagementNotification(ctx, tq, "LIKE", articleID, userID); err != nil {
+			return false, err
+		}
+		return false, tx.Commit(ctx)
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return false, err
+	}
+
+	if _, err := tq.InsertInteraction(ctx, db.InsertInteractionParams{
+		UserId: toUUID(userID), Kind: kind, TargetType: targetType, TargetId: targetID,
+	}); err != nil {
+		// Deux clics concurrents : la base a déjà la ligne, l'état est « liké ».
+		if isUniqueViolation(err) {
 			return true, nil
 		}
-		return false, insErr
+		return false, err
 	}
-
-	if articleAuthorID != "" && articleAuthorID != userID {
-		_ = s.notifyArticleEngagement(ctx, "LIKE", articleID, articleAuthorID, userID)
+	if authorID != "" && authorID != userID {
+		_ = s.notifyArticleEngagement(ctx, "LIKE", articleID, authorID, userID)
 	}
-
-	return true, nil
+	return true, tx.Commit(ctx)
 }
 
 func (s *Service) notifyArticleEngagement(ctx context.Context, kind, articleID, authorID, senderID string) error {
@@ -1272,4 +1277,58 @@ func (s *Service) ToggleHideReply(ctx context.Context, replyID, userID string) (
 		return false, err
 	}
 	return hidden, nil
+}
+
+// errReactionTargetMissing distingue « pas un post » (peut-être un article) de
+// « post interdit » : le premier bascule sur le chemin article, le second est
+// un refus.
+var errReactionTargetMissing = errors.New("cible de réaction absente")
+
+// ensureReactionEligible applique la MÊME décision que les feeds : les faits
+// viennent de la base, la règle vient d'eligibility.Decide. Aucune condition
+// de visibilité n'est réécrite ici.
+func (s *Service) ensureReactionEligible(ctx context.Context, q db.Querier, postID, viewerID string) error {
+	facts, err := q.GetReactionFacts(ctx, postID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return errReactionTargetMissing
+		}
+		return err
+	}
+	candidate := eligibility.Candidate{
+		PostID:              facts.PostID,
+		AuthorID:            facts.AuthorID,
+		CreatedAt:           facts.CreatedAt.Time,
+		Visibility:          facts.Visibility,
+		IsDraft:             facts.IsDraft,
+		IsDeleted:           facts.IsDeleted,
+		IsHiddenByModerator: facts.IsHiddenByModerator,
+		IsHiddenByAuthor:    facts.IsHiddenByAuthor,
+		AuthorSuspended:     facts.AuthorSuspended,
+		AuthorRestricted:    facts.AuthorRestricted,
+	}
+	blocked, err := isBlockedBetween(ctx, q, viewerID, facts.AuthorID)
+	if err != nil {
+		return err
+	}
+	candidate.Blocked = blocked
+	decision := eligibility.Decide(eligibility.SurfaceThread, candidate, eligibility.WeightsFromConfig(nil), time.Now())
+	if decision.Eligible {
+		return nil
+	}
+	switch decision.Reason {
+	case eligibility.ReasonDeleted, eligibility.ReasonDraft:
+		return errReactionTargetMissing
+	case eligibility.ReasonBlocked:
+		return ErrBlockedContent
+	default:
+		return ErrBlockedContent
+	}
+}
+
+// ArticleReactionTarget est LA définition de la cible d'une réaction d'article :
+// un article n'a pas de ligne Post, il vit dans le même registre avec
+// targetType=ARTICLE. Une seule fonction, donc un seul chemin d'écriture.
+func ArticleReactionTarget(articleID string) (kind, targetType, targetID string) {
+	return "LIKE", "ARTICLE", articleID
 }

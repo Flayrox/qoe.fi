@@ -42,3 +42,20 @@ JOIN "User" u ON u.id = p."authorId"
 WHERE p."createdAt" >= now() - interval '30 days'
 ORDER BY p."createdAt" DESC
 LIMIT sqlc.arg('take_count')::int;
+
+-- name: GetReactionFacts :one
+-- Faits nécessaires pour autoriser une réaction sur un post : la décision
+-- reste celle d'eligibility.Decide (aucune règle de visibilité locale).
+SELECT p.id::text                                    AS post_id,
+       p."authorId"::text                            AS author_id,
+       p."createdAt"                                 AS created_at,
+       p.visibility::text                            AS visibility,
+       p."isDraft"                                   AS is_draft,
+       (p."deletedAt" IS NOT NULL)::boolean          AS is_deleted,
+       p."isHiddenByModerator"                      AS is_hidden_by_moderator,
+       p."isHiddenByAuthor"                          AS is_hidden_by_author,
+       COALESCE(u."isSuspended", false)              AS author_suspended,
+       false                                         AS author_restricted
+FROM "Post" p
+JOIN "User" u ON u.id = p."authorId"
+WHERE p.id = $1;

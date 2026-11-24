@@ -538,3 +538,31 @@ commentaires par `Post."rootArticleId" IS NOT NULL` ; (3) retirer la table du
 seed ; (4) migration `00100` `DROP TABLE "ArticleComment"` + retrait du schéma
 sqlc, **après** confirmation que le déploiement de L41 est terminé (pendant un
 rolling deploy, d'anciens pods lisent encore la table).
+
+### L45b — ARTICLE n'est plus une valeur morte (2026-11-24)
+
+`Interaction.targetType = ARTICLE` est désormais **écrit** : `toggleArticleLike`
+ne touche plus `ContentFeedback`, il insère/supprime une ligne `Interaction`
+(`kind='LIKE'`, `targetType='ARTICLE'`) dans une transaction, avec la même
+idempotence portée par l'index unique. Le repost d'article écrit aussi l'arête
+`REPOST/ARTICLE` à côté du post de contenu. La définition de la cible vit dans
+une seule fonction (`posts.ArticleReactionTarget`), donc un seul chemin
+d'écriture.
+
+Lectures alignées : les quatre `LEFT JOIN "Like"` des feeds sont devenus des
+jointures sur `Interaction` (`liked`), et les widgets d'affinité comptent les
+likes depuis `Interaction` (POST et ARTICLE) au lieu de `Like`/`ContentFeedback`.
+Les seeds écrivent des `Interaction`.
+
+Autorisation : `ToggleLike` ne réécrit plus aucune règle de visibilité ;
+`ensureReactionEligible` charge les faits (`GetReactionFacts`) puis appelle
+`eligibility.Decide(SurfaceThread, …)` — suppression, brouillon, modération,
+visibilité followers, suspension et blocage sont décidés par le même moteur que
+les feeds. Un contenu non éligible renvoie `ErrBlockedContent` /
+`errReactionTargetMissing` (bascule article), jamais une seconde politique.
+
+Preuves ajoutées : `TestArticleReactionTarget_UsesTheInteractionLedger` et
+`TestNoReactionWriteOutsideInteraction` (grep exécuté : plus d'`INSERT`/`DELETE`
+sur `"Like"` ni `"ContentFeedback"` dans les requêtes, plus de `JOIN "Like"`
+dans les feeds, plus de `ContentFeedback` dans le service).
+`ExpectedMigrationVersion` passe à 99.

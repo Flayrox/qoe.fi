@@ -391,6 +391,9 @@ type Querier interface {
 	GetPublisherTypeByID(ctx context.Context, id string) (GetPublisherTypeByIDRow, error)
 	GetPublisherUmamiWebsiteId(ctx context.Context, id string) (pgtype.Text, error)
 	GetQuotedArticlesByIDs(ctx context.Context, arg GetQuotedArticlesByIDsParams) ([]GetQuotedArticlesByIDsRow, error)
+	// Faits nécessaires pour autoriser une réaction sur un post : la décision
+	// reste celle d'eligibility.Decide (aucune règle de visibilité locale).
+	GetReactionFacts(ctx context.Context, id string) (GetReactionFactsRow, error)
 	GetReadingSessionDailySeries(ctx context.Context, arg GetReadingSessionDailySeriesParams) ([]GetReadingSessionDailySeriesRow, error)
 	GetRecentArticlesForAnalytics(ctx context.Context, arg GetRecentArticlesForAnalyticsParams) ([]GetRecentArticlesForAnalyticsRow, error)
 	GetRecentThoughtsForAnalytics(ctx context.Context, arg GetRecentThoughtsForAnalyticsParams) ([]GetRecentThoughtsForAnalyticsRow, error)

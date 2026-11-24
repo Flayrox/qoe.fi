@@ -1350,8 +1350,8 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		}
 		seenLike[key] = true
 		if err := likeBatch.add(`
-			INSERT INTO "Like" (id, "postId", "userId", "createdAt")
-			VALUES ($1, $2, $3, $4)`,
+			INSERT INTO "Interaction" (id, "userId", kind, "targetType", "targetId", "createdAt")
+			VALUES ($1, $3, 'LIKE', 'POST', $2, $4)`,
 			topID("lik", likeSeq), post, user.ID, now.AddDate(0, 0, -rng.intn(14))); err != nil {
 			return nil, fmt.Errorf("like: %w", err)
 		}
@@ -1396,8 +1396,8 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 			}
 			seenLike[key] = true
 			if err := likeBatch.add(`
-				INSERT INTO "Like" (id, "postId", "userId", "createdAt")
-				VALUES ($1, $2, $3, $4)`,
+				INSERT INTO "Interaction" (id, "userId", kind, "targetType", "targetId", "createdAt")
+				VALUES ($1, $3, 'LIKE', 'POST', $2, $4)`,
 				topID("lik", likeSeq), post, user.ID, now.Add(-time.Duration(rng.intn(48))*time.Hour)); err != nil {
 				return nil, fmt.Errorf("like burst (trending): %w", err)
 			}

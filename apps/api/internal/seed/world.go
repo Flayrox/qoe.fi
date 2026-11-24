@@ -728,9 +728,9 @@ func seedWorldReadingsAndNotifs(ctx context.Context, pool *pgxpool.Pool, cast []
 			continue
 		}
 		if err := batch.add(`
-			INSERT INTO "Like" (id, "postId", "userId", "createdAt")
-			VALUES ($1,'world_post_root_0',$2, now() - interval '3 days')
-			ON CONFLICT ("postId","userId") DO NOTHING`,
+			INSERT INTO "Interaction" (id, "userId", kind, "targetType", "targetId", "createdAt")
+			VALUES ($1,$2,'LIKE','POST','world_post_root_0', now() - interval '3 days')
+			ON CONFLICT DO NOTHING`,
 			topID("wlik", int(i)), c.id); err != nil {
 			return fmt.Errorf("world like: %w", err)
 		}

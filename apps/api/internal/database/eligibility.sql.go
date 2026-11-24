@@ -11,6 +11,55 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const getReactionFacts = `-- name: GetReactionFacts :one
+SELECT p.id::text                                    AS post_id,
+       p."authorId"::text                            AS author_id,
+       p."createdAt"                                 AS created_at,
+       p.visibility::text                            AS visibility,
+       p."isDraft"                                   AS is_draft,
+       (p."deletedAt" IS NOT NULL)::boolean          AS is_deleted,
+       p."isHiddenByModerator"                      AS is_hidden_by_moderator,
+       p."isHiddenByAuthor"                          AS is_hidden_by_author,
+       COALESCE(u."isSuspended", false)              AS author_suspended,
+       false                                         AS author_restricted
+FROM "Post" p
+JOIN "User" u ON u.id = p."authorId"
+WHERE p.id = $1
+`
+
+type GetReactionFactsRow struct {
+	PostID              string           `json:"post_id"`
+	AuthorID            string           `json:"author_id"`
+	CreatedAt           pgtype.Timestamp `json:"created_at"`
+	Visibility          string           `json:"visibility"`
+	IsDraft             bool             `json:"is_draft"`
+	IsDeleted           bool             `json:"is_deleted"`
+	IsHiddenByModerator bool             `json:"is_hidden_by_moderator"`
+	IsHiddenByAuthor    bool             `json:"is_hidden_by_author"`
+	AuthorSuspended     bool             `json:"author_suspended"`
+	AuthorRestricted    bool             `json:"author_restricted"`
+}
+
+// Faits nécessaires pour autoriser une réaction sur un post : la décision
+// reste celle d'eligibility.Decide (aucune règle de visibilité locale).
+func (q *Queries) GetReactionFacts(ctx context.Context, id string) (GetReactionFactsRow, error) {
+	row := q.db.QueryRow(ctx, getReactionFacts, id)
+	var i GetReactionFactsRow
+	err := row.Scan(
+		&i.PostID,
+		&i.AuthorID,
+		&i.CreatedAt,
+		&i.Visibility,
+		&i.IsDraft,
+		&i.IsDeleted,
+		&i.IsHiddenByModerator,
+		&i.IsHiddenByAuthor,
+		&i.AuthorSuspended,
+		&i.AuthorRestricted,
+	)
+	return i, err
+}
+
 const listEligibilityCandidates = `-- name: ListEligibilityCandidates :many
 
 SELECT p.id,

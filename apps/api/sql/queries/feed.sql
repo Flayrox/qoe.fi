@@ -31,7 +31,7 @@ SELECT p.id,
        (CASE WHEN r.id IS NOT NULL THEN true ELSE false END)      AS viewer_reposted
 FROM "Post" p
 JOIN "User" u ON u.id = p."authorId"
-LEFT JOIN "Like" l ON l."postId" = p.id AND l."userId" = @viewer_id
+LEFT JOIN "Interaction" l ON l."targetType" = 'POST' AND l.kind = 'LIKE' AND l."targetId" = p.id AND l."userId" = @viewer_id
 LEFT JOIN "Post" r ON r."repostId" = p.id AND r."authorId" = @viewer_id AND r."deletedAt" IS NULL AND (r.content = '' OR r.content = ' ')
 WHERE p."authorId" = ANY(@author_ids::uuid[])
   AND u."isShadowbanned" = false
@@ -74,7 +74,7 @@ SELECT p.id,
        (CASE WHEN r.id IS NOT NULL THEN true ELSE false END)      AS viewer_reposted
 FROM "Post" p
 JOIN "User" u ON u.id = p."authorId"
-LEFT JOIN "Like" l ON l."postId" = p.id AND l."userId" = @viewer_id
+LEFT JOIN "Interaction" l ON l."targetType" = 'POST' AND l.kind = 'LIKE' AND l."targetId" = p.id AND l."userId" = @viewer_id
 LEFT JOIN "Post" r ON r."repostId" = p.id AND r."authorId" = @viewer_id AND r."deletedAt" IS NULL AND (r.content = '' OR r.content = ' ')
 WHERE p."isDraft" = false
   AND p."deletedAt" IS NULL
@@ -119,7 +119,7 @@ SELECT p.id,
        (CASE WHEN r.id IS NOT NULL THEN true ELSE false END)      AS viewer_reposted
 FROM "Post" p
 JOIN "User" u ON u.id = p."authorId"
-LEFT JOIN "Like" l ON l."postId" = p.id AND l."userId" = @viewer_id
+LEFT JOIN "Interaction" l ON l."targetType" = 'POST' AND l.kind = 'LIKE' AND l."targetId" = p.id AND l."userId" = @viewer_id
 LEFT JOIN "Post" r ON r."repostId" = p.id AND r."authorId" = @viewer_id AND r."deletedAt" IS NULL AND (r.content = '' OR r.content = ' ')
 WHERE p."authorId" = @author_id::uuid
   AND u."isShadowbanned" = false
@@ -167,7 +167,7 @@ SELECT p.id,
        (CASE WHEN r.id IS NOT NULL THEN true ELSE false END)      AS viewer_reposted
 FROM "Post" p
 JOIN "User" u ON u.id = p."authorId"
-LEFT JOIN "Like" l ON l."postId" = p.id AND l."userId" = @viewer_id
+LEFT JOIN "Interaction" l ON l."targetType" = 'POST' AND l.kind = 'LIKE' AND l."targetId" = p.id AND l."userId" = @viewer_id
 LEFT JOIN "Post" r ON r."repostId" = p.id AND r."authorId" = @viewer_id AND r."deletedAt" IS NULL AND (r.content = '' OR r.content = ' ')
 WHERE p.id = ANY(@ids::text[])
   AND p."deletedAt" IS NULL

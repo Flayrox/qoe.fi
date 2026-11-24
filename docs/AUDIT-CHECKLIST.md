@@ -10131,4 +10131,7 @@ Les index nécessaires existent déjà (`Post_parentId_idx`, `Post_rootId_idx`,
 | Like/repost sur la cible réelle, rollup explicite `RollupNone` | livré | `TestInteractionTarget_IsTheRealTarget`, `TestInteractionRollup_IsExplicitlyNone` |
 | Likes de commentaire : action SDK dans le lecteur (`ArticleComments`) | livré | `core` 425 tests, `tsc` 0, eslint 0 |
 | `Thread()` == `/replies` pour les tombstones (place, raison, ni contenu ni auteur) | livré | `TestThreadReplyFor_TombstoneKeepsPlaceWithoutContent`, `TestThreadReplyFor_LivingReplyIsHydrated`, SDK 237 tests |
+| Réactions d'article dans `Interaction` (targetType ARTICLE écrit, plus de `ContentFeedback`) | livré | `TestArticleReactionTarget_UsesTheInteractionLedger`, `TestNoReactionWriteOutsideInteraction` |
+| Autorisation d'une réaction par `eligibility.Decide` (`GetReactionFacts`) | livré | `ensureReactionEligible` + tests posts/feed verts |
+| Feeds et widgets lisent `Interaction` (plus `"Like"`) | livré | `TestNoReactionWriteOutsideInteraction`, `guard:sqlc` 41 fichiers |
 | `DROP TABLE "ArticleComment"` | **étape de déploiement ordonnée** | lecteurs restants : `notification_center.sql` (join `commentId`), `analytics/service.go:1420` (COUNT), `seed/top.go:767` (TRUNCATE) ; **aucun writer** (`comments.sql` écrit `Post`). Séquence : repoint join → count sur `rootArticleId` → seed → `00100` drop + schéma, après fin du déploiement L41 |
