@@ -11,15 +11,15 @@ Dernière mise à jour : **2026-11-24**.
 
 ## 1. Décisions verrouillées (produit)
 
-| #   | Décision                                                                                      | Conséquence technique                                                    |
-| --- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| D1  | **Un commentaire d'article est un post** (pas un objet à part)                                 | `Post.rootArticleId` ; `ArticleComment` devient legacy puis disparaît    |
-| D2  | **Les réponses vont à une profondeur infinie**                                                 | `parentId` + `rootId` récursifs ; lecture par branche, jamais l'arbre entier |
-| D3  | **Un commentaire n'entre dans « Pour toi » que s'il est jugé bon**                             | politique d'éligibilité + score, pas d'inclusion par défaut               |
-| D4  | **Une réponse d'un compte suivi peut entrer dans « Abonnement »**                               | éligibilité par l'auteur + préférences de réponses (comme Bluesky)        |
-| D5  | **On aime et on reposte un commentaire comme un post**                                         | `Like`, repost et compteurs réutilisés tels quels                         |
-| D6  | **Un article est repostable et aimable** (arête générique)                                     | table d'interactions `subjectType`/`subjectId`                            |
-| D7  | **Réutilisation obligatoire des briques existantes** (modération, notifications, quotas, flags, analytics, observabilité) | aucune troisième voie parallèle ; cf. § 7                     |
+| #   | Décision                                                                                                                  | Conséquence technique                                                        |
+| --- | ------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| D1  | **Un commentaire d'article est un post** (pas un objet à part)                                                            | `Post.rootArticleId` ; `ArticleComment` devient legacy puis disparaît        |
+| D2  | **Les réponses vont à une profondeur infinie**                                                                            | `parentId` + `rootId` récursifs ; lecture par branche, jamais l'arbre entier |
+| D3  | **Un commentaire n'entre dans « Pour toi » que s'il est jugé bon**                                                        | politique d'éligibilité + score, pas d'inclusion par défaut                  |
+| D4  | **Une réponse d'un compte suivi peut entrer dans « Abonnement »**                                                         | éligibilité par l'auteur + préférences de réponses (comme Bluesky)           |
+| D5  | **On aime et on reposte un commentaire comme un post**                                                                    | `Like`, repost et compteurs réutilisés tels quels                            |
+| D6  | **Un article est repostable et aimable** (arête générique)                                                                | table d'interactions `subjectType`/`subjectId`                               |
+| D7  | **Réutilisation obligatoire des briques existantes** (modération, notifications, quotas, flags, analytics, observabilité) | aucune troisième voie parallèle ; cf. § 7                                    |
 
 Ces lignes sont des décisions **produit**, pas un état d'implémentation : D1, D2, D5 (like
 de commentaire via les compteurs existants), D7 sont en place ; D3/D4/D6 (éligibilité par
@@ -29,19 +29,19 @@ fin de fichier.
 ## 2. Correspondance avec les standards
 
 Objectif : **emprunter les sémantiques**, pas implémenter un protocole. Le jour où l'on
-fédère, c'est un *mapping*, pas une réécriture.
+fédère, c'est un _mapping_, pas une réécriture.
 
-| Notre modèle                | AT Protocol (Bluesky)                                                        | ActivityStreams (W3C)            |
-| --------------------------- | ---------------------------------------------------------------------------- | -------------------------------- |
-| `Post`                      | `app.bsky.feed.post`                                                         | `Note` / `Article`               |
-| `parentId` + `rootId`       | `reply { root, parent }` (strongRefs)                                        | `inReplyTo`                      |
-| Repost (arête)              | `app.bsky.feed.repost { subject }` — **pas** un post                         | `Announce`                       |
-| Citation                    | post + `embed.record`                                                        | `Note` avec `inReplyTo`/embed    |
-| `FeedItem.reason`           | `feedViewPost.reason { reasonRepost, reasonPin }`                            | `Announce` dans une `Collection` |
-| `FeedItem.reply`            | `reply { root, parent, grandparentAuthor }`                                  | `inReplyTo` + `replies`          |
-| Fil de discussion            | `getPostThread(depth, parentHeight)` — 1-D + refs parent/enfant              | `replies` (`Collection`)         |
-| Commentaires fermés         | `app.bsky.feed.threadgate`                                                   | `replies` absent / `Announce` off |
-| Étiquettes / modération     | `com.atproto.label` (labelers)                                               | `Flag`, `Block`                  |
+| Notre modèle            | AT Protocol (Bluesky)                                           | ActivityStreams (W3C)             |
+| ----------------------- | --------------------------------------------------------------- | --------------------------------- |
+| `Post`                  | `app.bsky.feed.post`                                            | `Note` / `Article`                |
+| `parentId` + `rootId`   | `reply { root, parent }` (strongRefs)                           | `inReplyTo`                       |
+| Repost (arête)          | `app.bsky.feed.repost { subject }` — **pas** un post            | `Announce`                        |
+| Citation                | post + `embed.record`                                           | `Note` avec `inReplyTo`/embed     |
+| `FeedItem.reason`       | `feedViewPost.reason { reasonRepost, reasonPin }`               | `Announce` dans une `Collection`  |
+| `FeedItem.reply`        | `reply { root, parent, grandparentAuthor }`                     | `inReplyTo` + `replies`           |
+| Fil de discussion       | `getPostThread(depth, parentHeight)` — 1-D + refs parent/enfant | `replies` (`Collection`)          |
+| Commentaires fermés     | `app.bsky.feed.threadgate`                                      | `replies` absent / `Announce` off |
+| Étiquettes / modération | `com.atproto.label` (labelers)                                  | `Flag`, `Block`                   |
 
 Non-objectifs : DID/CID, PDS, synchronisation de dépôt, feed generators en services
 séparés. On garde **un** service et des **surfaces** nommées.
@@ -50,15 +50,15 @@ séparés. On garde **un** service et des **surfaces** nommées.
 
 ### 3.1 Nœuds — `Post` est la seule chose qu'on « dit »
 
-| Colonne             | Rôle dans le graphe                                                       |
-| ------------------- | ------------------------------------------------------------------------- |
-| `id`                | identité stable (les ids des commentaires migrés sont **conservés**)      |
-| `parentId`          | réponse directe (n'importe quel post, profondeur libre)                   |
-| `rootId`            | racine du fil **post** (`NULL` si le post est lui-même une racine)        |
-| `rootArticleId`     | **nouveau** — article dont ce post est un commentaire (n'importe quel niveau) |
-| `repostId`          | **legacy** — repost déguisé en post, migré vers l'arête (§ 3.2)           |
-| `quotedArticleId`   | citation d'article (contenu propre + carte article)                       |
-| `quotedExcerpt`/`quotedAnnotation` | extrait et annotation de citation                            |
+| Colonne                            | Rôle dans le graphe                                                           |
+| ---------------------------------- | ----------------------------------------------------------------------------- |
+| `id`                               | identité stable (les ids des commentaires migrés sont **conservés**)          |
+| `parentId`                         | réponse directe (n'importe quel post, profondeur libre)                       |
+| `rootId`                           | racine du fil **post** (`NULL` si le post est lui-même une racine)            |
+| `rootArticleId`                    | **nouveau** — article dont ce post est un commentaire (n'importe quel niveau) |
+| `repostId`                         | **legacy** — repost déguisé en post, migré vers l'arête (§ 3.2)               |
+| `quotedArticleId`                  | citation d'article (contenu propre + carte article)                           |
+| `quotedExcerpt`/`quotedAnnotation` | extrait et annotation de citation                                             |
 
 Invariants :
 
@@ -96,7 +96,7 @@ Interaction(id, userId, kind, subjectType, subjectId, createdAt)
 ### 3.3 Migration des commentaires (00097)
 
 1. `ALTER TABLE "Post" ADD COLUMN "rootArticleId" TEXT REFERENCES "Article"(id) ON DELETE CASCADE;`
-   + index partiel `(rootArticleId, createdAt) WHERE rootArticleId IS NOT NULL`.
+   - index partiel `(rootArticleId, createdAt) WHERE rootArticleId IS NOT NULL`.
 2. Copie `ArticleComment → Post` **avec le même id** (la FK `Notification."commentId"`
    suit sans réécriture de données) :
    - niveau 1 : `rootId = NULL`, `rootArticleId = articleId` ;
@@ -130,30 +130,31 @@ fichier de migration).
 
 ```ts
 interface FeedItem {
-  post: PostView;                    // contenu principal
-  reply?: {                          // contexte de discussion
-    root: PostView | null;           // racine du fil (null si article)
-    article?: ArticleBrief;          // racine article (commentaire d'article)
-    parent: PostView | null;         // parent direct
+  post: PostView; // contenu principal
+  reply?: {
+    // contexte de discussion
+    root: PostView | null; // racine du fil (null si article)
+    article?: ArticleBrief; // racine article (commentaire d'article)
+    parent: PostView | null; // parent direct
     grandparentAuthor?: AuthorBrief; // « en réponse à » lisible
   };
   reason?: { type: 'repost' | 'pin' | 'article_repost'; by: AuthorBrief; at: string };
-  why?: string;                      // explanation de recommandation (L43)
+  why?: string; // explanation de recommandation (L43)
 }
 ```
 
-| Cas                              | Item                                                                 |
-| -------------------------------- | -------------------------------------------------------------------- |
-| Pensée racine                    | `post` seul                                                          |
-| Réponse profonde (niv. n)        | `post` + `reply{root,parent,grandparentAuthor}` — racine repliée      |
-| Commentaire d'article (niv. 1)   | `post` + `reply{article}` — carte article                             |
-| Réponse à un commentaire         | `post` + `reply{root=commentaire, article, parent}`                   |
-| Repost d'une pensée              | post d'origine + `reason{repost, by}` (jamais un post-repost)         |
-| Repost d'un commentaire          | commentaire d'origine + `reason{repost}` + contexte article conservé  |
-| Repost d'un article              | `reason{article_repost}` + carte article (pas de post)                |
-| Citation d'article               | `post` (contenu) + carte article intégrée                             |
-| Citation de post                 | `post` + carte du cité                                                |
-| Like                             | **jamais** un item ; uniquement preuve sociale et signal de score     |
+| Cas                            | Item                                                                 |
+| ------------------------------ | -------------------------------------------------------------------- |
+| Pensée racine                  | `post` seul                                                          |
+| Réponse profonde (niv. n)      | `post` + `reply{root,parent,grandparentAuthor}` — racine repliée     |
+| Commentaire d'article (niv. 1) | `post` + `reply{article}` — carte article                            |
+| Réponse à un commentaire       | `post` + `reply{root=commentaire, article, parent}`                  |
+| Repost d'une pensée            | post d'origine + `reason{repost, by}` (jamais un post-repost)        |
+| Repost d'un commentaire        | commentaire d'origine + `reason{repost}` + contexte article conservé |
+| Repost d'un article            | `reason{article_repost}` + carte article (pas de post)               |
+| Citation d'article             | `post` (contenu) + carte article intégrée                            |
+| Citation de post               | `post` + carte du cité                                               |
+| Like                           | **jamais** un item ; uniquement preuve sociale et signal de score    |
 
 Règles d'affichage : un seul bandeau de raison (dernier reposteur), la racine n'est
 jamais dépliée dans le feed (un clic ouvre le fil), et un item de feed ne montre jamais
@@ -161,12 +162,12 @@ plus de deux niveaux de contexte.
 
 ## 5. Politiques d'éligibilité
 
-| Surface       | Raison d'afficher | Filtres durs                                                                 | Préférences utilisateur                      |
-| ------------- | ----------------- | ---------------------------------------------------------------------------- | -------------------------------------------- |
-| **Abonnement**| l'**auteur** est suivi | blocks/mutes/mots masqués, visibilité, commentaires ouverts si article | afficher les réponses ; seulement les réponses à des comptes suivis ; fil ≥ N réponses |
-| **Pour toi**  | le **contenu** est bon | idem + profondeur ≤ 1 pour un commentaire, article commentable, pas de réponse à un compte bloqué, pas de doublon de fil dans la page | —                                            |
-| **Profil / Réponses** | l'auteur a écrit | visibilité du profil, blocks, suppression | —                                            |
-| **Fil**       | structure         | gates de commentaires de l'article, profondeur demandée, curseur             | tri (chronologique / populaire)              |
+| Surface               | Raison d'afficher      | Filtres durs                                                                                                                          | Préférences utilisateur                                                                |
+| --------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| **Abonnement**        | l'**auteur** est suivi | blocks/mutes/mots masqués, visibilité, commentaires ouverts si article                                                                | afficher les réponses ; seulement les réponses à des comptes suivis ; fil ≥ N réponses |
+| **Pour toi**          | le **contenu** est bon | idem + profondeur ≤ 1 pour un commentaire, article commentable, pas de réponse à un compte bloqué, pas de doublon de fil dans la page | —                                                                                      |
+| **Profil / Réponses** | l'auteur a écrit       | visibilité du profil, blocks, suppression                                                                                             | —                                                                                      |
+| **Fil**               | structure              | gates de commentaires de l'article, profondeur demandée, curseur                                                                      | tri (chronologique / populaire)                                                        |
 
 Un commentaire d'article n'est **jamais** éligible à « Pour toi » aujourd'hui : le garde
 réel est le prédicat SQL `p."rootArticleId" IS NULL`, présent dans `FindFollowingFeed`,
@@ -209,27 +210,27 @@ classement.
 
 ## 7. Réutilisation obligatoire (pas de tuyau parallèle)
 
-| Brique existante                                        | Usage dans L41–L43                                              |
-| ------------------------------------------------------- | --------------------------------------------------------------- |
-| `apps/api/internal/moderation` (`CheckSync`, `EnqueueScreen`) | tout commentaire passe par l'entonnoir P4, comme aujourd'hui |
-| `secguard.EnforceContentWrite` + `QuotasComments`        | quotas et paliers inchangés pour les commentaires               |
-| `internal/notifications.Dispatch` (P3)                   | notification `COMMENT` conservée, `commentId` = id du post      |
-| `internal/antispam`                                      | validation de texte inchangée                                   |
-| `internal/abuse` + `SecurityEvent`                       | détection de rafales de réponses (L43)                          |
-| `internal/modules/posts/assembly.go` + `internal/modules/feed/service.go` | **seuls** assembleurs d'items (`BuildFeedPost`, `FeedSlice`) : les fils réutilisent cette hydratation en L42 |
-| `internal/modules/posts` (`AttachmentsFor`, `PollsFor`, `QuotedArticlesFor`) | réutilisés pour les commentaires           |
-| `internal/observability/metrics.go`                       | métriques disponibles ; **aucun** compteur `feed_items_total{surface,reason}` n'existe encore (cible L43) |
-| `packages/analytics`                                     | impressions et interactions pour l'évaluation hors ligne         |
-| `packages/flags` + `SystemConfig`                        | drapeaux de déploiement et poids de score                        |
-| `Post.embedding` + index HNSW                            | récupération thématique, aucune infra nouvelle                   |
+| Brique existante                                                             | Usage dans L41–L43                                                                                           |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `apps/api/internal/moderation` (`CheckSync`, `EnqueueScreen`)                | tout commentaire passe par l'entonnoir P4, comme aujourd'hui                                                 |
+| `secguard.EnforceContentWrite` + `QuotasComments`                            | quotas et paliers inchangés pour les commentaires                                                            |
+| `internal/notifications.Dispatch` (P3)                                       | notification `COMMENT` conservée, `commentId` = id du post                                                   |
+| `internal/antispam`                                                          | validation de texte inchangée                                                                                |
+| `internal/abuse` + `SecurityEvent`                                           | détection de rafales de réponses (L43)                                                                       |
+| `internal/modules/posts/assembly.go` + `internal/modules/feed/service.go`    | **seuls** assembleurs d'items (`BuildFeedPost`, `FeedSlice`) : les fils réutilisent cette hydratation en L42 |
+| `internal/modules/posts` (`AttachmentsFor`, `PollsFor`, `QuotedArticlesFor`) | réutilisés pour les commentaires                                                                             |
+| `internal/observability/metrics.go`                                          | métriques disponibles ; **aucun** compteur `feed_items_total{surface,reason}` n'existe encore (cible L43)    |
+| `packages/analytics`                                                         | impressions et interactions pour l'évaluation hors ligne                                                     |
+| `packages/flags` + `SystemConfig`                                            | drapeaux de déploiement et poids de score                                                                    |
+| `Post.embedding` + index HNSW                                                | récupération thématique, aucune infra nouvelle                                                               |
 
 ## 8. Lots, preuves, risques
 
-| Lot  | Contenu | Preuve de sortie |
-| ---- | ------- | ---------------- |
-| **L41** — graphe de contenu ✅ | colonne `Post.rootArticleId` + index partiel, backfill 225 commentaires (ids conservés), FK `Notification."commentId"` repointée, service `articles/comments.go` branché sur `Post`, compteurs (`fetchCommentsBatch`, `publishers`, `analytics`) sur `parentId IS NULL AND deletedAt IS NULL`, seed adapté. **Non livré** : table `Interaction`, assembleur `FeedItem`, like/repost génériques (cible L43). | dry-run transactionnel 00097 (225 → 225, 0 orphelin, FK OK) ; `pnpm guard:sqlc` (38 fichiers) ; `go build ./...` ; `go test` articles/feed/posts/publishers/analytics/seed |
-| **L42** — fils paginés ✅ | une requête `ListThreadPage` à trois portées (`roots`, `children`, `thread`), curseur opaque `(createdAt, id)`, `{ items, nextCursor, hasMore }`, tombstones, `Thread()` = première page (≤ `MaxReplyLimit` = 50) + `repliesCursor`/`repliesTruncated`, UI récursive (core, studio) + onglet profil paginé + surfaces `tenants`, fil de pensée paginé côté web | dry-run transactionnel : pages 3/3/1 sans doublon, insertion concurrente, antidatée non ressuscitée, tombstone + enfants + profondeur 3, deux viewers, compteurs, profil 2/2/2/1 ; `guard:sqlc` 39 fichiers ; `go build`/`go vet`/`go test` posts/articles/feed ; vitest core / studio / tenants + `threadRepliesPagination.test.ts` (6) et `thought-thread-load-more.test.tsx` (2) ; absorbe **R134** et **R314** |
-| **L43** — éligibilité + explication ✅ (périmètre 2026-11-24) | `eligibility.Decide`/`Rank` par surface, `WeightsFromConfig` sur `feed.rank_*`, `GET /v1/feed/eligibility`, `tombstoneReason`/`why` sur `ReplyItem` (LATERAL unique de `ListThreadPage`), SDK `parseEligibilitySurface`/`sortEligibilityDecisions`/`getSurfaceEligibilityAction`, tombstone d'article qui affiche `why` | `go test ./internal/eligibility` (nominal, modération, seuil 0, config partielle, égalités, surface inconnue) + `TestSurfaceEligibility_*` dans `feed` (service traversé sur queryer stubbé, sans Docker) ; deux tests de rendu `ArticleComments` dans `article-reading-chain.test.tsx` (`why` serveur affiché, repli générique) ; `go build`/`go vet` ; `go test` posts/feed/articles ; `guard:sqlc` 40 fichiers ; vitest sdk 34 fichiers / 233 tests ; core 69 fichiers / 425 tests ; tsc 0. **Non livré** : contexte d'article dans les feeds, `Interaction`, NDCG hors ligne, métriques `feed_items_total` |
+| Lot                                                           | Contenu                                                                                                                                                                                                                                                                                                                                                                                                     | Preuve de sortie                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **L41** — graphe de contenu ✅                                | colonne `Post.rootArticleId` + index partiel, backfill 225 commentaires (ids conservés), FK `Notification."commentId"` repointée, service `articles/comments.go` branché sur `Post`, compteurs (`fetchCommentsBatch`, `publishers`, `analytics`) sur `parentId IS NULL AND deletedAt IS NULL`, seed adapté. **Non livré** : table `Interaction`, assembleur `FeedItem`, like/repost génériques (cible L43). | dry-run transactionnel 00097 (225 → 225, 0 orphelin, FK OK) ; `pnpm guard:sqlc` (38 fichiers) ; `go build ./...` ; `go test` articles/feed/posts/publishers/analytics/seed                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| **L42** — fils paginés ✅                                     | une requête `ListThreadPage` à trois portées (`roots`, `children`, `thread`), curseur opaque `(createdAt, id)`, `{ items, nextCursor, hasMore }`, tombstones, `Thread()` = première page (≤ `MaxReplyLimit` = 50) + `repliesCursor`/`repliesTruncated`, UI récursive (core, studio) + onglet profil paginé + surfaces `tenants`, fil de pensée paginé côté web                                              | dry-run transactionnel : pages 3/3/1 sans doublon, insertion concurrente, antidatée non ressuscitée, tombstone + enfants + profondeur 3, deux viewers, compteurs, profil 2/2/2/1 ; `guard:sqlc` 39 fichiers ; `go build`/`go vet`/`go test` posts/articles/feed ; vitest core / studio / tenants + `threadRepliesPagination.test.ts` (6) et `thought-thread-load-more.test.tsx` (2) ; absorbe **R134** et **R314**                                                                                                                                                                                             |
+| **L43** — éligibilité + explication ✅ (périmètre 2026-11-24) | `eligibility.Decide`/`Rank` par surface, `WeightsFromConfig` sur `feed.rank_*`, `GET /v1/feed/eligibility`, `tombstoneReason`/`why` sur `ReplyItem` (LATERAL unique de `ListThreadPage`), SDK `parseEligibilitySurface`/`sortEligibilityDecisions`/`getSurfaceEligibilityAction`, tombstone d'article qui affiche `why`                                                                                     | `go test ./internal/eligibility` (nominal, modération, seuil 0, config partielle, égalités, surface inconnue) + `TestSurfaceEligibility_*` dans `feed` (service traversé sur queryer stubbé, sans Docker) ; deux tests de rendu `ArticleComments` dans `article-reading-chain.test.tsx` (`why` serveur affiché, repli générique) ; `go build`/`go vet` ; `go test` posts/feed/articles ; `guard:sqlc` 40 fichiers ; vitest sdk 34 fichiers / 233 tests ; core 69 fichiers / 425 tests ; tsc 0. **Non livré** : contexte d'article dans les feeds, `Interaction`, NDCG hors ligne, métriques `feed_items_total` |
 
 Risques nommés :
 
@@ -268,27 +269,27 @@ Risques nommés :
 
 ### 2026-11-24 — L41 livré (schéma + bascule)
 
-| Étape | État | Preuve |
-| --- | --- | --- |
-| Migration `00097_content_graph.sql` | ✅ | dry-run transactionnel (rollback) : 225 commentaires → 225 posts, contenu identique, 0 orphelin, 0 réponse perdue, FK `Notification` repointée |
-| `schema.sql` + `sqlc` | ✅ | `pnpm guard:sqlc` vert (38 fichiers, v1.31.1) |
-| `articles/comments.go` sur `Post` | ✅ | `go build ./...`, tests `articles`/`feed`/`posts`/`publishers`/`analytics`/`seed` verts |
-| Compteurs d'articles | ✅ | `fetchCommentsBatch`, `publishers`, `analytics` lisent `rootArticleId` |
-| Compteur de réponses | ✅ | `IncrementReplyCount` / `DecrementReplyCount` réutilisés (aucune arithmétique locale) |
-| Signalements | ✅ | `reportTargetExists("comment")` exige `rootArticleId IS NOT NULL` |
-| Seed | ✅ | `world`/`top` écrivent désormais des posts commentaires |
-| Surfaces de feed | ⏸️ | `FindFollowingFeed`, `FindTrending`, `FindPostsByAuthor` excluent `rootArticleId IS NOT NULL` : le contexte d'article et le ranking arrivent en L43, l'onglet « réponses » du profil en L42 |
+| Étape                               | État | Preuve                                                                                                                                                                                      |
+| ----------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Migration `00097_content_graph.sql` | ✅   | dry-run transactionnel (rollback) : 225 commentaires → 225 posts, contenu identique, 0 orphelin, 0 réponse perdue, FK `Notification` repointée                                              |
+| `schema.sql` + `sqlc`               | ✅   | `pnpm guard:sqlc` vert (38 fichiers, v1.31.1)                                                                                                                                               |
+| `articles/comments.go` sur `Post`   | ✅   | `go build ./...`, tests `articles`/`feed`/`posts`/`publishers`/`analytics`/`seed` verts                                                                                                     |
+| Compteurs d'articles                | ✅   | `fetchCommentsBatch`, `publishers`, `analytics` lisent `rootArticleId`                                                                                                                      |
+| Compteur de réponses                | ✅   | `IncrementReplyCount` / `DecrementReplyCount` réutilisés (aucune arithmétique locale)                                                                                                       |
+| Signalements                        | ✅   | `reportTargetExists("comment")` exige `rootArticleId IS NOT NULL`                                                                                                                           |
+| Seed                                | ✅   | `world`/`top` écrivent désormais des posts commentaires                                                                                                                                     |
+| Surfaces de feed                    | ⏸️   | `FindFollowingFeed`, `FindTrending`, `FindPostsByAuthor` excluent `rootArticleId IS NOT NULL` : le contexte d'article et le ranking arrivent en L43, l'onglet « réponses » du profil en L42 |
 
 **Décisions prises pendant L41.**
 
-- *Suppression* : `DeleteArticleComment` reste un `DELETE` dur en L41 (comportement
+- _Suppression_ : `DeleteArticleComment` reste un `DELETE` dur en L41 (comportement
   actuel, cascade des notifications, aucun orphelin). Le tombstone arrive en L42 avec
   l'arbre paginé, quand l'interface saura afficher « message supprimé » sans casser
   un fil.
-- *Racine de fil* : `rootId` pointe le commentaire de niveau 1, jamais l'article.
+- _Racine de fil_ : `rootId` pointe le commentaire de niveau 1, jamais l'article.
   `rootArticleId` porte le contexte sur toutes les lignes, ce qui rend la liste d'un
   article indexable en une seule lecture.
-- *Filtres* : la liste réutilise `is_blocked_bidirectional`, `can_view_profile`,
+- _Filtres_ : la liste réutilise `is_blocked_bidirectional`, `can_view_profile`,
   `is_muted_by` et `contains_muted_word` — les mêmes helpers que les feeds, donc une
   divergence de visibilité entre le tiroir de lecture et le feed devient impossible.
 
@@ -302,18 +303,18 @@ déploiement) — reprise dans le reste-à-faire final.
 
 ### 2026-11-24 — L42 livré (fils paginés, tombstones, R134 + R314 absorbés)
 
-| Étape | État | Preuve |
-| --- | --- | --- |
-| Migration `00098_reply_threads.sql` | ✅ | 4 index partiels `(parentId|rootId|rootArticleId|authorId, createdAt, id)` ; dry-run transactionnel (rollback) sur la base de dev |
-| `ListThreadPage` (requête unique) | ✅ | `scope=roots|children|thread`, curseur `(createdAt, id)`, tombstones calculés en SQL par les helpers des feeds |
-| `GET /v1/articles/{id}/comments` paginé | ✅ | `{ items, nextCursor, hasMore }`, curseur opaque, 400 sur curseur illisible |
-| `GET /v1/posts/{id}/replies` | ✅ | `scope=children` (défaut) ou `thread` (tous les descendants par `rootId`) |
-| `GET /v1/users/{username}/replies` | ✅ | onglet « Réponses » du profil, ids paginés puis hydratés par le feed |
-| `Thread()` sans plafond silencieux | ✅ | `replies` = première page, `repliesCursor` + `repliesTruncated` ; `GetPostThread`, `GetRepliesForThought`, `GetReplyIDsForThought` supprimées |
-| Suppression = tombstone | ✅ | `DeleteArticleComment` passe en `UPDATE deletedAt` ; structure et `replyCount` conservés |
-| Surfaces | ✅ | `ArticleComments` (arbre récursif, chargement par nœud), studio communauté, onglet profil, surfaces `tenants` adaptées |
-| Curseur testé unitairement | ✅ | `posts/replies_test.go` : aller-retour exact, curseur vide = première page, curseur illisible = `ErrInvalidCursor`, bornes `NormalizeReplyLimit` |
-| Pagination cliente du fil | ✅ | `repliesCursor`/`repliesTruncated` exposés par le mapping SDK ; `getPostThreadRepliesAction` (`scope=thread`) + `mergeThreadReplies` (rattachement au parent réel, idempotent, orphelin visible et marqué) ; bouton « Charger la suite du fil » dans `ThoughtThreadList` |
+| Étape                                   | État | Preuve                                                                                                                                                                                                                                                                   |
+| --------------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Migration `00098_reply_threads.sql`     | ✅   | 4 index partiels `(parentId                                                                                                                                                                                                                                              | rootId   | rootArticleId                                                                            | authorId, createdAt, id)` ; dry-run transactionnel (rollback) sur la base de dev |
+| `ListThreadPage` (requête unique)       | ✅   | `scope=roots                                                                                                                                                                                                                                                             | children | thread`, curseur `(createdAt, id)`, tombstones calculés en SQL par les helpers des feeds |
+| `GET /v1/articles/{id}/comments` paginé | ✅   | `{ items, nextCursor, hasMore }`, curseur opaque, 400 sur curseur illisible                                                                                                                                                                                              |
+| `GET /v1/posts/{id}/replies`            | ✅   | `scope=children` (défaut) ou `thread` (tous les descendants par `rootId`)                                                                                                                                                                                                |
+| `GET /v1/users/{username}/replies`      | ✅   | onglet « Réponses » du profil, ids paginés puis hydratés par le feed                                                                                                                                                                                                     |
+| `Thread()` sans plafond silencieux      | ✅   | `replies` = première page, `repliesCursor` + `repliesTruncated` ; `GetPostThread`, `GetRepliesForThought`, `GetReplyIDsForThought` supprimées                                                                                                                            |
+| Suppression = tombstone                 | ✅   | `DeleteArticleComment` passe en `UPDATE deletedAt` ; structure et `replyCount` conservés                                                                                                                                                                                 |
+| Surfaces                                | ✅   | `ArticleComments` (arbre récursif, chargement par nœud), studio communauté, onglet profil, surfaces `tenants` adaptées                                                                                                                                                   |
+| Curseur testé unitairement              | ✅   | `posts/replies_test.go` : aller-retour exact, curseur vide = première page, curseur illisible = `ErrInvalidCursor`, bornes `NormalizeReplyLimit`                                                                                                                         |
+| Pagination cliente du fil               | ✅   | `repliesCursor`/`repliesTruncated` exposés par le mapping SDK ; `getPostThreadRepliesAction` (`scope=thread`) + `mergeThreadReplies` (rattachement au parent réel, idempotent, orphelin visible et marqué) ; bouton « Charger la suite du fil » dans `ThoughtThreadList` |
 
 **R134 et R314 absorbés, aucun cas séparé.** Il n'existe plus de liste de commentaires
 « complète » ni de fil de pensée plafonné : `ListArticleComments`,
@@ -323,21 +324,21 @@ articles, les pensées et les commentaires.
 
 **Décisions prises pendant L42.**
 
-- *Un seul chemin de lecture* : `posts.ReplyPageFor` sert les trois surfaces ; la politique
+- _Un seul chemin de lecture_ : `posts.ReplyPageFor` sert les trois surfaces ; la politique
   de visibilité est un `LATERAL` unique (`is_blocked_bidirectional`, `can_view_profile`,
   `is_muted_by`, `contains_muted_word`, shadowban/suspension, masquages). Aucune copie.
-- *Tombstone universel* : supprimé, masqué (auteur/modération) **ou** invisible pour CE
+- _Tombstone universel_ : supprimé, masqué (auteur/modération) **ou** invisible pour CE
   viewer → même ligne, même place, contenu et auteur vides. Un blocage ne fait donc plus
   disparaître un nœud (et ses enfants) : il le rend illisible, ce qui préserve la
   structure sans rien révéler. Preuve : deux viewers, même page, l'un lit le contenu,
   l'autre voit un tombstone.
-- *Compteurs = vivant* : `replyCount` et les compteurs d'articles comptent les lignes
+- _Compteurs = vivant_ : `replyCount` et les compteurs d'articles comptent les lignes
   `deletedAt IS NULL` (comme les pensées avant L42). Le tombstone occupe une place mais
   n'est pas compté. Les compteurs d'article ne comptent que `parentId IS NULL`, sinon une
   discussion gonflerait le nombre de commentaires de l'article.
-- *Curseur illisible = 400*, jamais « première page » : sinon un client cassé
+- _Curseur illisible = 400_, jamais « première page » : sinon un client cassé
   rejouerait le début du fil en boucle.
-- *`Thread()` change de contrat* : il ne promet plus l'arbre complet, il promet une page
+- _`Thread()` change de contrat_ : il ne promet plus l'arbre complet, il promet une page
   plus un curseur. `repliesTruncated` remplace le plafond muet de 500.
 
 **Limites mesurées.**
@@ -371,29 +372,29 @@ articles, les pensées et les commentaires.
 
 ### 2026-11-24 — L43 livré (éligibilité par surface, `why`, ranking configurable)
 
-| Étape | État | Preuve |
-| --- | --- | --- |
-| `internal/eligibility/decision.go` | ✅ | `Surface`/`ParseSurface` (6 surfaces réelles, inconnue refusée), `Candidate`, `Weights`, `Decide`, `Rank`, `WhyFor` — aucune requête, aucune règle métier dupliquée |
-| Poids `SystemConfig` | ✅ | `KeyFreshWeight`…`KeyMaxAgeDays` (`feed.rank_*`), `WeightsFromConfig` : défauts sûrs, config partielle/invalide ignorée, zéro explicite conservé |
-| `GET /v1/feed/eligibility?surface=…` | ✅ | `feed.Service.SurfaceEligibility` + `ListEligibilityCandidates` (faits seuls, aucun contenu) ; surface inconnue → 400 ; route protégée |
-| Tombstone motivé | ✅ | LATERAL unique de `ListThreadPage` calcule `reason` (deleted, moderated, hidden_by_author, suspended, restricted, blocked, private_profile, muted, muted_word) ; `ReplyItem.TombstoneReason` + `Why` |
-| SDK | ✅ | `ELIGIBILITY_SURFACES`, `parseEligibilitySurface`, `sortEligibilityDecisions`, `filterEligibleDecisions`, `getSurfaceEligibilityAction` ; `ArticleCommentPayload.tombstoneReason`/`why` |
-| Web | ✅ | `ArticleComments` affiche `comment.why` à la place du « Message supprimé » générique — la raison vient du serveur, pas d'une devinette locale |
+| Étape                                | État | Preuve                                                                                                                                                                                               |
+| ------------------------------------ | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `internal/eligibility/decision.go`   | ✅   | `Surface`/`ParseSurface` (6 surfaces réelles, inconnue refusée), `Candidate`, `Weights`, `Decide`, `Rank`, `WhyFor` — aucune requête, aucune règle métier dupliquée                                  |
+| Poids `SystemConfig`                 | ✅   | `KeyFreshWeight`…`KeyMaxAgeDays` (`feed.rank_*`), `WeightsFromConfig` : défauts sûrs, config partielle/invalide ignorée, zéro explicite conservé                                                     |
+| `GET /v1/feed/eligibility?surface=…` | ✅   | `feed.Service.SurfaceEligibility` + `ListEligibilityCandidates` (faits seuls, aucun contenu) ; surface inconnue → 400 ; route protégée                                                               |
+| Tombstone motivé                     | ✅   | LATERAL unique de `ListThreadPage` calcule `reason` (deleted, moderated, hidden_by_author, suspended, restricted, blocked, private_profile, muted, muted_word) ; `ReplyItem.TombstoneReason` + `Why` |
+| SDK                                  | ✅   | `ELIGIBILITY_SURFACES`, `parseEligibilitySurface`, `sortEligibilityDecisions`, `filterEligibleDecisions`, `getSurfaceEligibilityAction` ; `ArticleCommentPayload.tombstoneReason`/`why`              |
+| Web                                  | ✅   | `ArticleComments` affiche `comment.why` à la place du « Message supprimé » générique — la raison vient du serveur, pas d'une devinette locale                                                        |
 
 **Décisions prises pendant L43.**
 
-- *Une seule expression décide et explique* : la raison du tombstone est calculée dans le
+- _Une seule expression décide et explique_ : la raison du tombstone est calculée dans le
   même `LATERAL` que la visibilité (ordre significatif, la cause la plus factuelle gagne).
   Aucune seconde liste de prédicats à maintenir.
-- *Décision en Go, pas en SQL* : `Decide` tranche et motive à partir de faits déjà
+- _Décision en Go, pas en SQL_ : `Decide` tranche et motive à partir de faits déjà
   filtrés ; le SQL reste la source des faits. Les flux publics gardent leurs prédicats
   actuels — L43 ajoute la décision explicable, elle ne réécrit pas les flux en silence.
-- *Ordre total* : `Rank` trie score décroissant, puis date, puis id ; deux contenus de
+- _Ordre total_ : `Rank` trie score décroissant, puis date, puis id ; deux contenus de
   même score gardent donc un ordre déterministe. Une pondération nulle rend un score nul
   (et laisse le tri à la date/l'id) — c'est un choix de config, pas une panne.
-- *Surface stricte* : une surface inconnue rend `ErrUnknownSurface` (400 côté HTTP, `null`
+- _Surface stricte_ : une surface inconnue rend `ErrUnknownSurface` (400 côté HTTP, `null`
   côté SDK). Jamais de repli silencieux sur « following ».
-- *Pas de critère de langue* : `Post` n'a pas de colonne de langue. Rien n'a été inventé ;
+- _Pas de critère de langue_ : `Post` n'a pas de colonne de langue. Rien n'a été inventé ;
   la règle entrera dans `Decide` le jour où la colonne existe.
 
 **Limites mesurées.**
@@ -455,6 +456,7 @@ jamais dans « Suivis », et les commentaires de niveau 1 (sans parent) n'étaie
 ni dans le feed du profil ni dans l'onglet « réponses ».
 
 **Ce qui change.**
+
 - `FeedPost.rootArticleId` + `FeedPost.rootArticle` (même shape que
   `quotedArticle`, sans passage cité) : le serveur résout l'article une fois par
   page via `posts.RootArticlesFor`, avec le filtre de visibilité des citations
@@ -467,7 +469,7 @@ ni dans le feed du profil ni dans l'onglet « réponses ».
   « Tendance »/découverte restent fermés : `eligibility.Decide` les juge
   `out_of_surface`, le prédicat SQL dit exactement la même chose.
 - `Thread()` porte aussi le contexte (post cible, ancêtres, réponses paginées).
-- Web : `ThoughtCard` affiche une pastille « Commentaire sur *titre* » qui ouvre
+- Web : `ThoughtCard` affiche une pastille « Commentaire sur _titre_ » qui ouvre
   le lecteur ; `vector-feed` transporte `rootArticleId`/`rootArticle`. Aucune
   règle recalculée côté client — le serveur a déjà résolu l'article.
 - SDK : `mapFeedPostToThreadThought` expose `rootArticleId`/`rootArticle`.
@@ -481,6 +483,7 @@ sdk 35 fichiers / 235 tests, core 69 fichiers / 425 tests, `tsc` sdk+core+ui,
 eslint 0.
 
 **Reste hors de ce lot, et pourquoi.**
+
 - `Interaction` (like/repost génériques) : décision produit (un like de
   commentaire doit-il compter dans le post parent ?), à trancher avant migration.
 - Migration `00099` (drop `ArticleComment`) : ne peut partir qu'après un cycle de
@@ -566,3 +569,43 @@ Preuves ajoutées : `TestArticleReactionTarget_UsesTheInteractionLedger` et
 sur `"Like"` ni `"ContentFeedback"` dans les requêtes, plus de `JOIN "Like"`
 dans les feeds, plus de `ContentFeedback` dans le service).
 `ExpectedMigrationVersion` passe à 99.
+
+### L45c — les tests DB tournent vraiment (2026-11-24)
+
+Postgres 16 natif (Homebrew) + pgvector compilé pour ce cluster, base `qoe_test`
+sur `127.0.0.1:55432`, injectée par `TEST_DATABASE_URL` (le harnais
+`testutil` l'accepte dès que le nom finit par `_test`). Aucun Docker.
+
+Deux vrais défauts trouvés en exécutant :
+
+1. **`00097_content_graph.sql` ne se rejouait pas** : le bloc `DO $$ … $$`
+   n'était pas encadré par `-- +goose StatementBegin/End`, goose le coupait et
+   la migration échouait (`unterminated dollar-quoted string`) — donc, en mode
+   base partagée, _toutes_ les suites DB étaient silencieusement sautées.
+   Encadré ; les migrations montent maintenant jusqu'à 99.
+2. **Unlike d'article** : le chemin article appelait
+   `deleteEngagementNotification` (indexée par `thoughtId`, donc vide pour un
+   article) et renvoyait `no rows in result set`. Il utilise désormais
+   `deleteArticleEngagementNotification`.
+
+Corrections d'alignement : le compteur de commentaires d'analytics lit
+`Post."rootArticleId"` (plus `ArticleComment`), le test de visibilité des likes
+compte `Interaction`, et les seeds n'écrivent plus `"Like"`.
+
+Tests DB exécutés et verts (`TEST_DATABASE_URL=… go test ./internal/modules/articles -run TestReactionDB -v`) :
+`TestReactionDB_ArticleLikeLivesInInteraction` (like d'article → une ligne
+`LIKE/ARTICLE`, unlike, re-like),
+`TestReactionDB_DoubleLikeIsIdempotent` (deux toggles concurrents → une ligne,
+compteur dans [0,1]),
+`TestReactionDB_UnikeRelyAndSoftDeleteKeepCountersHonest` (compteur 1→0→refus
+sur supprimé→restauration→1, sans négatif),
+`TestReactionDB_FeedLikedFlagMatchesLedger` (le flag `liked` du feed suit le
+registre), `TestReactionDB_InvisibleTargetIsRefusedByEligibility` (post
+followers non suivi → refus, zéro ligne écrite).
+
+Défaut latent révélé, hors périmètre réaction : `TestAppeal_FullCycle`
+échoue dès que les migrations s'appliquent réellement — un recours conteste le
+dernier verdict non-allow (ici la fixture humaine `test:fixture`) au lieu du
+verdict d'essaim, donc les raisons continues attendues manquent. Question
+produit à trancher : un recours conteste-t-il le verdict **automatique** le
+plus récent ou n'importe quel verdict humain ? Le test encode « essaim ».

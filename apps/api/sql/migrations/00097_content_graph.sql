@@ -20,6 +20,7 @@ SET lock_timeout = '3s';
 
 ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "rootArticleId" TEXT;
 
+-- +goose StatementBegin
 DO $$
 BEGIN
     ALTER TABLE "Post"
@@ -29,6 +30,7 @@ BEGIN
 EXCEPTION
     WHEN duplicate_object THEN NULL;
 END $$;
+-- +goose StatementEnd
 
 -- Index partiel : la colonne est nulle pour l'immense majorité des posts.
 CREATE INDEX IF NOT EXISTS "Post_rootArticleId_createdAt_idx"

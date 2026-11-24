@@ -1417,7 +1417,8 @@ func (s *Service) ProductMetrics(ctx context.Context, userID, publisherID string
 		SELECT a.id, a.slug, a.title, a."completionRate", a."createdAt",
 		       c.name AS category_name,
 		       (SELECT COUNT(*)::int FROM "Bookmark" b WHERE b."articleId" = a.id) AS bookmarks,
-		       (SELECT COUNT(*)::int FROM "ArticleComment" ac WHERE ac."articleId" = a.id) AS comments,
+		       (SELECT COUNT(*)::int FROM "Post" pc
+		  WHERE pc."rootArticleId" = a.id AND pc."deletedAt" IS NULL) AS comments,
 		       (SELECT COUNT(*)::int FROM "Highlight" h WHERE h."articleId" = a.id) AS highlights,
 		       (SELECT COUNT(*)::int FROM "Highlight" hp WHERE hp."articleId" = a.id AND hp."isPublic" = true) AS highlights_public,
 		       (SELECT COUNT(*)::int FROM "AnnotationComment" anc

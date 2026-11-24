@@ -410,7 +410,7 @@ func TestLikes_PrivateVisibility_HidesActorButPreservesCount(t *testing.T) {
 	}
 
 	var likes, likeCount int
-	if err := poolTest.QueryRow(ctx, `SELECT COUNT(*) FROM "Like" WHERE "postId" = $1`, fx.PostID).Scan(&likes); err != nil {
+	if err := poolTest.QueryRow(ctx, `SELECT COUNT(*) FROM "Interaction" WHERE "targetType" = 'POST' AND kind = 'LIKE' AND "targetId" = $1`, fx.PostID).Scan(&likes); err != nil {
 		t.Fatalf("likes rows: %v", err)
 	}
 	if err := poolTest.QueryRow(ctx, `SELECT "likeCount" FROM "Post" WHERE id = $1`, fx.PostID).Scan(&likeCount); err != nil {

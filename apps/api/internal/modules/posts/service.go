@@ -638,7 +638,9 @@ func (s *Service) toggleArticleLike(ctx context.Context, articleID, userID strin
 		if err := tq.DeleteInteraction(ctx, params); err != nil {
 			return false, err
 		}
-		if err := deleteEngagementNotification(ctx, tq, "LIKE", articleID, userID); err != nil {
+		// La notification d'un article n'est pas indexée par "thoughtId" :
+		// elle se supprime par articleId, sans exiger un post existant.
+		if err := s.deleteArticleEngagementNotification(ctx, "LIKE", articleID, userID); err != nil {
 			return false, err
 		}
 		return false, tx.Commit(ctx)
