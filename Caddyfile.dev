@@ -21,8 +21,8 @@ http://localhost, http://qoe.test, http://lvh.me {
 	reverse_proxy localhost:15402
 }
 
-# 📣 Landing (Marketing) : start.localhost, start.qoe.test & start.lvh.me — isolé 15401
-http://start.localhost, http://start.qoe.test, http://start.lvh.me {
+# 📣 Landing (Marketing) : start/hi.localhost, start/hi.qoe.test & start/hi.lvh.me — isolé 15401
+http://start.localhost, http://start.qoe.test, http://start.lvh.me, http://hi.localhost, http://hi.qoe.test, http://hi.lvh.me {
 	reverse_proxy localhost:15401
 }
 
