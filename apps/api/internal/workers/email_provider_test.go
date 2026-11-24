@@ -1,6 +1,8 @@
 package workers
 
 import (
+	"io"
+	"net/mail"
 	"strings"
 	"testing"
 )
@@ -96,5 +98,54 @@ func TestCleanEnvelopeAddress(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("cleanEnvelopeAddress(%q) = %q, want %q", tt.input, got, tt.want)
 		}
+	}
+}
+
+func TestBuildSMTPMessage_ContentTypeInHeaders(t *testing.T) {
+	cases := []struct {
+		name     string
+		msg      EmailMessage
+		wantPref string
+	}{
+		{
+			name: "multipart alternative avec texte et html",
+			msg: EmailMessage{
+				To:      "reader@example.com",
+				Subject: "Bienvenue chez Ephe",
+				Text:    "Bienvenue chez Ephe",
+				HTML:    "<p>Bienvenue chez Ephe</p>",
+			},
+			wantPref: "multipart/alternative;",
+		},
+		{
+			name: "html seul sans texte",
+			msg: EmailMessage{
+				To:      "reader@example.com",
+				Subject: "Test HTML",
+				HTML:    "<p>Bonjour</p>",
+			},
+			wantPref: "text/html;",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := buildSMTPMessage("Ephe <news@qoe.fi>", tc.msg)
+			parsed, err := mail.ReadMessage(strings.NewReader(raw))
+			if err != nil {
+				t.Fatalf("mail.ReadMessage failed: %v", err)
+			}
+			ct := parsed.Header.Get("Content-Type")
+			if !strings.HasPrefix(ct, tc.wantPref) {
+				t.Fatalf("Content-Type header = %q, want prefix %q (corps reçu au lieu d'en-tête)", ct, tc.wantPref)
+			}
+			bodyBytes, err := io.ReadAll(parsed.Body)
+			if err != nil {
+				t.Fatalf("read body: %v", err)
+			}
+			if strings.HasPrefix(string(bodyBytes), "Content-Type:") {
+				t.Fatalf("Content-Type leaked into body:\n%s", string(bodyBytes))
+			}
+		})
 	}
 }

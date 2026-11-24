@@ -172,8 +172,7 @@ func (p *SMTPProvider) Send(ctx context.Context, msg EmailMessage) error {
 	if err != nil {
 		return fmt.Errorf("smtp: data: %w", err)
 	}
-	headers := buildSMTPHeaders(from, msg)
-	body := headers + "\r\n" + buildSMTPBody(msg)
+	body := buildSMTPMessage(from, msg)
 	if _, err := w.Write([]byte(body)); err != nil {
 		_ = w.Close()
 		return fmt.Errorf("smtp: écriture: %w", err)
@@ -239,6 +238,13 @@ func SanitizeHeaderValue(val string) string {
 		prevSpace = false
 	}
 	return strings.TrimSpace(b.String())
+}
+
+// buildSMTPMessage assemble le message RFC 5322 complet (en-têtes + corps MIME).
+// buildSMTPHeaders se termine déjà par \r\n et buildSMTPBody commence par le
+// header Content-Type suivi de \r\n\r\n — aucun \r\n supplémentaire entre deux.
+func buildSMTPMessage(from string, msg EmailMessage) string {
+	return buildSMTPHeaders(from, msg) + buildSMTPBody(msg)
 }
 
 // buildSMTPHeaders compose les en-têtes RFC 5322 (sujet encodé RFC 2047 +
