@@ -10,6 +10,7 @@ Ce repo tient sa mémoire dans des plans vivants versionnés. **Lis-les avant de
 | `apps/studio/EDITOR-PLAN.md`    | Plan vivant de l’éditeur studio                                        |
 | `apps/studio/ANALYTICS-PLAN.md` | Plan vivant des analytics (multi-auteurs/médias)                       |
 | `docs/AUDIT-CHECKLIST.md`       | Checklist d'audit : un lot par package, une ligne par fichier/fonction |
+| `docs/CONTENT-GRAPH-PLAN.md`    | Plan vivant du graphe de contenu (post unifié, arêtes) et de la recommandation — lots L41→L43 |
 
 ## Rythme imposé — un commit par lot d'audit
 

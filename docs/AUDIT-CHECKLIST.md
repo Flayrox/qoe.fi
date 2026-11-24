@@ -9970,7 +9970,7 @@ implicite. Les lots web/Go sont clos (L01→L22, L23→L29, L30→L39) ; **L40**
 | #         | Motif                                                                                                     | Débloqué par                                                            |
 | --------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | R49       | tracking e-mail (clics signés, ouvertures estimées)                                                       | décision produit écrite (annexe R49), puis lot **L40**                  |
-| R134      | pagination des commentaires : `LIMIT`/curseur sqlc + nouvelle forme de réponse + adaptation de 3 surfaces | accès à une base de test (AGENTS.md interdit Docker en local)           |
+| R134      | pagination des commentaires : `LIMIT`/curseur sqlc + nouvelle forme de réponse + adaptation de 3 surfaces | **absorbé par L42** (`docs/CONTENT-GRAPH-PLAN.md`) : la pagination se fait une fois, sur les posts unifiés ; accès base vérifié le 2026-11-24 |
 | R139      | undo Stage non groupé                                                                                     | **Stage en pause totale** (section dédiée)                              |
 | L26       | mobile                                                                                                    | pause par `AGENTS.md`, reprise en fin de campagne sur demande explicite |
 | **Stage** | éditeur canvas : reliquat S1–S4 (undo, snapshots, mono-page, réglages parent)                             | **pause totale**, décision produit écrite avant toute reprise           |
@@ -10096,3 +10096,29 @@ Prometheus et protégés par des gardes CI.
 - `pnpm exec turbo run test --concurrency=1` : **25 successful, 25 total** (`@qoe/core` 68 fichiers / 421 tests, `@qoe/supabase` 6 fichiers / 69 tests, `@qoe/auth` 4 fichiers / 25 tests, `@qoe/studio`, `@qoe/ui`, etc. ; un premier passage à `--concurrency=4` avait subi 4 timeouts CPU de 5 s sur tests UI préexistants, tous passés à l’identique en isolé et en `--concurrency=1`).
 - `pnpm test:coverage` (`vitest.coverage.config.mts`) : **145 fichiers de test passés, tous les seuils respectés** (`packages/auth/src` mesuré à 93,75 % stmts / 83,33 % branch / 100 % funcs / 97,52 % lines).
 - Gardes CI : `pnpm guard:sqlc` (sqlc v1.31.1), `pnpm arch:audit` (13/13 contrôles dont notifications + SMTP), `pnpm ui:audit`, `pnpm guard:article-links` — **tous verts (exit 0)**.
+
+---
+
+## Graphe de contenu & recommandation — ouverture des lots L41–L43 (2026-11-24)
+
+**Plan vivant : `docs/CONTENT-GRAPH-PLAN.md`.** Quatre comportements produit sont
+verrouillés par l'utilisateur : un commentaire d'article **est** un post ; les réponses
+vont à une profondeur **infinie** ; un commentaire n'entre dans « Pour toi » que s'il est
+jugé bon, et une réponse d'un compte suivi peut entrer dans « Abonnement » ; on aime et
+on reposte un commentaire comme un post, comme un article (arête générique). La
+réutilisation des briques existantes (modération, notifications, quotas, flags,
+analytics, observabilité) est **imposée** : aucune troisième voie parallèle.
+
+**Effet sur les dettes ouvertes.** `R134` (pagination des commentaires) et `R314` (fil de
+pensée plafonné à 500 en silence) sont **absorbés** : ils se résolvent une seule fois,
+sur le graphe unifié, au lot **L42**. Ne pas les rouvrir séparément — la pagination
+spécifique à `ArticleComment` serait jetée avec la table.
+
+**Ordre** : L41 (modèle + arêtes + backfill, commentaires exclus de « Pour toi » par
+drapeau) → L42 (fils infinis + pagination unique) → L43 (éligibilité + ranking) → puis
+les traductions `tenants` → `core` → `admin`.
+
+**Mesure de départ (base de dev, 2026-11-24, lecture seule)** : 225 commentaires sur 80
+articles (max 4), 315 réponses de pensées sur 258 racines (max 6), `Post` 1 506 lignes.
+Les index nécessaires existent déjà (`Post_parentId_idx`, `Post_rootId_idx`,
+`ArticleComment_articleId_createdAt_idx`, `Post_embedding_hnsw_idx`).
