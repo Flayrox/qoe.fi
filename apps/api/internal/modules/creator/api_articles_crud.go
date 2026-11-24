@@ -144,6 +144,9 @@ func (h *Handler) apiArticleCreate(w http.ResponseWriter, r *http.Request) {
 	if !h.sec.EnforceRateLimit(r.Context(), w, r, "articles-create", actorID, prof.Tier, secguard.QuotasArticlesCreate) {
 		return
 	}
+	if !h.sec.CheckModeration(r.Context(), w, actorID, "articles-create", in.Title+"\n"+in.Content, prof) {
+		return
+	}
 	if !h.sec.EnforceContentWrite(r.Context(), w, actorID, "articles-create", "", prof, func(tier trust.Tier) error {
 		return antispam.ValidateArticle(in.Title, in.Content, tier)
 	}) {

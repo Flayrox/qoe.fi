@@ -37,6 +37,8 @@ const (
 	// TaskWebhookDeliver exécute la livraison HTTP d'un webhook individuel avec
 	// retries indépendants et compteur de pannes consécutives.
 	TaskWebhookDeliver = "webhook.deliver"
+	// TaskModerationScreen exécute le dépistage IA asynchrone (omni-moderation-latest).
+	TaskModerationScreen = "moderation.screen"
 )
 
 // BulkImportPayload est le payload de TaskBulkImport (import bulk asynchrone).
@@ -168,4 +170,13 @@ type WebhookDeliverPayload struct {
 	Event       string         `json:"event"`
 	EventID     string         `json:"eventId,omitempty"`
 	Payload     map[string]any `json:"payload"`
+}
+
+// ModerationScreenPayload est le payload de TaskModerationScreen.
+type ModerationScreenPayload struct {
+	Surface   string   `json:"surface"`
+	SubjectID string   `json:"subjectId,omitempty"`
+	UserID    string   `json:"userId,omitempty"`
+	Text      string   `json:"text"`
+	MediaURLs []string `json:"mediaUrls,omitempty"`
 }

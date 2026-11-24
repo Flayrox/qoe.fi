@@ -28,6 +28,7 @@ import (
 	"github.com/qoefi/api/internal/flags"
 	"github.com/qoefi/api/internal/logging"
 	authmw "github.com/qoefi/api/internal/middleware"
+	"github.com/qoefi/api/internal/moderation"
 	"github.com/qoefi/api/internal/modules/admin"
 	aimod "github.com/qoefi/api/internal/modules/ai"
 	"github.com/qoefi/api/internal/modules/analytics"
@@ -272,10 +273,11 @@ func newRouter(d RouterDeps) *chi.Mux {
 		return flagsSvc.IsOn(ctx, flags.AuthzEnforce)
 	})
 
-	// Score de confiance temps réel (0..100) et garde anti-spam / anti-sybil
-	// multi-couches partagés par tous les modules sensibles.
+	// Score de confiance temps réel (0..100), garde anti-spam et modération
+	// unifiée partagés par tous les modules d'écriture.
 	trustSvc := trust.NewService(pool, rc)
-	secGuard := secguard.New(pool, rc)
+	modSvc := moderation.NewService(pool, asynqClient)
+	secGuard := secguard.New(pool, rc).SetModeration(modSvc)
 
 	r := chi.NewRouter()
 	// Pas de `middleware.RealIP` (déprécié) : il réécrit `r.RemoteAddr` depuis
@@ -445,7 +447,9 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 	// Feed & Posts : lecture publique (auth optionnelle : threads, trending, posts, profil, engagement).
 	feedHandler := feed.NewHandler(feed.NewService(pool, rc))
-	postsHandler := posts.NewHandler(posts.NewService(pool, rc, asynqClient)).
+	postsSvc := posts.NewService(pool, rc, asynqClient)
+	postsSvc.SetModeration(modSvc)
+	postsHandler := posts.NewHandler(postsSvc).
 		SetSecurityGuard(secGuard).
 		// Images des pensées : uniquement CDN/stockage de la plateforme (donc
 		// passées par /api/upload : modération + ré-encodage).

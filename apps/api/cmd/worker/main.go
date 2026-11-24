@@ -76,6 +76,7 @@ func main() {
 	staffCampaignWorker := workers.NewStaffCampaignWorker(pool, adminSvc)
 	staffCampaignWorker.SetAsynqClient(asynqClient)
 	securityAlertWorker := workers.NewSecurityAlertWorker(pool)
+	moderationWorker := workers.NewModerationWorker(pool, asynqClient)
 
 	mux := asynq.NewServeMux()
 	handlers := buildHandlers(workerDeps{
@@ -91,6 +92,7 @@ func main() {
 		importSend:    importSendWorker,
 		staffCampaign: staffCampaignWorker,
 		securityAlert: securityAlertWorker,
+		moderation:    moderationWorker,
 	})
 	for taskType, fn := range handlers {
 		mux.HandleFunc(taskType, fn)
@@ -226,6 +228,7 @@ type workerDeps struct {
 	staffCampaign *workers.StaffCampaignWorker
 	importSend    *workers.ImportSendWorker
 	securityAlert *workers.SecurityAlertWorker
+	moderation    *workers.ModerationWorker
 }
 
 // buildHandlers exprime le mapping tâche asynq → handler worker sous forme de
@@ -264,5 +267,6 @@ func buildHandlers(d workerDeps) map[string]asynq.HandlerFunc {
 		queue.TaskStaffCampaign:             d.staffCampaign.HandleStaffCampaign,
 		queue.TaskSecurityAlertEmail:        d.securityAlert.HandleSecurityAlert,
 		queue.TaskWebhookDeliver:            d.webhook.HandleDeliver,
+		queue.TaskModerationScreen:          d.moderation.HandleModerationScreen,
 	}
 }

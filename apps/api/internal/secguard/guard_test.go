@@ -9,6 +9,7 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/qoefi/api/internal/antispam"
+	"github.com/qoefi/api/internal/moderation"
 	"github.com/qoefi/api/internal/trust"
 	"github.com/redis/go-redis/v9"
 )
@@ -84,5 +85,25 @@ func TestEnforceContentWrite_NewAccountLinkDowngradeAndSimHash(t *testing.T) {
 	}
 	if w2.Code != http.StatusTooManyRequests {
 		t.Fatalf("attendu 429, obtenu %d", w2.Code)
+	}
+}
+
+func TestEnforceContentWrite_ModerationBlocksCriticalThreats(t *testing.T) {
+	g, _ := newTestGuard(t)
+	g.SetModeration(moderation.NewService(nil, nil))
+	ctx := context.Background()
+	prof := trust.Profile{UserID: "mod-user", Tier: trust.TierStandard}
+
+	wBad := httptest.NewRecorder()
+	if g.EnforceContentWrite(ctx, wBad, "mod-user", "thoughts", "je vais te tuer aujourd'hui", prof, nil) {
+		t.Fatal("la menace directe doit être bloquée en HTTP 422")
+	}
+	if wBad.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("statut attendu 422, obtenu %d", wBad.Code)
+	}
+
+	wGood := httptest.NewRecorder()
+	if !g.EnforceContentWrite(ctx, wGood, "mod-user", "thoughts", "Voici un retour constructif sur l'article.", prof, nil) {
+		t.Fatalf("le contenu légitime doit passer, obtenu %d", wGood.Code)
 	}
 }

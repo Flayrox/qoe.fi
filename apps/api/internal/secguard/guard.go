@@ -15,6 +15,7 @@ import (
 	"github.com/qoefi/api/internal/abuse"
 	"github.com/qoefi/api/internal/antispam"
 	"github.com/qoefi/api/internal/middleware"
+	"github.com/qoefi/api/internal/moderation"
 	"github.com/qoefi/api/internal/observability"
 	"github.com/qoefi/api/internal/response"
 	"github.com/qoefi/api/internal/trust"
@@ -110,13 +111,14 @@ var (
 	}
 )
 
-// Guard centralise l'orchestration Trust + GCRA + AntiSpam + Abuse.
+// Guard centralise l'orchestration Trust + GCRA + AntiSpam + Modération + Abuse.
 // Toutes ses méthodes sont nil-safe pour ne jamais gêner les tests isolés.
 type Guard struct {
 	pool  *pgxpool.Pool
 	rc    *redis.Client
 	trust *trust.Service
 	spam  *antispam.Guard
+	mod   *moderation.Service
 }
 
 // New construit le garde de sécurité partagé pour les modules d'écriture.
@@ -127,6 +129,14 @@ func New(pool *pgxpool.Pool, rc *redis.Client) *Guard {
 		trust: trust.NewService(pool, rc),
 		spam:  antispam.NewGuard(rc),
 	}
+}
+
+// SetModeration branche l'entonnoir de modération de contenu (fast-path + file IA asynchrone).
+func (g *Guard) SetModeration(m *moderation.Service) *Guard {
+	if g != nil {
+		g.mod = m
+	}
+	return g
 }
 
 // EvaluateRequest calcule le profil de confiance temps réel de userID et
@@ -238,6 +248,37 @@ func (g *Guard) checkBucket(ctx context.Context, key string, win time.Duration, 
 	return allowed, retryAfter
 }
 
+// CheckModeration exécute le fast-path synchrone de modération (et déclenche la
+// revue IA asynchrone si nécessaire). Nil-safe : autorise toujours si mod == nil.
+func (g *Guard) CheckModeration(ctx context.Context, w http.ResponseWriter, userID, scope, text string, prof trust.Profile) bool {
+	if g == nil || g.mod == nil || text == "" {
+		return true
+	}
+	tier := prof.Tier
+	if tier == "" {
+		tier = trust.TierStandard
+	}
+	modIn := moderation.CheckInput{
+		Surface:   moderationSurfaceForScope(scope),
+		UserID:    userID,
+		Text:      text,
+		TrustTier: tier,
+	}
+	v := g.mod.CheckSync(ctx, modIn)
+	if v.Blocked() {
+		if g.spam != nil && userID != "" {
+			_, _, _ = g.spam.ApplyStrike(ctx, userID)
+		}
+		observability.Default().IncSecGuardRejection(scope, v.ReasonCode)
+		response.ErrorCode(w, http.StatusUnprocessableEntity, v.ReasonCode, v.Reason)
+		return false
+	}
+	if v.AsyncScreen {
+		g.mod.EnqueueScreen(modIn)
+	}
+	return true
+}
+
 // EnforceContentWrite applique le gel éventuel, la pénalité time-to-first-spam (<5m + lien),
 // la validation syntaxique/tier/XSS et la déduplication SHA-256 + SimHash LSH.
 func (g *Guard) EnforceContentWrite(ctx context.Context, w http.ResponseWriter, userID, scope, text string, prof trust.Profile, validate func(trust.Tier) error) bool {
@@ -261,6 +302,12 @@ func (g *Guard) EnforceContentWrite(ctx context.Context, w http.ResponseWriter, 
 		if links, _ := antispam.CountLinksAndMentions(text); links > 0 {
 			effectiveTier = trust.TierLow
 		}
+	}
+
+	effProf := prof
+	effProf.Tier = effectiveTier
+	if !g.CheckModeration(ctx, w, userID, scope, text, effProf) {
+		return false
 	}
 
 	if validate != nil {
@@ -304,6 +351,19 @@ func sourceForScope(scope string) string {
 		return abuse.SourceConversationsDM
 	default:
 		return abuse.SourcePostsWrite
+	}
+}
+
+func moderationSurfaceForScope(scope string) string {
+	switch scope {
+	case "comments":
+		return moderation.SurfaceComment
+	case "dm":
+		return moderation.SurfaceDM
+	case "articles", "articles-create", "articles-edit":
+		return moderation.SurfaceArticle
+	default:
+		return moderation.SurfacePost
 	}
 }
 

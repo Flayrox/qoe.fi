@@ -55,6 +55,8 @@ const (
 	SourceTrustNetwork = "api:trust.network"
 	// SourceWorkerFollowRing : audit périodique du graphe des follows.
 	SourceWorkerFollowRing = "worker:follow.ring"
+	// SourceModerationAI : signalement par l'entonnoir de modération IA asynchrone.
+	SourceModerationAI = "worker:moderation.ai"
 )
 
 // clampConfidence borne la confiance 0-100 (l'anti-abus n'invalide jamais

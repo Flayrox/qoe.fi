@@ -8,10 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./email": "./src/email/index.ts",
-    "./identity": "./src/identity/index.ts",
-    "./text": "./src/text/index.ts",
-    "./image": "./src/image/index.ts",
-    "./ai": "./src/ai/index.ts"
+    "./identity": "./src/identity/index.ts"
   },
   "scripts": {
     "lint": "eslint .",

@@ -20,6 +20,7 @@ import (
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/domainevents"
 	"github.com/qoefi/api/internal/identity"
+	"github.com/qoefi/api/internal/moderation"
 	"github.com/qoefi/api/internal/notifications"
 	"github.com/qoefi/api/internal/vectorfeed"
 	"github.com/redis/go-redis/v9"
@@ -64,10 +65,18 @@ type Service struct {
 	q    ServiceQuerier
 	rc   *redis.Client
 	ac   *asynq.Client
+	mod  *moderation.Service
 }
 
 func NewService(pool *pgxpool.Pool, rc *redis.Client, ac *asynq.Client) *Service {
 	return &Service{pool: pool, q: &realQueryer{Queries: db.New(pool)}, rc: rc, ac: ac}
+}
+
+// SetModeration branche l'entonnoir de modération sur le service posts (signalements).
+func (s *Service) SetModeration(m *moderation.Service) {
+	if s != nil {
+		s.mod = m
+	}
 }
 
 // withTx exécute fn dans une transaction et commite seulement si fn réussit.
@@ -1093,6 +1102,23 @@ func (s *Service) Report(ctx context.Context, userID, targetID, targetType, reas
 			Source: abuse.SourcePostsReport, Confidence: abuse.ConfidenceObserved, Retention: abuse.ReportSignalRetention,
 		},
 	)
+	if s.mod != nil {
+		reportText := strings.TrimSpace(reason + " " + details)
+		v := s.mod.CheckSync(ctx, moderation.CheckInput{
+			Surface:   moderation.SurfaceUserReport,
+			SubjectID: subjectID,
+			UserID:    userID,
+			Text:      reportText,
+		})
+		if v.AsyncScreen {
+			s.mod.EnqueueScreen(moderation.CheckInput{
+				Surface:   moderation.SurfaceUserReport,
+				SubjectID: subjectID,
+				UserID:    userID,
+				Text:      reportText,
+			})
+		}
+	}
 	return nil
 }
 
