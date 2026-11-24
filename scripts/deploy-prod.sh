@@ -111,18 +111,33 @@ else
   warn "Clé privée absente localement ($LOCAL_KEY) — non poussée (serveur updates refusera de démarrer sans elle)"
 fi
 
-# ─── Étape 3 : Fix piège ?schema=public ───────────────────
-log "3/6 Vérification de .env.docker (piège ?schema=public)…"
+# ─── Étape 3 : Fix piège ?schema=public + pré-vol secrets ─
+log "3/6 Vérification de .env.docker (piège ?schema=public + variables requises)…"
 ssh_vps "cd $VPS_DIR && python3 - <<'PY'
-import re
+import re, sys
 p = '.env.docker'
 s = open(p).read()
 n = re.sub(r'\\?schema=public', '', s)
 if n != s:
     open(p, 'w').write(n)
     print('  ?schema=public retiré de DATABASE_URL')
-else:
-    print('  .env.docker OK')
+
+vals = {}
+for line in n.splitlines():
+    line = line.strip()
+    if not line or line.startswith('#') or '=' not in line:
+        continue
+    k, v = line.split('=', 1)
+    vals[k.strip()] = v.strip().strip('\"').strip(\"'\")
+
+required = ['POSTGRES_PASSWORD', 'MEILI_MASTER_KEY', 'UMAMI_DB_PASSWORD', 'UMAMI_HASH_SALT']
+if vals.get('EMAIL_PROVIDER', '') == 'smtp':
+    required.append('NEWSLETTER_UNSUB_SECRET')
+missing = [k for k in required if not vals.get(k)]
+if missing:
+    print('  ❌ Variables manquantes ou vides dans .env.docker :', ', '.join(missing))
+    sys.exit(1)
+print('  .env.docker OK')
 PY"
 
 # ─── Étape 4 : Login GHCR (GitHub App) + pull des images CI ─
