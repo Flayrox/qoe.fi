@@ -175,6 +175,7 @@ type Querier interface {
 	DeleteFollowRequestNotification(ctx context.Context, arg DeleteFollowRequestNotificationParams) error
 	DeleteHighlight(ctx context.Context, arg DeleteHighlightParams) (int64, error)
 	DeleteHighlightUpvote(ctx context.Context, arg DeleteHighlightUpvoteParams) error
+	DeleteInteraction(ctx context.Context, arg DeleteInteractionParams) error
 	// ⚠️ Les preuves d'acceptation sont en cascade : le service refuse la
 	// suppression d'un document qui en porte (une preuve ne s'efface pas).
 	DeleteLegalDocument(ctx context.Context, id string) error
@@ -297,6 +298,7 @@ type Querier interface {
 	// visibilité publique, upvotes et commentaires d'annotation.
 	// Tables : Highlight, AnnotationComment, AnnotationUpvote.
 	GetHighlightByID(ctx context.Context, id string) (GetHighlightByIDRow, error)
+	GetInteraction(ctx context.Context, arg GetInteractionParams) (int32, error)
 	GetLatestArticleReviewFeedback(ctx context.Context, articleid string) (GetLatestArticleReviewFeedbackRow, error)
 	GetLatestArticleSnapshotByArticle(ctx context.Context, articleid string) (ArticleSnapshot, error)
 	GetLatestArticleSnapshotByArticleAndActor(ctx context.Context, arg GetLatestArticleSnapshotByArticleAndActorParams) (ArticleSnapshot, error)
@@ -500,6 +502,7 @@ type Querier interface {
 	InsertDirectConversation(ctx context.Context, directkey pgtype.Text) (string, error)
 	InsertFollow(ctx context.Context, arg InsertFollowParams) error
 	InsertFollowRequest(ctx context.Context, arg InsertFollowRequestParams) error
+	InsertInteraction(ctx context.Context, arg InsertInteractionParams) (string, error)
 	InsertLegalConsentExport(ctx context.Context, arg InsertLegalConsentExportParams) (LegalConsentExport, error)
 	InsertLegalDocument(ctx context.Context, arg InsertLegalDocumentParams) (LegalDocument, error)
 	InsertLegalDocumentVersion(ctx context.Context, arg InsertLegalDocumentVersionParams) (LegalDocumentVersion, error)
@@ -511,6 +514,9 @@ type Querier interface {
 	// Le nombre de lignes réellement insérées compte : un rappel déjà émis n'est
 	// pas un rappel émis, et le rapport du cycle doit le dire honnêtement.
 	InsertLegalReviewReminder(ctx context.Context, arg InsertLegalReviewReminderParams) (int64, error)
+	// Le registre Interaction est la source de vérité du like (L45) ; la cible est
+	// réelle (post ou commentaire), le compteur "Post"."likeCount" n'en est qu'un
+	// cache entretenu dans la même transaction.
 	InsertLike(ctx context.Context, arg InsertLikeParams) (string, error)
 	InsertMediaApiKey(ctx context.Context, arg InsertMediaApiKeyParams) error
 	// metadata est passé en texte puis casté en jsonb : le pool API force
@@ -611,6 +617,7 @@ type Querier interface {
 	// Ordre total (tie-break sur l'id) et page bornée : la liste publique d'un
 	// article très annoté ne renvoie plus un flux non borné.
 	ListHighlightsByArticle(ctx context.Context, arg ListHighlightsByArticleParams) ([]ListHighlightsByArticleRow, error)
+	ListInteractorsForTarget(ctx context.Context, arg ListInteractorsForTargetParams) ([]ListInteractorsForTargetRow, error)
 	ListLegalAcceptancesAdmin(ctx context.Context, arg ListLegalAcceptancesAdminParams) ([]ListLegalAcceptancesAdminRow, error)
 	// Preuves de consentement. L'IP et l'agent utilisateur sont inclus : c'est
 	// précisément ce qu'une autorité de contrôle demande pour établir qu'une

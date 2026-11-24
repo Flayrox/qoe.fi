@@ -124,7 +124,16 @@ vi.mock('@qoe/ui/button', () => ({
   ),
 }));
 
-vi.mock('@qoe/config/routes', () => ({ getArticleUrl: () => '/article-cible' }));
+// Le module `routes` est consommé en cascade par les actions SDK importées par
+// ArticleComments (like d'un commentaire) : un Proxy rend toute route
+// demandée, sans figer la carte des surfaces dans le test.
+vi.mock('@qoe/config/routes', () => {
+  const anyRoute: unknown = new Proxy(() => '/', { get: () => anyRoute });
+  return {
+    getArticleUrl: () => '/article-cible',
+    routes: new Proxy({}, { get: () => anyRoute }),
+  };
+});
 
 vi.mock('@qoe/utils', () => ({ cn: (...classes: unknown[]) => classes.filter(Boolean).join(' ') }));
 
@@ -150,6 +159,7 @@ vi.mock('lucide-react', () => {
     'Check',
     'ChevronDown',
     'ChevronRight',
+    'Heart',
     'Loader2',
     'MessageSquare',
     'MoreHorizontal',

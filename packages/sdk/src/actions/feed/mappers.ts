@@ -244,6 +244,10 @@ export interface WebThreadPost {
   /** Article commenté (post = commentaire) — contexte de flux. */
   rootArticleId?: string | null;
   rootArticle?: MappedQuotedArticle;
+  /** Place conservée, contenu et auteur effacés (même forme que /replies). */
+  tombstone?: boolean;
+  tombstoneReason?: string;
+  why?: string;
 }
 
 export function mapFeedPostToThreadThought(
@@ -349,6 +353,9 @@ export function mapFeedPostToThreadThought(
     articleQuote: mapQuotedArticleForCard(p.quotedArticle as RawQuotedArticle | null | undefined),
     rootArticleId: (p.rootArticleId as string | null | undefined) ?? null,
     rootArticle: mapQuotedArticleForCard(p.rootArticle as RawQuotedArticle | null | undefined),
+    tombstone: p.tombstone === true,
+    tombstoneReason: (p.tombstoneReason as string | undefined) ?? undefined,
+    why: (p.why as string | undefined) ?? undefined,
   };
 }
 

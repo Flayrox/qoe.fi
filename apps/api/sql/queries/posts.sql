@@ -82,13 +82,16 @@ WHERE r.id = $1
 RETURNING r."isHiddenByAuthor";
 
 -- name: InsertLike :one
-INSERT INTO "Like" (id, "postId", "userId")
-VALUES (gen_random_uuid()::text, $1, $2)
+-- Le registre Interaction est la source de vérité du like (L45) ; la cible est
+-- réelle (post ou commentaire), le compteur "Post"."likeCount" n'en est qu'un
+-- cache entretenu dans la même transaction.
+INSERT INTO "Interaction" (id, "userId", kind, "targetType", "targetId")
+VALUES (gen_random_uuid()::text, sqlc.arg(userId), 'LIKE', 'POST', sqlc.arg(postId))
 RETURNING id;
 
 -- name: DeleteLike :exec
-DELETE FROM "Like"
-WHERE "postId" = $1 AND "userId" = $2;
+DELETE FROM "Interaction"
+WHERE "userId" = sqlc.arg(userId) AND kind = 'LIKE' AND "targetType" = 'POST' AND "targetId" = sqlc.arg(postId);
 
 -- name: IncrementLikeCount :exec
 UPDATE "Post"
@@ -134,8 +137,8 @@ WHERE id = $1;
 
 -- name: GetExistingLike :one
 SELECT 1 AS present
-FROM "Like"
-WHERE "postId" = $1 AND "userId" = $2;
+FROM "Interaction"
+WHERE "userId" = sqlc.arg(userId) AND kind = 'LIKE' AND "targetType" = 'POST' AND "targetId" = sqlc.arg(postId);
 
 -- name: CountPureReposts :one
 SELECT COUNT(*)::int AS count
@@ -177,13 +180,15 @@ SELECT u.id::text     AS user_id,
        u."logoUrl"    AS user_logo,
        u."isCertified" AS user_certified,
        l."createdAt"  AS liked_at
-FROM "Like" l
+FROM "Interaction" l
 JOIN "User" u ON u.id = l."userId"
 LEFT JOIN "UserSettings" privacy ON privacy."userId" = l."userId"
-WHERE l."postId" = $1
+WHERE l."targetType" = 'POST'
+  AND l."targetId" = sqlc.arg(postId)
+  AND l.kind = 'LIKE'
   AND COALESCE(privacy."likeVisibility", 'PUBLIC') = 'PUBLIC'
 ORDER BY l."createdAt" DESC
-LIMIT $2 OFFSET $3;
+LIMIT sqlc.arg(rowLimit) OFFSET sqlc.arg(rowOffset);
 
 -- name: ListRepostsForPost :many
 SELECT u.id::text     AS user_id,
@@ -192,13 +197,13 @@ SELECT u.id::text     AS user_id,
        u."logoUrl"    AS user_logo,
        u."isCertified" AS user_certified,
        r."createdAt"  AS reposted_at
-FROM "Post" r
-JOIN "User" u ON u.id = r."authorId"
-WHERE r."repostId" = $1
-  AND r."deletedAt" IS NULL
-  AND (r.content = '' OR r.content = ' ')
+FROM "Interaction" r
+JOIN "User" u ON u.id = r."userId"
+WHERE r."targetType" = 'POST'
+  AND r."targetId" = sqlc.arg(postId)
+  AND r.kind = 'REPOST'
 ORDER BY r."createdAt" DESC
-LIMIT $2 OFFSET $3;
+LIMIT sqlc.arg(rowLimit) OFFSET sqlc.arg(rowOffset);
 
 -- name: ListQuotePostIDs :many
 SELECT r.id

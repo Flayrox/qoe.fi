@@ -159,17 +159,24 @@ type FeedPost struct {
 	// ParentUnavailable explique qu'un parent existe mais n'est pas visible
 	// (compte bloqué, supprimé ou filtré). Le contenu du parent ne doit
 	// jamais être révélé — seul le motif générique sort.
-	ParentUnavailable       bool              `json:"parentUnavailable,omitempty"`
-	ParentUnavailableReason string            `json:"parentUnavailableReason,omitempty"`
-	RootID                  *string           `json:"rootId"`
-	RootArticleID           *string           `json:"rootArticleId,omitempty"`
-	RepostID                *string           `json:"repostId"`
-	ReplyRestriction        string            `json:"replyRestriction"`
-	IsPinned                bool              `json:"isPinned"`
-	IsHiddenByAuthor        bool              `json:"isHiddenByAuthor"`
-	QuotedExcerpt           *string           `json:"quotedExcerpt,omitempty"`
-	QuotedAnnotation        *QuotedAnnotation `json:"quotedAnnotation,omitempty"`
-	QuotedArticle           *QuotedArticle    `json:"quotedArticle,omitempty"`
+	ParentUnavailable       bool    `json:"parentUnavailable,omitempty"`
+	ParentUnavailableReason string  `json:"parentUnavailableReason,omitempty"`
+	RootID                  *string `json:"rootId"`
+	RootArticleID           *string `json:"rootArticleId,omitempty"`
+	// Tombstone : la place de la réponse est conservée (structure et compteur)
+	// mais ni contenu ni auteur ne sortent. Même vocabulaire que ReplyItem :
+	// Thread() et /replies rendent la MÊME forme, aucun composant ne doit
+	// connaître deux variantes.
+	Tombstone        bool              `json:"tombstone,omitempty"`
+	TombstoneReason  string            `json:"tombstoneReason,omitempty"`
+	Why              string            `json:"why,omitempty"`
+	RepostID         *string           `json:"repostId"`
+	ReplyRestriction string            `json:"replyRestriction"`
+	IsPinned         bool              `json:"isPinned"`
+	IsHiddenByAuthor bool              `json:"isHiddenByAuthor"`
+	QuotedExcerpt    *string           `json:"quotedExcerpt,omitempty"`
+	QuotedAnnotation *QuotedAnnotation `json:"quotedAnnotation,omitempty"`
+	QuotedArticle    *QuotedArticle    `json:"quotedArticle,omitempty"`
 	// RootArticle est l'article commenté quand ce post EST un commentaire
 	// (L41). Une surface qui montre un commentaire doit montrer son article :
 	// sans lui, la pensée flotte sans sujet. Même shape que la citation, sans
@@ -228,4 +235,26 @@ type FeedSlice struct {
 func intPtr(v int32) *int {
 	i := int(v)
 	return &i
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Interaction (L45) — cible réelle, aucune agrégation parentale.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// RollupRule nomme la règle d'agrégation appliquée aux interactions. Elle est
+// unique et volontairement nulle : un like/repost sur un commentaire ne
+// modifie jamais le post racine ni l'article. Renverser ce choix = changer
+// cette constante (et la lecture), jamais backfiller la donnée.
+const RollupNone = "none"
+
+// RollupRule est la règle en vigueur, documentée dans la migration 00099.
+const RollupRule = RollupNone
+
+// InteractionTargetOf rend la cible réelle d'une réaction : le post lui-même,
+// commentaire compris. Le kind est fixe ici (LIKE) ; REPOST suit la même cible.
+func InteractionTargetOf(fp *FeedPost) (kind, targetID string) {
+	if fp == nil {
+		return "LIKE", ""
+	}
+	return "LIKE", fp.ID
 }

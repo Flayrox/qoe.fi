@@ -3551,3 +3551,27 @@ CREATE TRIGGER trg_guard_sovereign_transfer
 BEFORE UPDATE OF "publisherId" ON "Article"
 FOR EACH ROW
 EXECUTE FUNCTION guard_sovereign_transfer();
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Interaction (L45) — registre unique des réactions, sur la cible réelle.
+-- Aucun rollup : un like de commentaire ne modifie ni le post racine ni
+-- l'article. Voir sql/migrations/00099_interaction_ledger.sql.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE "Interaction" (
+    "id" TEXT NOT NULL,
+    "userId" UUID NOT NULL,
+    "kind" TEXT NOT NULL,
+    "targetType" TEXT NOT NULL DEFAULT 'POST',
+    "targetId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Interaction_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "Interaction_kind_check" CHECK ("kind" IN ('LIKE', 'REPOST')),
+    CONSTRAINT "Interaction_target_type_check" CHECK ("targetType" IN ('POST', 'ARTICLE')),
+    CONSTRAINT "Interaction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX "Interaction_user_kind_target_key"
+    ON "Interaction" ("userId", "kind", "targetType", "targetId");
+CREATE INDEX "Interaction_target_idx"
+    ON "Interaction" ("targetType", "targetId", "kind", "createdAt" DESC);

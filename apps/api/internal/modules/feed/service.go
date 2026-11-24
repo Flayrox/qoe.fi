@@ -538,11 +538,21 @@ func (s *Service) Thread(ctx context.Context, postID, viewerID string) (*ThreadP
 	// Réponses triées par date croissante. Chaque réponse dont le parent est
 	// absent de la fermeture visible porte le même placeholder que la cible :
 	// sans ce marquage, le client la promeut silencieusement à la racine.
-	for _, id := range replyIDs {
-		if r, ok := all[id]; ok {
-			reply := posts.BuildFeedPost(r, all, attachments, polls, quoted, graph)
-			markThreadParentUnavailable(&reply, all, parentReason)
-			posts.AttachRootArticle(&reply, roots)
+	// Même forme que /replies : un tombstone de la page garde sa place, avec un
+	// contenu et un auteur vides. Sans ça, Thread() sautait silencieusement les
+	// réponses supprimées et le fil ne correspondait plus à sa pagination.
+	for _, item := range replyPage.Items {
+		reply, ok := threadReplyFor(item, func(id string) (*posts.FeedPost, bool) {
+			r, found := all[id]
+			if !found {
+				return nil, false
+			}
+			fp := posts.BuildFeedPost(r, all, attachments, polls, quoted, graph)
+			markThreadParentUnavailable(&fp, all, parentReason)
+			posts.AttachRootArticle(&fp, roots)
+			return &fp, true
+		})
+		if ok {
 			thread.Replies = append(thread.Replies, reply)
 		}
 	}
@@ -972,4 +982,26 @@ func toUUIDSlice(ids []string) []pgtype.UUID {
 		out = append(out, toUUID(id))
 	}
 	return out
+}
+
+// threadReplyFor rend une réponse du fil dans la même forme que /replies : un
+// tombstone de la page garde sa place (contenu et auteur vides, raison
+// explicite), une réponse vivante est hydratée. Extrait pour être testable sans
+// base : Thread() et ListThreadPage ne doivent jamais diverger de forme.
+func threadReplyFor(item posts.ReplyItem, hydrate func(string) (*posts.FeedPost, bool)) (posts.FeedPost, bool) {
+	if item.Tombstone {
+		return posts.FeedPost{
+			ID:              item.ID,
+			CreatedAt:       item.CreatedAt,
+			ParentID:        item.ParentID,
+			RootID:          item.RootID,
+			Tombstone:       true,
+			TombstoneReason: item.TombstoneReason,
+			Why:             item.Why,
+		}, true
+	}
+	if fp, ok := hydrate(item.ID); ok && fp != nil {
+		return *fp, true
+	}
+	return posts.FeedPost{}, false
 }

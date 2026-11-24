@@ -297,9 +297,9 @@ func (s *Service) ToggleLike(ctx context.Context, postID, userID string) (bool, 
 	defer func() { _ = tx.Rollback(ctx) }()
 	tq := s.q.WithTx(tx)
 
-	_, err = tq.GetExistingLike(ctx, db.GetExistingLikeParams{PostId: postID, UserId: toUUID(userID)})
+	_, err = tq.GetExistingLike(ctx, db.GetExistingLikeParams{Postid: postID, Userid: toUUID(userID)})
 	if err == nil {
-		if err := tq.DeleteLike(ctx, db.DeleteLikeParams{PostId: postID, UserId: toUUID(userID)}); err != nil {
+		if err := tq.DeleteLike(ctx, db.DeleteLikeParams{Postid: postID, Userid: toUUID(userID)}); err != nil {
 			return false, err
 		}
 		if err := tq.DecrementLikeCount(ctx, postID); err != nil {
@@ -331,7 +331,7 @@ func (s *Service) ToggleLike(ctx context.Context, postID, userID string) (bool, 
 		return false, err
 	}
 
-	if _, err := tq.InsertLike(ctx, db.InsertLikeParams{PostId: postID, UserId: toUUID(userID)}); err != nil {
+	if _, err := tq.InsertLike(ctx, db.InsertLikeParams{Postid: postID, Userid: toUUID(userID)}); err != nil {
 		// Idempotence : une race a déjà inséré le like.
 		if isUniqueViolation(err) {
 			return true, nil
@@ -483,6 +483,13 @@ func (s *Service) ToggleRepost(ctx context.Context, postID, userID string) (bool
 		if err := tq.DeletePureReposts(ctx, db.DeletePureRepostsParams{AuthorId: userID, RepostId: pgtype.Text{String: canonicalID, Valid: true}}); err != nil {
 			return false, err
 		}
+		// Le registre Interaction est le même pour toutes les réactions : un
+		// repost retiré disparaît aussi de la liste des acteurs.
+		if err := tq.DeleteInteraction(ctx, db.DeleteInteractionParams{
+			UserId: toUUID(userID), Kind: "REPOST", TargetType: "POST", TargetId: canonicalID,
+		}); err != nil {
+			return false, err
+		}
 		if err := tq.DecrementRepostCount(ctx, canonicalID); err != nil {
 			return false, err
 		}
@@ -496,9 +503,16 @@ func (s *Service) ToggleRepost(ctx context.Context, postID, userID string) (bool
 		return false, err
 	}
 
-	if _, err := tq.InsertPureRepost(ctx, db.InsertPureRepostParams{AuthorId: userID, RepostId: pgtype.Text{String: canonicalID, Valid: true}}); err != nil {
+	repostID, err := tq.InsertPureRepost(ctx, db.InsertPureRepostParams{AuthorId: userID, RepostId: pgtype.Text{String: canonicalID, Valid: true}})
+	if err != nil {
 		return false, err
 	}
+	if _, err := tq.InsertInteraction(ctx, db.InsertInteractionParams{
+		UserId: toUUID(userID), Kind: "REPOST", TargetType: "POST", TargetId: canonicalID,
+	}); err != nil && !isUniqueViolation(err) {
+		return false, err
+	}
+	_ = repostID
 	if err := tq.IncrementRepostCount(ctx, canonicalID); err != nil {
 		return false, err
 	}
@@ -889,7 +903,7 @@ func (s *Service) Likes(ctx context.Context, postID string, limit, offset int) (
 		limit = 50
 	}
 	rows, err := s.q.ListLikesForPost(ctx, db.ListLikesForPostParams{
-		PostId: postID, Limit: int32(limit + 1), Offset: int32(offset),
+		Postid: postID, Rowlimit: int32(limit + 1), Rowoffset: int32(offset),
 	})
 	if err != nil {
 		return ActorPage{}, err
@@ -903,7 +917,7 @@ func (s *Service) Reposts(ctx context.Context, postID string, limit, offset int)
 		limit = 50
 	}
 	rows, err := s.q.ListRepostsForPost(ctx, db.ListRepostsForPostParams{
-		RepostId: pgtype.Text{String: postID, Valid: true}, Limit: int32(limit + 1), Offset: int32(offset),
+		Postid: postID, Rowlimit: int32(limit + 1), Rowoffset: int32(offset),
 	})
 	if err != nil {
 		return ActorPage{}, err

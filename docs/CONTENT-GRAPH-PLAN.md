@@ -487,3 +487,54 @@ eslint 0.
   déploiement de L41 — sinon le code encore en prod lit une table supprimée.
 - Tests SQL réels (`ListEligibilityCandidates`, feeds) : Docker/Postgres requis ;
   la CI les exécute, pas la machine locale.
+
+---
+
+## L45 — Interaction unifiée, tombstones identiques (2026-11-24)
+
+**Interaction.** Migration `00099_interaction_ledger.sql` crée le registre
+`Interaction` (`userId`, `kind` LIKE|REPOST, `targetType` POST|ARTICLE,
+`targetId`), index unique `(userId, kind, targetType, targetId)` et deux
+backfills : likes depuis `"Like"` (ids conservés) et reposts purs depuis les
+posts `repostId` sans contenu. Les likes et la liste des acteurs lisent
+désormais ce registre (`GetExistingLike`, `InsertLike`, `DeleteLike`,
+`ListLikesForPost`, `ListRepostsForPost`) ; les compteurs `Post.likeCount` /
+`repostCount` restent des caches entretenus dans la même transaction, donc les
+feeds ne changent pas de chiffres. `ToggleRepost` écrit et supprime l'arête
+REPOST en même temps que le post-repost.
+
+**Règle de rollup, unique et réversible** (`posts.RollupRule = RollupNone`,
+figée par `TestInteractionRollup_IsExplicitlyNone`) : une réaction est
+enregistrée sur sa cible réelle (post **ou commentaire**) et n'incrémente
+jamais le post racine ni l'article. Inverser ce choix = changer la constante et
+la lecture (SUM par cible) — **aucun backfill, aucune perte**, la donnée par
+cible est déjà là. Test : `TestInteractionTarget_IsTheRealTarget`.
+
+**UI** : un commentaire du lecteur a maintenant son bouton de like
+(`ArticleComments`, import paresseux de l'action SDK) ; l'échec serveur annule
+l'optimisme.
+
+**Tombstones : une seule forme.** `Thread()` construit ses réponses depuis la
+même page que `/replies` (`threadReplyFor`) : un tombstone garde sa place, avec
+`tombstone/tombstoneReason/why`, contenu vide et auteur absent. Tests :
+`TestThreadReplyFor_TombstoneKeepsPlaceWithoutContent`,
+`TestThreadReplyFor_LivingReplyIsHydrated`, `feedRootArticle.test.ts` (SDK).
+`ThoughtCard` (UI partagée) rend ce tombstone, le mobile le reçoit par le SDK
+sans UI dédiée.
+
+**Preuves** : `go build`, `go vet`, `go test` feed/posts/eligibility/articles,
+`guard:sqlc` 41 fichiers, SDK 35 f. / 237 tests, core 69 f. / 425 tests, `tsc`
+sdk+core+ui, eslint 0.
+
+**`ArticleComment` — étape de déploiement ordonnée, pas un TODO.**
+Le DROP n'est pas encore possible : trois lecteurs subsistent, nommés —
+`sql/queries/notification_center.sql` (LEFT JOIN sur `c.id = n."commentId"`),
+`internal/modules/analytics/service.go:1420` (COUNT des commentaires),
+`internal/seed/top.go:767` (TRUNCATE de seed). Aucun writer : `comments.sql`
+écrit dans `Post` (`InsertArticleCommentRoot/Reply`), et
+`DeleteArticleComment`/`GetArticleCommentAuthor` lisent `Post`. Séquence :
+(1) repointier la jointure notification sur `Post` ; (2) compter les
+commentaires par `Post."rootArticleId" IS NOT NULL` ; (3) retirer la table du
+seed ; (4) migration `00100` `DROP TABLE "ArticleComment"` + retrait du schéma
+sqlc, **après** confirmation que le déploiement de L41 est terminé (pendant un
+rolling deploy, d'anciens pods lisent encore la table).

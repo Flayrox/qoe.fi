@@ -988,6 +988,15 @@ type ImportSendWave struct {
 	UpdatedAt         pgtype.Timestamp `json:"updatedAt"`
 }
 
+type Interaction struct {
+	ID         string           `json:"id"`
+	UserId     pgtype.UUID      `json:"userId"`
+	Kind       string           `json:"kind"`
+	TargetType string           `json:"targetType"`
+	TargetId   string           `json:"targetId"`
+	CreatedAt  pgtype.Timestamp `json:"createdAt"`
+}
+
 type LegalAcceptance struct {
 	ID         string           `json:"id"`
 	UserID     pgtype.UUID      `json:"user_id"`

@@ -44,3 +44,32 @@ describe('mapFeedPostToThreadThought — contexte d’article', () => {
     expect(mapped?.rootArticleId).toBeNull();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Thread() et /replies rendent la même forme : un tombstone garde sa place,
+// sans contenu ni auteur, avec sa raison. Le mapping ne doit rien réinventer.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('mapFeedPostToThreadThought — tombstone', () => {
+  it('transporte la place et la raison sans contenu ni auteur', () => {
+    const mapped = mapFeedPostToThreadThought({
+      id: 'c9',
+      content: '',
+      createdAt: '2026-01-02T10:00:00.000Z',
+      parentId: 'c0',
+      rootId: 'c0',
+      tombstone: true,
+      tombstoneReason: 'deleted',
+      why: 'Message supprimé.',
+    } as never);
+
+    expect(mapped?.tombstone).toBe(true);
+    expect(mapped?.tombstoneReason).toBe('deleted');
+    expect(mapped?.why).toBe('Message supprimé.');
+    expect(mapped?.content).toBe('');
+  });
+
+  it('ne marque pas en tombstone une réponse vivante', () => {
+    const mapped = mapFeedPostToThreadThought({ ...raw } as never);
+    expect(mapped?.tombstone).toBe(false);
+  });
+});

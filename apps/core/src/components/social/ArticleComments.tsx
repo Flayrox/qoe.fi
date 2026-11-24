@@ -14,7 +14,15 @@
 // =====================================================================
 
 import { useCallback, useEffect, useState } from 'react';
-import { ChevronDown, ChevronRight, Loader2, MessageSquare, Send, Trash2 } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronRight,
+  Heart,
+  Loader2,
+  MessageSquare,
+  Send,
+  Trash2,
+} from 'lucide-react';
 import { t } from '@lingui/core/macro';
 import { SafeAvatar } from '@qoe/ui';
 import {
@@ -244,6 +252,10 @@ function CommentNode({ comment, articleId, currentUserId, depth, onTombstone }: 
   const [replying, setReplying] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const [error, setError] = useState<string | null>(null);
+  // Un commentaire est un post (L41) : son like passe par le registre
+  // Interaction, sur sa cible réelle. Aucun compteur ancêtre ne bouge.
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(comment.likeCount ?? 0);
 
   const replyCount = comment.replyCount ?? 0;
   const isTombstone = Boolean(comment.tombstone);
@@ -386,6 +398,38 @@ function CommentNode({ comment, articleId, currentUserId, depth, onTombstone }: 
                 className="font-medium hover:text-foreground transition-colors"
               >
                 {t`Répondre`}
+              </button>
+            )}
+            {!isTombstone && (
+              <button
+                type="button"
+                aria-pressed={liked}
+                onClick={() => {
+                  const next = !liked;
+                  setLiked(next);
+                  setLikeCount((n) => Math.max(0, n + (next ? 1 : -1)));
+                  // Import paresseux : la carte de commentaire n'alourdit pas
+                  // le graphe du lecteur, et le like reste le même registre.
+                  void import('@qoe/sdk/actions/feed')
+                    .then(({ toggleLikePostAction }) => toggleLikePostAction(comment.id))
+                    .then((res) => {
+                      if (!res.ok) {
+                        // Le serveur reste la vérité : on annule l'optimisme.
+                        setLiked(!next);
+                        setLikeCount((n) => Math.max(0, n + (next ? -1 : 1)));
+                      }
+                    })
+                    .catch(() => {
+                      setLiked(!next);
+                      setLikeCount((n) => Math.max(0, n + (next ? -1 : 1)));
+                    });
+                }}
+                className={`inline-flex items-center gap-1 font-medium transition-colors ${
+                  liked ? 'text-destructive-text' : 'hover:text-foreground'
+                }`}
+              >
+                <Heart className="h-3 w-3" fill={liked ? 'currentColor' : 'none'} />
+                {likeCount > 0 ? likeCount : t`J'aime`}
               </button>
             )}
             {canDelete && !isTombstone && (

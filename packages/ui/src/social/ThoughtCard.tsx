@@ -72,6 +72,10 @@ export interface ThoughtData {
   /** Article commenté quand cette pensée est un commentaire (L41/L44). */
   rootArticle?: QuotedArticleData | null;
   rootArticleId?: string | null;
+  /** Tombstone : la place est gardée, rien du contenu ne sort. */
+  tombstone?: boolean;
+  tombstoneReason?: string;
+  why?: string;
   /** Annotation citée (note + passage + auteur), snapshot serveur. */
   annotationQuote?: AnnotationCitation | null;
   quotedExcerpt?: string | null;
@@ -407,111 +411,124 @@ export function ThoughtCard({
               </div>
             )}
 
-            {/* Author Header */}
-            <ThoughtHeader
-              author={displayAuthor}
-              createdAt={displayCreatedAt}
-              isPinned={post.isPinned}
-              isFocus={isFocus}
-              currentUserId={currentUserId}
-              canHideReply={canHideReply}
-              isHiddenByAuthor={post.isHiddenByAuthor}
-              postId={displayPostId}
-              thoughtText={displayContent}
-              isFollowingAuthor={isFollowingAuthor}
-              onFollowToggle={onFollowToggle}
-              onOpenProfile={onOpenProfile}
-              onPinToggle={onPinToggle}
-              onReportClick={handleReportAction}
-              onHideReplyToggle={onHideReplyToggle}
-              onBlockUserToggle={onBlockUserToggle}
-              onShowLessClick={onShowLessClick}
-              onDeleteClick={onDeleteClick}
-            />
+            {effectivePost.tombstone ? (
+              <div className="mb-2 flex items-start gap-3" aria-live="polite">
+                <div className="mt-0.5 h-7 w-7 shrink-0 rounded-full border border-dashed border-border/60" />
+                <p className="mt-1 text-xs italic text-muted-foreground">
+                  {effectivePost.why || t`Message supprimé`}
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Author Header */}
+                <ThoughtHeader
+                  author={displayAuthor}
+                  createdAt={displayCreatedAt}
+                  isPinned={post.isPinned}
+                  isFocus={isFocus}
+                  currentUserId={currentUserId}
+                  canHideReply={canHideReply}
+                  isHiddenByAuthor={post.isHiddenByAuthor}
+                  postId={displayPostId}
+                  thoughtText={displayContent}
+                  isFollowingAuthor={isFollowingAuthor}
+                  onFollowToggle={onFollowToggle}
+                  onOpenProfile={onOpenProfile}
+                  onPinToggle={onPinToggle}
+                  onReportClick={handleReportAction}
+                  onHideReplyToggle={onHideReplyToggle}
+                  onBlockUserToggle={onBlockUserToggle}
+                  onShowLessClick={onShowLessClick}
+                  onDeleteClick={onDeleteClick}
+                />
 
-            {/* Threadgate Badge */}
-            {threadgateBadge}
+                {/* Threadgate Badge */}
+                {threadgateBadge}
 
-            {/* Contexte d'article : un commentaire n'est jamais orphelin dans
+                {/* Contexte d'article : un commentaire n'est jamais orphelin dans
               un flux. Le serveur a déjà résolu l'article ; la carte ne fait
               que le nommer et ouvrir le lecteur. */}
-            {effectivePost.rootArticle && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onOpenArticle?.(effectivePost.rootArticle!);
-                }}
-                className={cn(
-                  'group/context mb-2 inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-2.5 py-1 text-left text-[12px] text-muted-foreground transition-colors',
-                  onOpenArticle && 'hover:border-border hover:text-foreground'
+                {effectivePost.rootArticle && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onOpenArticle?.(effectivePost.rootArticle!);
+                    }}
+                    className={cn(
+                      'group/context mb-2 inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-2.5 py-1 text-left text-[12px] text-muted-foreground transition-colors',
+                      onOpenArticle && 'hover:border-border hover:text-foreground'
+                    )}
+                  >
+                    <CornerDownRight className="h-3 w-3 shrink-0" aria-hidden />
+                    <span className="shrink-0">{t`Commentaire sur`}</span>
+                    <span className="truncate font-medium text-foreground/80 group-hover/context:text-foreground">
+                      {effectivePost.rootArticle.title}
+                    </span>
+                  </button>
                 )}
-              >
-                <CornerDownRight className="h-3 w-3 shrink-0" aria-hidden />
-                <span className="shrink-0">{t`Commentaire sur`}</span>
-                <span className="truncate font-medium text-foreground/80 group-hover/context:text-foreground">
-                  {effectivePost.rootArticle.title}
-                </span>
-              </button>
-            )}
 
-            {/* Text Body Content */}
-            <ThoughtBody
-              content={displayContent}
-              imageUrl={displayImageUrl}
-              attachments={displayAttachments}
-              triggerWarning={displayTriggerWarning}
-              isFocus={isFocus}
-              onOpenMedia={onOpenMedia}
-              blockedUsernames={blockedUsernames}
-            />
+                {/* Text Body Content */}
+                <ThoughtBody
+                  content={displayContent}
+                  imageUrl={displayImageUrl}
+                  attachments={displayAttachments}
+                  triggerWarning={displayTriggerWarning}
+                  isFocus={isFocus}
+                  onOpenMedia={onOpenMedia}
+                  blockedUsernames={blockedUsernames}
+                />
 
-            {/* Poll Slot */}
-            {pollSlot}
+                {/* Poll Slot */}
+                {pollSlot}
 
-            {/* Quoted Thought Card (if quoting another thought) — la carte
+                {/* Quoted Thought Card (if quoting another thought) — la carte
               dessine elle-même la chaîne et son repli. */}
-            {isQuotePost && (
-              <QuotedThoughtCard
-                post={effectivePost.repost || null}
-                onOpenPost={(id, authorUsername) => {
-                  const handle =
-                    authorUsername ||
-                    effectivePost.repost?.author?.username ||
-                    effectivePost.repost?.author?.subdomain ||
-                    'auteur';
-                  if (onOpenPost) onOpenPost(id, handle);
-                }}
-              />
-            )}
+                {isQuotePost && (
+                  <QuotedThoughtCard
+                    post={effectivePost.repost || null}
+                    onOpenPost={(id, authorUsername) => {
+                      const handle =
+                        authorUsername ||
+                        effectivePost.repost?.author?.username ||
+                        effectivePost.repost?.author?.subdomain ||
+                        'auteur';
+                      if (onOpenPost) onOpenPost(id, handle);
+                    }}
+                  />
+                )}
 
-            {/* Quoted Article Card (Explicit prop) */}
-            {(effectivePost.articleQuote || effectivePost.annotationQuote) && (
-              <QuotedArticleCard
-                article={effectivePost.articleQuote}
-                quotedExcerpt={quotedExcerpt || undefined}
-                citation={effectivePost.annotationQuote ?? undefined}
-                onOpenArticle={onOpenArticle}
-              />
-            )}
+                {/* Quoted Article Card (Explicit prop) */}
+                {(effectivePost.articleQuote || effectivePost.annotationQuote) && (
+                  <QuotedArticleCard
+                    article={effectivePost.articleQuote}
+                    quotedExcerpt={quotedExcerpt || undefined}
+                    citation={effectivePost.annotationQuote ?? undefined}
+                    onOpenArticle={onOpenArticle}
+                  />
+                )}
 
-            {/* Unfurled Link Preview (Apple Reader Highlight if article link, or external link preview) */}
-            {!effectivePost.articleQuote && !effectivePost.annotationQuote && urls.length > 0 && (
-              <LinkPreview
-                urls={urls}
-                quotedExcerpt={quotedExcerpt || undefined}
-                unfurlFn={unfurlFn}
-                onNavigate={(target) => {
-                  if (target.type === 'post') {
-                    if (onOpenPost) onOpenPost(target.id);
-                  } else if (target.type === 'article') {
-                    if (onOpenArticle) {
-                      onOpenArticle({ id: target.id, slug: target.slug || '', title: '' });
-                    }
-                  }
-                }}
-              />
+                {/* Unfurled Link Preview (Apple Reader Highlight if article link, or external link preview) */}
+                {!effectivePost.articleQuote &&
+                  !effectivePost.annotationQuote &&
+                  urls.length > 0 && (
+                    <LinkPreview
+                      urls={urls}
+                      quotedExcerpt={quotedExcerpt || undefined}
+                      unfurlFn={unfurlFn}
+                      onNavigate={(target) => {
+                        if (target.type === 'post') {
+                          if (onOpenPost) onOpenPost(target.id);
+                        } else if (target.type === 'article') {
+                          if (onOpenArticle) {
+                            onOpenArticle({ id: target.id, slug: target.slug || '', title: '' });
+                          }
+                        }
+                      }}
+                    />
+                  )}
+              </>
             )}
 
             {/* Focus Mode Date & Time Footer */}

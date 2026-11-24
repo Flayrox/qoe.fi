@@ -225,17 +225,17 @@ func (q *Queries) DeleteBlock(ctx context.Context, arg DeleteBlockParams) error 
 }
 
 const deleteLike = `-- name: DeleteLike :exec
-DELETE FROM "Like"
-WHERE "postId" = $1 AND "userId" = $2
+DELETE FROM "Interaction"
+WHERE "userId" = $1 AND kind = 'LIKE' AND "targetType" = 'POST' AND "targetId" = $2
 `
 
 type DeleteLikeParams struct {
-	PostId string      `json:"postId"`
-	UserId pgtype.UUID `json:"userId"`
+	Userid pgtype.UUID `json:"userid"`
+	Postid string      `json:"postid"`
 }
 
 func (q *Queries) DeleteLike(ctx context.Context, arg DeleteLikeParams) error {
-	_, err := q.db.Exec(ctx, deleteLike, arg.PostId, arg.UserId)
+	_, err := q.db.Exec(ctx, deleteLike, arg.Userid, arg.Postid)
 	return err
 }
 
@@ -340,17 +340,17 @@ func (q *Queries) GetExistingBlock(ctx context.Context, arg GetExistingBlockPara
 
 const getExistingLike = `-- name: GetExistingLike :one
 SELECT 1 AS present
-FROM "Like"
-WHERE "postId" = $1 AND "userId" = $2
+FROM "Interaction"
+WHERE "userId" = $1 AND kind = 'LIKE' AND "targetType" = 'POST' AND "targetId" = $2
 `
 
 type GetExistingLikeParams struct {
-	PostId string      `json:"postId"`
-	UserId pgtype.UUID `json:"userId"`
+	Userid pgtype.UUID `json:"userid"`
+	Postid string      `json:"postid"`
 }
 
 func (q *Queries) GetExistingLike(ctx context.Context, arg GetExistingLikeParams) (int32, error) {
-	row := q.db.QueryRow(ctx, getExistingLike, arg.PostId, arg.UserId)
+	row := q.db.QueryRow(ctx, getExistingLike, arg.Userid, arg.Postid)
 	var present int32
 	err := row.Scan(&present)
 	return present, err
@@ -586,18 +586,21 @@ func (q *Queries) InsertBlock(ctx context.Context, arg InsertBlockParams) error 
 }
 
 const insertLike = `-- name: InsertLike :one
-INSERT INTO "Like" (id, "postId", "userId")
-VALUES (gen_random_uuid()::text, $1, $2)
+INSERT INTO "Interaction" (id, "userId", kind, "targetType", "targetId")
+VALUES (gen_random_uuid()::text, $1, 'LIKE', 'POST', $2)
 RETURNING id
 `
 
 type InsertLikeParams struct {
-	PostId string      `json:"postId"`
-	UserId pgtype.UUID `json:"userId"`
+	Userid pgtype.UUID `json:"userid"`
+	Postid string      `json:"postid"`
 }
 
+// Le registre Interaction est la source de vérité du like (L45) ; la cible est
+// réelle (post ou commentaire), le compteur "Post"."likeCount" n'en est qu'un
+// cache entretenu dans la même transaction.
 func (q *Queries) InsertLike(ctx context.Context, arg InsertLikeParams) (string, error) {
-	row := q.db.QueryRow(ctx, insertLike, arg.PostId, arg.UserId)
+	row := q.db.QueryRow(ctx, insertLike, arg.Userid, arg.Postid)
 	var id string
 	err := row.Scan(&id)
 	return id, err
@@ -643,19 +646,21 @@ SELECT u.id::text     AS user_id,
        u."logoUrl"    AS user_logo,
        u."isCertified" AS user_certified,
        l."createdAt"  AS liked_at
-FROM "Like" l
+FROM "Interaction" l
 JOIN "User" u ON u.id = l."userId"
 LEFT JOIN "UserSettings" privacy ON privacy."userId" = l."userId"
-WHERE l."postId" = $1
+WHERE l."targetType" = 'POST'
+  AND l."targetId" = $1
+  AND l.kind = 'LIKE'
   AND COALESCE(privacy."likeVisibility", 'PUBLIC') = 'PUBLIC'
 ORDER BY l."createdAt" DESC
-LIMIT $2 OFFSET $3
+LIMIT $3 OFFSET $2
 `
 
 type ListLikesForPostParams struct {
-	PostId string `json:"postId"`
-	Limit  int32  `json:"limit"`
-	Offset int32  `json:"offset"`
+	Postid    string `json:"postid"`
+	Rowoffset int32  `json:"rowoffset"`
+	Rowlimit  int32  `json:"rowlimit"`
 }
 
 type ListLikesForPostRow struct {
@@ -668,7 +673,7 @@ type ListLikesForPostRow struct {
 }
 
 func (q *Queries) ListLikesForPost(ctx context.Context, arg ListLikesForPostParams) ([]ListLikesForPostRow, error) {
-	rows, err := q.db.Query(ctx, listLikesForPost, arg.PostId, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, listLikesForPost, arg.Postid, arg.Rowoffset, arg.Rowlimit)
 	if err != nil {
 		return nil, err
 	}
@@ -738,19 +743,19 @@ SELECT u.id::text     AS user_id,
        u."logoUrl"    AS user_logo,
        u."isCertified" AS user_certified,
        r."createdAt"  AS reposted_at
-FROM "Post" r
-JOIN "User" u ON u.id = r."authorId"
-WHERE r."repostId" = $1
-  AND r."deletedAt" IS NULL
-  AND (r.content = '' OR r.content = ' ')
+FROM "Interaction" r
+JOIN "User" u ON u.id = r."userId"
+WHERE r."targetType" = 'POST'
+  AND r."targetId" = $1
+  AND r.kind = 'REPOST'
 ORDER BY r."createdAt" DESC
-LIMIT $2 OFFSET $3
+LIMIT $3 OFFSET $2
 `
 
 type ListRepostsForPostParams struct {
-	RepostId pgtype.Text `json:"repostId"`
-	Limit    int32       `json:"limit"`
-	Offset   int32       `json:"offset"`
+	Postid    string `json:"postid"`
+	Rowoffset int32  `json:"rowoffset"`
+	Rowlimit  int32  `json:"rowlimit"`
 }
 
 type ListRepostsForPostRow struct {
@@ -763,7 +768,7 @@ type ListRepostsForPostRow struct {
 }
 
 func (q *Queries) ListRepostsForPost(ctx context.Context, arg ListRepostsForPostParams) ([]ListRepostsForPostRow, error) {
-	rows, err := q.db.Query(ctx, listRepostsForPost, arg.RepostId, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, listRepostsForPost, arg.Postid, arg.Rowoffset, arg.Rowlimit)
 	if err != nil {
 		return nil, err
 	}
