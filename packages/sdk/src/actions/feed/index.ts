@@ -27,6 +27,7 @@ import { safeAction } from '../utils/safe-action';
 import { getActiveWorkspaceContext } from '../workspace';
 import type {
   FeedSlice as ApiFeedSlice,
+  FeedItem as ApiFeedItem,
   FeedArticle as ApiFeedArticle,
   FeedResult as ApiFeedResult,
   ArticleFeedResult as ApiArticleFeedResult,
@@ -42,6 +43,7 @@ import {
   mapFeedPostToThreadThought,
   mapGoThreadToWebThread,
   mapProfileSlice,
+  mapSliceToFeedItem,
 } from './mappers';
 import type { EligibilitySurface, SurfaceEligibilityResult } from './eligibility';
 
@@ -896,7 +898,7 @@ export const getFeedItemsAction = safeAction<
     limit?: number;
     username?: string;
   },
-  { items: ApiFeedSlice[]; nextCursor: string | null; hasMore: boolean }
+  { items: ApiFeedItem[]; nextCursor: string | null; hasMore: boolean }
 >(
   async ({ feedType = 'recommandation', cursor = null, limit = 20, username }) => {
     // ✅ Go-only : le feed (shape FeedSlice + pagination + invalidation cache)
@@ -912,7 +914,7 @@ export const getFeedItemsAction = safeAction<
       hasMore: boolean;
     }>(path);
     return {
-      items: body.items as unknown as ApiFeedSlice[],
+      items: (body.items as unknown as ApiFeedSlice[]).map(mapSliceToFeedItem),
       nextCursor: body.nextCursor,
       hasMore: body.hasMore,
     };

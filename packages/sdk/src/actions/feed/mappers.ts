@@ -15,6 +15,7 @@ import type {
   QuoteContext,
   FeedSlice as ApiFeedSlice,
   FeedPost as ApiFeedPost,
+  FeedItem as ApiFeedItem,
   PostCapabilities,
 } from '../../types';
 
@@ -626,6 +627,41 @@ export function mapProfilePost(fp: ApiFeedPost | RawPostPayload): ProfilePostPay
     replyRestriction: (raw.replyRestriction as string) ?? 'everyone',
     capabilities: (raw.capabilities as PostCapabilities | undefined) ?? undefined,
   };
+}
+
+// Projection canonique d'une slice transportée (mobile/home compatible).
+// Le post effectif, la raison et le contexte viennent tous du serveur ; le
+// client ne déduit ni un repost ni un article à partir du texte.
+export function mapSliceToFeedItem(slice: ApiFeedSlice): ApiFeedItem {
+  const target = slice.targetPost;
+  const item: ApiFeedItem = { post: target, why: target.why };
+
+  if (target.rootArticle || slice.rootPost || slice.parentPost) {
+    item.reply = {
+      root: slice.rootPost ?? null,
+      article: target.rootArticle ?? null,
+      parent: slice.parentPost ?? null,
+    };
+    if (slice.parentPost) {
+      const grandparent =
+        slice.parentPost.parent?.author ??
+        (slice.rootPost && slice.parentPost.id !== slice.rootPost.id
+          ? slice.rootPost.author
+          : null);
+      if (grandparent) item.reply.grandparentAuthor = grandparent;
+    }
+  }
+
+  if (target.isPinned) {
+    item.reason = { type: 'pin', by: target.author, at: target.createdAt };
+  } else if (target.repost && !target.content.trim()) {
+    item.post = target.repost;
+    item.reason = { type: 'repost', by: target.author, at: target.createdAt };
+  } else if (!target.repost && !target.content.trim() && target.quotedArticle) {
+    item.reason = { type: 'article_repost', by: target.author, at: target.createdAt };
+  }
+
+  return item;
 }
 
 export function mapProfileSlice(slice: ApiFeedSlice): ProfilePostPayload {

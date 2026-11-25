@@ -219,6 +219,11 @@ export interface FeedPost {
   quotedExcerpt?: string | null;
   quotedAnnotation?: QuotedAnnotation | null;
   quotedArticle?: QuotedArticle | null;
+  /** Article commenté quand ce post est un commentaire (L41/L44). */
+  rootArticleId?: string | null;
+  rootArticle?: QuotedArticle | null;
+  /** Explication de recommandation ou de tombstone (L43). */
+  why?: string;
   author: FeedAuthor;
   parent: FeedPost | null;
   repost: FeedPost | null;
@@ -247,6 +252,33 @@ export interface FeedSlice {
   /** Réponse dont le parent est bloqué/supprimé : placeholder, jamais le contenu. */
   parentUnavailable?: boolean;
   parentUnavailableReason?: 'blocked' | 'deleted' | 'unavailable' | string;
+}
+
+/** Contexte de réponse d'un FeedItem (max deux niveaux côté rendu). */
+export interface FeedReplyContext {
+  root: FeedPost | null;
+  article?: QuotedArticle | null;
+  parent: FeedPost | null;
+  grandparentAuthor?: FeedAuthor | null;
+}
+
+/** Raison de présence d'un item : jamais recalculée côté React. */
+export interface FeedItemReason {
+  type: 'repost' | 'pin' | 'article_repost';
+  by: FeedAuthor;
+  at: string;
+}
+
+/**
+ * Contrat de lecture unifié (Go `posts.FeedItem`) : le post effectif, son
+ * contexte de réponse, la raison de sa présence et l'explication serveur.
+ * Le transport paginé reste `FeedSlice` pour compatibilité mobile.
+ */
+export interface FeedItem {
+  post: FeedPost;
+  reply?: FeedReplyContext;
+  reason?: FeedItemReason;
+  why?: string;
 }
 
 /** Réponse paginée du feed (shape Go `FeedResult`). */

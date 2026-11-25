@@ -120,13 +120,14 @@ fichier de migration).
 
 ## 4. Contrat de lecture — `FeedItem` (cible L43, **non livré**)
 
-> État réel au 2026-11-24 : aucune structure `FeedItem` unique n'existe. Les fils rendent
-> `posts.ReplyItem` (`id`, `parentId`, `rootId`, `createdAt`, `updatedAt`, `content`,
-> `tombstone`, `tombstoneReason`, `why`, `replyCount`, `likeCount`, `repostCount`,
-> `author` nullable) ou, pour le feed et le profil, `posts.FeedSlice`. Le `why` est livré
-> en L43 via les décisions d'éligibilité (`eligibility.Decision`) et les tombstones de fil ;
-> l'enveloppe complète `FeedItem { post, reply, reason, why }` reste la cible du lot de
-> rendu du contexte d'article, pas un contrat déjà exposé.
+> État réel au 2026-11-25 : la projection `posts.FeedItem` (`{post, reply, reason, why}`)
+> et son miroir SDK sont livrés. `ToFeedItem` dérive le post effectif (repost pur → post
+> d'origine), le contexte de réponse, la raison (`repost`, `pin`, `article_repost`) et le
+> `why` depuis une `FeedSlice` déjà assemblée : aucune règle métier n'est recalculée.
+> `getFeedItemsAction` renvoie ce contrat. Le transport paginé `FeedSlice` reste en place
+> pour la home et le mobile, qui rendent déjà `rootPost`/`parentPost`/`rootArticle`/`why`
+> via `ThoughtFeedSlice` ; le remplacer aurait dupliqué le rendu existant sans donnée
+> nouvelle. Les fils gardent `posts.ReplyItem` pour leur contrat de pagination.
 
 ```ts
 interface FeedItem {
@@ -159,6 +160,11 @@ interface FeedItem {
 Règles d'affichage : un seul bandeau de raison (dernier reposteur), la racine n'est
 jamais dépliée dans le feed (un clic ouvre le fil), et un item de feed ne montre jamais
 plus de deux niveaux de contexte.
+
+**Preuve (2026-11-25).** `TestFeedSliceToFeedItem` (7 cas : isolé, réponse profonde,
+commentaire d'article, repost pur, citation avec texte, repost d'article, épingle) et
+`feedItem.test.ts` (7 cas SDK) passent ; `go build`/`go vet posts`, `tsc` SDK et les
+244 tests SDK sont verts.
 
 ## 5. Politiques d'éligibilité
 
@@ -503,8 +509,9 @@ remplace le trigger par sa forme simplifiée.
   `rootArticleId IS NULL`, en réutilisant `Decide` (la règle `out_of_surface` existe déjà).
 - **`Interaction`** : table générique (like/repost/bookmark article et commentaire) et
   compteurs associés — toujours non livrée, ne pas l'annoncer.
-- **`FeedItem`** : enveloppe unique `{post, reply, reason, why}` côté Go et SDK ; le `why`
-  existe aujourd'hui sur les décisions et les tombstones, pas sur les items de feed.
+- ~~**`FeedItem`**~~ : projection Go/SDK livrée le 2026-11-25 (`ToFeedItem`,
+  `mapSliceToFeedItem`, `getFeedItemsAction`) ; le transport `FeedSlice` de la home/mobile
+  reste volontairement inchangé.
 - **Raison de tombstone dans `Thread()`** : passer `GetPostsByIDs` par la même expression
   motivée que `ListThreadPage`, ou faire lire la première page par `ReplyPageFor`.
 - **Compteur total de discussion**, **métriques `feed_items_total`** et **NDCG hors ligne** :
