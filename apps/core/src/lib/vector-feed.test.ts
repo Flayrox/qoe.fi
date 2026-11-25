@@ -644,22 +644,20 @@ describe('mapArticleToFeedItem', () => {
 // ── mapSliceToFeedItem ──────────────────────────────────────────────────────
 
 describe('mapSliceToFeedItem', () => {
-  it('mappe un slice avec targetPost et threads optionnels', () => {
+  it('projette un post isolé et ses métadonnées de slice', () => {
     const out = mapSliceToFeedItem(slice());
     expect(out).toMatchObject({
       id: 'slice_1',
-      title: '',
-      slug: 'post-slice_1',
-      createdAt: '2026-08-01T10:00:00.000Z',
       isIncompleteThread: false,
       hiddenIntermediateCount: 0,
     });
-    expect(out.targetPost.id).toBe('target_1');
-    expect(out.parentPost).toBeNull();
-    expect(out.rootPost).toBeNull();
+    expect(out.post.id).toBe('target_1');
+    expect(out.post.createdAt).toBe('2026-08-01T10:00:00.000Z');
+    expect(out.reply).toBeUndefined();
+    expect(out.reason).toBeUndefined();
   });
 
-  it('thread complet : parentPost et rootPost mappés, createdAt string conservée', () => {
+  it('thread complet : root et parent viennent du contexte de réponse', () => {
     const out = mapSliceToFeedItem(
       slice({
         parentPost: toFeedPost(post({ id: 'parent_1', content: 'parent' })),
@@ -668,19 +666,75 @@ describe('mapSliceToFeedItem', () => {
         hiddenIntermediateCount: 3,
       })
     );
-    // La cible a une Date → ISO ; les autres posts du slice aussi.
-    expect(out.createdAt).toBe('2026-08-01T10:00:00.000Z');
-    expect(out.parentPost?.id).toBe('parent_1');
-    expect(out.rootPost?.id).toBe('root_1');
+    expect(out.reply?.root?.id).toBe('root_1');
+    expect(out.reply?.parent?.id).toBe('parent_1');
     expect(out.isIncompleteThread).toBe(true);
     expect(out.hiddenIntermediateCount).toBe(3);
   });
 
-  it('targetPost createdAt string → conservée telle quelle', () => {
+  it('repost pur : post effectif = original, raison repost du serveur', () => {
     const out = mapSliceToFeedItem(
-      slice({ targetPost: toFeedPost(post({ id: 't2', createdAt: '2026-08-01T10:00:00Z' })) })
+      slice({
+        targetPost: toFeedPost(
+          post({
+            id: 'echo_1',
+            content: '',
+            author: { ...baseAuthor, id: 'reposter', username: 'bob' },
+            repost: post({ id: 'original_1', content: 'original' }),
+          })
+        ),
+      })
     );
-    expect(out.createdAt).toBe('2026-08-01T10:00:00Z');
+    expect(out.post.id).toBe('original_1');
+    expect(out.reason).toMatchObject({ type: 'repost', by: { id: 'reposter' } });
+  });
+
+  it('pin : raison pin, post effectif intact', () => {
+    const out = mapSliceToFeedItem(
+      slice({ targetPost: toFeedPost(post({ id: 'pinned_1', isPinned: true })) })
+    );
+    expect(out.post.id).toBe('pinned_1');
+    expect(out.post.isPinned).toBe(true);
+    expect(out.reason).toMatchObject({ type: 'pin' });
+  });
+
+  it('repost d’article : raison article_repost, article cité conservé', () => {
+    const out = mapSliceToFeedItem(
+      slice({
+        targetPost: toFeedPost(
+          post({
+            id: 'article_repost_1',
+            content: '',
+            quotedArticle: {
+              id: 'art_1',
+              title: 'Article repartagé',
+              slug: 'article-repartage',
+              isPremium: false,
+              publisher: {
+                name: 'La Gazette',
+                slug: 'la-gazette',
+                subdomain: 'gazette',
+                customDomain: null,
+                type: 'MEDIA',
+                logoUrl: null,
+                isCertified: true,
+              },
+              author: { ...baseAuthor },
+            },
+          })
+        ),
+      })
+    );
+    expect(out.reason).toMatchObject({ type: 'article_repost' });
+    expect(out.post.articleQuote?.title).toBe('Article repartagé');
+  });
+
+  it('why du post est transporté par le contrat', () => {
+    const out = mapSliceToFeedItem(
+      slice({ targetPost: toFeedPost(post({ id: 'why_1', why: 'Parce que tu suis ce sujet' })) })
+    );
+    expect(out.why).toBe('Parce que tu suis ce sujet');
+    expect(out.post.why).toBe('Parce que tu suis ce sujet');
   });
 });
 
@@ -736,7 +790,7 @@ describe('buildVectorFeedPage', () => {
     expect(res.items[0].id).toBe('a1');
     expect(res.items[0]).toMatchObject({ title: 'Article A', isDiscovery: true });
     expect(res.items[1].id).toBe('t1');
-    expect(res.items[1]).toMatchObject({ slug: 'post-t1' });
+    expect(res.items[1]).toMatchObject({ post: { id: 'tp1' } });
     expect(res.nextOffset).toBe(2);
   });
 

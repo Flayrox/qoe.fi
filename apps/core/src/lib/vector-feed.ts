@@ -10,11 +10,15 @@
 // =====================================================================
 
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
-import type { QuotedThoughtData } from '@qoe/ui/social';
+import { mapSliceToFeedItem as mapApiSliceToFeedItem } from '@qoe/sdk/actions/feed/mappers';
+import type { FeedPost as ApiFeedPost, FeedSlice as ApiFeedSlice } from '@qoe/sdk';
 import {
   formatPollData,
   type FeedArticle,
+  type FeedAuthor,
+  type FeedItem as FeedItemContract,
   type FeedPoll,
+  type FeedQuotedThought,
   type FeedSlice,
   type FormattedPoll,
 } from '@/lib/feed-types';
@@ -28,6 +32,8 @@ export interface FeedPostRecord {
   imageUrl: string | null;
   createdAt: Date | string;
   tags?: string[] | null;
+  isPinned?: boolean;
+  why?: string;
   author: {
     id: string;
     name: string | null;
@@ -201,7 +207,7 @@ const toISO = (d: Date | string | null | undefined): string | undefined =>
 const mapQuotedThought = (
   post: FeedPostRecord,
   fallbackCreatedAt?: Date | string | null
-): QuotedThoughtData => ({
+): FeedQuotedThought => ({
   id: post.id,
   content: post.content ?? '',
   imageUrl: post.imageUrl,
@@ -242,7 +248,7 @@ export const mapPostToFeedItem = (post: FeedPostRecord, currentUserId?: string) 
     id: post.id,
     title: '', // Un titre vide identifie un micro-post dans FeedDashboard
     slug: `post-${post.id}`,
-    content: post.content,
+    content: post.content ?? '',
     imageUrl: post.imageUrl || null,
     quotedExcerpt: post.quotedExcerpt || canonicalPost.quotedExcerpt || undefined,
     annotationQuote: mapQuotedAnnotation(post.quotedAnnotation || canonicalPost.quotedAnnotation),
@@ -253,6 +259,8 @@ export const mapPostToFeedItem = (post: FeedPostRecord, currentUserId?: string) 
     isPremium: false,
     readingTime: 1,
     createdAt: toISO(post.createdAt) ?? '',
+    isPinned: post.isPinned ?? false,
+    why: post.why,
     author: {
       ...post.author,
       heroText: post.author?.heroText ?? null,
@@ -261,7 +269,8 @@ export const mapPostToFeedItem = (post: FeedPostRecord, currentUserId?: string) 
     parent: post.parent
       ? {
           ...post.parent,
-          createdAt: toISO(post.parent.createdAt),
+          content: post.parent.content ?? '',
+          createdAt: toISO(post.parent.createdAt) ?? '',
           author: {
             ...post.parent.author,
             isCertified: post.parent.author?.isCertified || false,
@@ -339,24 +348,46 @@ export const mapArticleToFeedItem = (art: ArticleWithDetails) => ({
   tags: art.semanticTags || [],
 });
 
-export const mapSliceToFeedItem = (slice: FeedSlice, currentUserId?: string) => {
-  const target = slice.targetPost;
-  return {
+export const mapSliceToFeedItem = (slice: FeedSlice, currentUserId?: string): FeedItemContract => {
+  // La sélection du post effectif (original vs citation), la raison (pin,
+  // repost, repost d'article) et le contexte de réponse sont décidés par le
+  // contrat SDK. Le web ne fait plus que normaliser les posts pour ses cartes.
+  const projected = mapApiSliceToFeedItem(slice as unknown as ApiFeedSlice);
+  const mapPost = (post: ApiFeedPost) =>
+    mapPostToFeedItem(post as unknown as FeedPostRecord, currentUserId);
+
+  const item: FeedItemContract = {
     id: slice.id,
-    title: '',
-    slug: `post-${slice.id}`,
-    createdAt: target.createdAt instanceof Date ? target.createdAt.toISOString() : target.createdAt,
-    targetPost: mapPostToFeedItem(target, currentUserId),
-    parentPost: slice.parentPost ? mapPostToFeedItem(slice.parentPost, currentUserId) : null,
-    rootPost: slice.rootPost ? mapPostToFeedItem(slice.rootPost, currentUserId) : null,
+    post: mapPost(projected.post),
+    why: projected.why,
     isIncompleteThread: slice.isIncompleteThread,
     hiddenIntermediateCount: slice.hiddenIntermediateCount,
   };
+
+  if (projected.reply) {
+    item.reply = {
+      root: projected.reply.root ? mapPost(projected.reply.root) : null,
+      parent: projected.reply.parent ? mapPost(projected.reply.parent) : null,
+      article: mapQuotedArticle(
+        projected.reply.article as unknown as FeedPostRecord['quotedArticle']
+      ),
+      grandparentAuthor: (projected.reply.grandparentAuthor as FeedAuthor | null) ?? null,
+    };
+  }
+
+  if (projected.reason) {
+    item.reason = {
+      type: projected.reason.type,
+      by: projected.reason.by as FeedAuthor,
+      at: toISO(projected.reason.at) ?? '',
+    };
+  }
+
+  return item;
 };
 
 export type FeedItem =
-  | (ReturnType<typeof mapArticleToFeedItem> & { isDiscovery?: boolean })
-  | ReturnType<typeof mapSliceToFeedItem>;
+  (ReturnType<typeof mapArticleToFeedItem> & { isDiscovery?: boolean }) | FeedItemContract;
 
 export interface VectorFeedPageResult {
   items: FeedItem[];

@@ -97,8 +97,16 @@ export interface ThoughtData {
   replyRestriction?: string;
 }
 
+export interface ThoughtItemReason {
+  type: 'repost' | 'pin' | 'article_repost';
+  by: ThoughtData['author'];
+  at: string | Date;
+}
+
 export interface ThoughtCardProps {
   post: ThoughtData;
+  /** Raison fournie par le serveur (contrat FeedItem) — jamais redérivée. */
+  reason?: ThoughtItemReason;
   variant?: ThoughtVariant;
   depth?: number;
   currentUserId?: string | null;
@@ -148,6 +156,7 @@ const getUrls = (text: string): string[] => {
 
 export function ThoughtCard({
   post,
+  reason,
   variant = 'timeline',
   depth = 0,
   currentUserId,
@@ -179,19 +188,29 @@ export function ThoughtCard({
   blockedUsernames,
   className,
 }: ThoughtCardProps) {
-  const isPureThoughtRepost = !!post.repost && !post.content?.trim();
+  const serverReason = reason ?? null;
+  const isPinned = serverReason ? serverReason.type === 'pin' : Boolean(post.isPinned);
+  // Sans raison serveur (thread, profil, recherche), la carte garde son
+  // ancien comportement. Dans le feed, la raison et le post effectif sont
+  // déjà choisis par le contrat FeedItem : plus aucune dérivation ici.
+  const isPureThoughtRepost = serverReason
+    ? serverReason.type === 'repost'
+    : !!post.repost && !post.content?.trim();
   // ✂️ La pensée effective : un écho n'a pas de texte, donc TOUT ce qu'il
   // affiche vient de la pensée repostée — y compris sa propre citation.
   // Sans ça, un écho de citation paraissait vide et perdait le maillon
   // qu'il était censé remonter.
-  const effectivePost = (isPureThoughtRepost ? post.repost! : post) as ThoughtData;
+  const effectivePost = (
+    serverReason ? post : isPureThoughtRepost ? post.repost! : post
+  ) as ThoughtData;
   // Une citation d'annotation est un post à part entière, même sans mot
   // ajouté : ce n'est pas un simple repartage d'article.
-  const isPureArticleRepost =
-    !effectivePost.repost &&
-    !effectivePost.content?.trim() &&
-    !!effectivePost.articleQuote &&
-    !effectivePost.annotationQuote;
+  const isPureArticleRepost = serverReason
+    ? serverReason.type === 'article_repost'
+    : !effectivePost.repost &&
+      !effectivePost.content?.trim() &&
+      !!effectivePost.articleQuote &&
+      !effectivePost.annotationQuote;
   const isPureRepost = isPureThoughtRepost || isPureArticleRepost;
   const isQuotePost = !!effectivePost.repost && !!effectivePost.content?.trim();
 
@@ -204,9 +223,10 @@ export function ThoughtCard({
   const displayPostId = effectivePost.id;
   const displayCreatedAt = effectivePost.createdAt || post.createdAt;
 
+  const reposter = serverReason?.by ?? post.author;
   const reposterHandle =
-    post.author.username || post.author.subdomain || post.author.id?.slice(0, 8) || 'auteur';
-  const reposterName = post.author.name;
+    reposter.username || reposter.subdomain || reposter.id?.slice(0, 8) || 'auteur';
+  const reposterName = reposter.name;
 
   const authorHandle =
     displayAuthor.username || displayAuthor.subdomain || displayAuthor.id?.slice(0, 8) || 'auteur';
@@ -270,7 +290,7 @@ export function ThoughtCard({
   );
 
   const hasTopBanner = Boolean(
-    post.isPinned ||
+    isPinned ||
     (parent && !isParent && !isFocus && variant === 'timeline') ||
     (parent && (variant === 'reply' || isFocus) && depth > 0)
   );
@@ -300,11 +320,11 @@ export function ThoughtCard({
               <Repeat className="size-3.5 text-muted-foreground" strokeWidth={1.75} aria-hidden />
             </span>
             <span className="min-w-0 truncate">
-              {currentUserId && post.author.id === currentUserId ? (
+              {currentUserId && reposter.id === currentUserId ? (
                 t`Vous avez repartagé`
               ) : (
                 <>
-                  <ProfileHoverCard user={post.author} onOpenProfile={onOpenProfile}>
+                  <ProfileHoverCard user={reposter} onOpenProfile={onOpenProfile}>
                     <span
                       onClick={(e) => {
                         if (!onOpenProfile) return;
@@ -320,8 +340,7 @@ export function ThoughtCard({
                   </ProfileHoverCard>{' '}
                   {isFollowingAuthor ||
                   Boolean(
-                    'isFollowing' in post.author &&
-                    (post.author as { isFollowing?: boolean }).isFollowing
+                    'isFollowing' in reposter && (reposter as { isFollowing?: boolean }).isFollowing
                   )
                     ? t`que vous suivez a repartagé`
                     : t`a repartagé`}
@@ -375,7 +394,7 @@ export function ThoughtCard({
           {/* COLUMN 2: Main Content Area */}
           <div className="flex-1 min-w-0 space-y-1.5">
             {/* Pinned Badge */}
-            {post.isPinned && (
+            {isPinned && (
               <div className="flex items-center gap-1.5 text-xs font-semibold text-brand pb-0.5">
                 <Pin className="w-3 h-3 fill-current rotate-45" />
                 <span>{t`Épinglé`}</span>
@@ -424,7 +443,7 @@ export function ThoughtCard({
                 <ThoughtHeader
                   author={displayAuthor}
                   createdAt={displayCreatedAt}
-                  isPinned={post.isPinned}
+                  isPinned={isPinned}
                   isFocus={isFocus}
                   currentUserId={currentUserId}
                   canHideReply={canHideReply}

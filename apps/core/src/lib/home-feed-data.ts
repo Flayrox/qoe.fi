@@ -115,9 +115,12 @@ const mapHydrated = (a: HydrateArticle): ArticleFeedItem =>
 
 const list = <T>(v: T[] | null | undefined): T[] => v ?? [];
 
+const feedItemDate = (item: FeedItem): Date | string =>
+  'createdAt' in item ? item.createdAt : item.post.createdAt;
+
 const mergeTimeline = (articles: FeedItem[], thoughts: FeedSlice[], userId?: string): FeedItem[] =>
   [...list(articles), ...list(thoughts).map((s) => mapSliceToFeedItem(s, userId))].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    (a, b) => new Date(feedItemDate(b)).getTime() - new Date(feedItemDate(a)).getTime()
   );
 
 // Exportée pour les tests (mapper pur) : le bundle Go vers les props.

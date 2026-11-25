@@ -3,8 +3,7 @@
 // =====================================================================
 // 🧵 ThoughtFeedSlice — Rendu d'un élément du feed (slice de conversation)
 // =====================================================================
-// Prend un `FeedSlice` (cf. le module Go posts)
-// /v1/feed) et le rend en 4 cas :
+// Prend un `FeedItem` (contrat de lecture du feed) et le rend en 4 cas :
 //   1. Post isolé (pas de parent/root) → ThoughtCard simple.
 //   2. Fil multi-posts : Root → [séparateur pointillé si fil incomplet] →
 //      Parent → Target (la réponse), reliés par des connecteurs verticaux
@@ -19,10 +18,10 @@
 import React from 'react';
 import { MessageSquare } from 'lucide-react';
 import { ThoughtCard } from '@/components/social/ThoughtCard';
-import type { FeedSlice } from '@/lib/feed-types';
+import type { FeedItem } from '@/lib/feed-types';
 
 export interface ThoughtFeedSliceProps {
-  slice: FeedSlice;
+  item: FeedItem;
   currentUserId?: string | null;
   onOpenPost?: (postId: string) => void;
   onOpenProfile?: (userId: string) => void;
@@ -36,7 +35,7 @@ export interface ThoughtFeedSliceProps {
 }
 
 export function ThoughtFeedSlice({
-  slice,
+  item,
   currentUserId,
   onOpenPost,
   onOpenProfile,
@@ -48,7 +47,23 @@ export function ThoughtFeedSlice({
   onDeletePost,
   onHidePost,
 }: ThoughtFeedSliceProps) {
-  const { rootPost, parentPost, targetPost, isIncompleteThread, hiddenIntermediateCount } = slice;
+  const {
+    post: targetPost,
+    reply,
+    reason,
+    why,
+    isIncompleteThread,
+    hiddenIntermediateCount,
+  } = item;
+  const rootPost = reply?.root ?? null;
+  const parentPost = reply?.parent ?? null;
+  // Le contexte article fait partie du contrat de réponse : on le consomme
+  // tel quel au lieu de le rechercher dans le post brut.
+  const targetWithContext = {
+    ...targetPost,
+    rootArticle: reply?.article ?? targetPost.rootArticle,
+    why: why ?? targetPost.why,
+  };
 
   const handleOpenRootThread = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -63,7 +78,8 @@ export function ThoughtFeedSlice({
   if (!parentPost && !rootPost) {
     return (
       <ThoughtCard
-        post={targetPost}
+        post={targetWithContext}
+        reason={reason}
         variant="timeline"
         currentUserId={currentUserId}
         onOpenPost={onOpenPost}
@@ -144,7 +160,8 @@ export function ThoughtFeedSlice({
 
       {/* 4. Target Post (Reply) */}
       <ThoughtCard
-        post={targetPost}
+        post={targetWithContext}
+        reason={reason}
         variant="timeline"
         isThreadChild={Boolean(parentPost || rootPost)}
         isThreadLastChild={true}

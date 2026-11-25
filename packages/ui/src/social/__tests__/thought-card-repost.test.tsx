@@ -23,6 +23,57 @@ const basePost: ThoughtData = {
   },
 };
 
+const reposter = {
+  id: 'user_reposter',
+  name: 'Alice',
+  username: 'alice',
+  logoUrl: null,
+  isCertified: false,
+};
+
+describe('ThoughtCard - raison fournie par FeedItem', () => {
+  it('repost : bannière du reposteur et post effectif original', () => {
+    const original: ThoughtData = {
+      id: 'post_original',
+      content: 'Texte original',
+      createdAt: '2026-10-22T00:00:00Z',
+      author: { id: 'user_original', name: 'Bob', username: 'bob', logoUrl: null },
+    };
+    const html = renderToStaticMarkup(
+      <ThoughtCard
+        post={original}
+        reason={{ type: 'repost', by: reposter, at: '2026-10-22T01:00:00Z' }}
+        currentUserId="other"
+      />
+    );
+    expect(html).toContain('data-repost-banner');
+    expect(html).toContain('@alice');
+    expect(html).toContain('Texte original');
+  });
+
+  it('article_repost : bannière sans redériver depuis le contenu', () => {
+    const html = renderToStaticMarkup(
+      <ThoughtCard
+        post={basePost}
+        reason={{ type: 'article_repost', by: reposter, at: '2026-10-22T01:00:00Z' }}
+        currentUserId="other"
+      />
+    );
+    expect(html).toContain('data-repost-banner');
+    expect(html).toContain('Souveraineté des médias indépendants');
+  });
+
+  it('pin : badge épinglé piloté par la raison', () => {
+    const html = renderToStaticMarkup(
+      <ThoughtCard
+        post={{ ...basePost, articleQuote: null, content: 'Pensée épinglée' }}
+        reason={{ type: 'pin', by: basePost.author, at: '2026-10-22T01:00:00Z' }}
+      />
+    );
+    expect(html).toContain('Épinglé');
+  });
+});
+
 describe('ThoughtCard - Article Repost', () => {
   it('affiche la bannière de repost pur d’article avec @username a repartagé', () => {
     const html = renderToStaticMarkup(<ThoughtCard post={basePost} currentUserId="other_user" />);

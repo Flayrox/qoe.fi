@@ -43,8 +43,14 @@ import { routes } from '@qoe/config/routes';
 import { cn } from '@qoe/utils';
 import type { CanonicalDocument, SpotlightRange } from '@qoe/ui/annotations';
 import type { ThoughtData } from '@qoe/sdk';
-import type { FeedSlice } from '@/lib/feed-types';
+import type {
+  FeedAuthor,
+  FeedItem as FeedItemContract,
+  FeedQuotedArticle,
+  FeedQuotedThought,
+} from '@/lib/feed-types';
 import type { HiddenAuthor } from '@/lib/home-feed-data';
+import type { ComposedPost } from './components/ThoughtComposer';
 
 interface Author {
   id: string;
@@ -148,37 +154,63 @@ interface Article {
   } | null;
 }
 
-interface FeedPost {
-  id: string;
-  content?: string | null;
-  imageUrl?: string | null;
-  createdAt?: Date | string;
-  triggerWarning?: string | null;
-  author?: Author;
-  authorId?: string;
-  parentId?: string | null;
-  rootId?: string | null;
-  repostId?: string | null;
-  repost?: unknown;
-  poll?: unknown;
-}
+type FeedItem = Article | FeedItemContract;
 
-interface FeedSliceItem {
-  id: string;
-  title: string;
-  slug: string;
-  createdAt: Date | string;
-  content?: string;
-  category?: { name: string } | null;
-  author?: Author;
-  targetPost: FeedPost | null;
-  parentPost?: FeedPost | null;
-  rootPost?: FeedPost | null;
-  isIncompleteThread: boolean;
-  hiddenIntermediateCount?: number;
-}
+// Le contrat FeedItem porte le post effectif et son contexte. L'article
+// garde sa forme éditoriale : la présence de `post` distingue les deux.
+const isFeedItem = (item: FeedItem): item is FeedItemContract => 'post' in item;
+const itemAuthor = (item: FeedItem) => (isFeedItem(item) ? item.post.author : item.author);
+const itemContent = (item: FeedItem) =>
+  isFeedItem(item) ? (item.post.content ?? '') : (item.content ?? '');
+const itemTitle = (item: FeedItem) => (isFeedItem(item) ? '' : item.title);
+const feedItemId = (item: FeedItem) => (isFeedItem(item) ? (item.id ?? item.post.id) : item.id);
 
-type FeedItem = Article | FeedSliceItem;
+// Un post publié localement n'a pas encore traversé le serveur : on le range
+// dans la même enveloppe que le feed, sans inventer de raison (il n'en a pas).
+const asLocalFeedItem = (post: ComposedPost): FeedItemContract => {
+  const author = (value: {
+    id?: string;
+    name?: string | null;
+    username?: string | null;
+    logoUrl?: string | null;
+    isCertified?: boolean;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
+  }): FeedAuthor => ({
+    id: value.id ?? '',
+    name: value.name ?? null,
+    username: value.username ?? null,
+    logoUrl: value.logoUrl ?? null,
+    isCertified: Boolean(value.isCertified),
+    type: value.type,
+  });
+  const quotedThought = (value: NonNullable<ComposedPost['repost']>): FeedQuotedThought => ({
+    ...value,
+    id: value.id ?? '',
+    content: value.content ?? '',
+    author: author(value.author ?? post.author),
+  });
+  return {
+    id: post.id,
+    post: {
+      ...post,
+      content: post.content ?? '',
+      imageUrl: post.imageUrl ?? null,
+      author: author(post.author),
+      repost: post.repost ? quotedThought(post.repost) : null,
+      parent: post.parent
+        ? {
+            ...post.parent,
+            id: post.parent.id ?? '',
+            content: post.parent.content ?? '',
+            createdAt: post.parent.createdAt ?? post.createdAt,
+            author: author(post.parent.author ?? post.author),
+          }
+        : null,
+      articleQuote: (post.articleQuote as FeedQuotedArticle | null | undefined) ?? null,
+      poll: null,
+    },
+  };
+};
 
 interface FeedDashboardProps {
   dbUser: {
@@ -395,8 +427,8 @@ export function FeedDashboard({
         nextOffset: number;
       };
       setFeedItems((prev) => {
-        const seen = new Set(prev.map((i) => i.id));
-        const fresh = data.items.filter((i) => !seen.has(i.id));
+        const seen = new Set(prev.map(feedItemId));
+        const fresh = data.items.filter((i) => !seen.has(feedItemId(i)));
         return fresh.length ? [...prev, ...fresh] : prev;
       });
       feedNextOffsetRef.current = data.nextOffset;
@@ -437,7 +469,7 @@ export function FeedDashboard({
       list = [...localPosts, ...feedItems];
     } else if (activeFeed === 'abonnement') {
       list = [
-        ...localPosts.filter((p) => isCreatorFollowed(p.author?.id || '')),
+        ...localPosts.filter((p) => isCreatorFollowed(itemAuthor(p)?.id || '')),
         ...followingArticles,
       ];
     } else if (activeFeed === 'decouvrir') {
@@ -449,16 +481,17 @@ export function FeedDashboard({
     if (mutedWords && mutedWords.length > 0) {
       list = list.filter((art) => {
         if (!art) return false;
-        const contentLower = (art.content || '').toLowerCase();
-        const titleLower = (art.title || '').toLowerCase();
+        const contentLower = itemContent(art).toLowerCase();
+        const titleLower = itemTitle(art).toLowerCase();
         return !mutedWords.some((word) => contentLower.includes(word) || titleLower.includes(word));
       });
     }
 
     const seenIds = new Set<string>();
     list = list.filter((art) => {
-      if (!art || !art.id) return false;
-      const idStr = String(art.id);
+      if (!art) return false;
+      const idStr = String(feedItemId(art));
+      if (!idStr) return false;
       if (seenIds.has(idStr)) return false;
       seenIds.add(idStr);
       return true;
@@ -467,9 +500,11 @@ export function FeedDashboard({
     if (selectedTag) {
       list = list.filter(
         (art) =>
-          art.title.toLowerCase().includes(selectedTag.toLowerCase()) ||
-          (art.content || '').toLowerCase().includes(selectedTag.toLowerCase()) ||
-          (art.category && art.category.name.toLowerCase() === selectedTag.toLowerCase())
+          itemTitle(art).toLowerCase().includes(selectedTag.toLowerCase()) ||
+          itemContent(art).toLowerCase().includes(selectedTag.toLowerCase()) ||
+          (!isFeedItem(art) &&
+            art.category &&
+            art.category.name.toLowerCase() === selectedTag.toLowerCase())
       );
     }
 
@@ -566,8 +601,8 @@ export function FeedDashboard({
   // Retire la carte localement ET persiste via /api/feed/show-less : exclusion
   // SQL (ContentFeedback) + éloignement vectoriel (EMA négatif) côté Go.
   const handleHideArticle = async (article: { id: string }) => {
-    setLocalPosts((prev) => prev.filter((p) => p.id !== article.id));
-    setFeedItems((prev) => prev.filter((p) => p.id !== article.id));
+    setLocalPosts((prev) => prev.filter((p) => feedItemId(p) !== article.id));
+    setFeedItems((prev) => prev.filter((p) => feedItemId(p) !== article.id));
     trackEvent('feed_show_less', { articleId: article.id });
     try {
       const res = await fetch('/api/feed/show-less', {
@@ -586,8 +621,8 @@ export function FeedDashboard({
   };
 
   const handleHidePost = (postId: string) => {
-    setLocalPosts((prev) => prev.filter((p) => p.id !== postId));
-    setFeedItems((prev) => prev.filter((p) => p.id !== postId));
+    setLocalPosts((prev) => prev.filter((p) => feedItemId(p) !== postId));
+    setFeedItems((prev) => prev.filter((p) => feedItemId(p) !== postId));
   };
 
   // 🧵 Et pour les pensées, même contrat que l'article : le feed déclare
@@ -595,13 +630,11 @@ export function FeedDashboard({
   // position et le focus.
   const handleOpenPost = (postId: string, authorUsername?: string) => {
     if (!postId) return;
-    const foundItem = currentFeedArticles.find((item) => item.id === postId);
-    const handle =
-      authorUsername ||
-      foundItem?.author?.username ||
-      foundItem?.author?.subdomain ||
-      foundItem?.author?.id ||
-      'auteur';
+    const foundItem = currentFeedArticles.find((item) => feedItemId(item) === postId);
+    const author = foundItem ? itemAuthor(foundItem) : null;
+    const authorSubdomain =
+      author && 'subdomain' in author ? (author as { subdomain?: string | null }).subdomain : null;
+    const handle = authorUsername || author?.username || authorSubdomain || author?.id || 'auteur';
     thoughtOverlay?.openThought(postId, handle);
   };
 
@@ -706,8 +739,8 @@ export function FeedDashboard({
       const customDetail = (e as CustomEvent)?.detail;
       if (customDetail && customDetail.id) {
         setLocalPosts((prev) => [
-          customDetail,
-          ...prev.filter((post) => post.id !== customDetail.id),
+          asLocalFeedItem(customDetail as ComposedPost),
+          ...prev.filter((post) => feedItemId(post) !== customDetail.id),
         ]);
       }
     };
@@ -860,48 +893,29 @@ export function FeedDashboard({
                         }
                         hasNextPage={activeFeed === 'recommandation' ? feedHasMoreState : false}
                         isFetchingNextPage={isFetchingNextPage}
-                        keyExtractor={(article) => article.id}
+                        keyExtractor={(article) => feedItemId(article)}
                         estimateSize={180}
                         renderItem={(article, idx) => {
-                          const isBookmarked = isArticleBookmarked(article.id);
-                          const authorId =
-                            article.author?.id || (article as FeedSliceItem).targetPost?.author?.id;
+                          const isBookmarked = isArticleBookmarked(feedItemId(article));
+                          const authorId = itemAuthor(article)?.id;
                           const isFollowed = authorId ? isCreatorFollowed(authorId) : false;
                           const isFollowedAuthor =
-                            'journalist' in article &&
+                            !isFeedItem(article) &&
                             Boolean(
                               article.author?.journalist?.id &&
                               followedAuthorIds.includes(article.author.journalist.id)
                             );
 
-                          if (!article.title) {
-                            const isSlice = 'targetPost' in article;
-
-                            const sliceData = isSlice
-                              ? {
-                                  id: article.id,
-                                  rootPost: (article as FeedSliceItem).rootPost,
-                                  parentPost: (article as FeedSliceItem).parentPost,
-                                  targetPost: (article as FeedSliceItem).targetPost,
-                                  isIncompleteThread: (article as FeedSliceItem).isIncompleteThread,
-                                  hiddenIntermediateCount: (article as FeedSliceItem)
-                                    .hiddenIntermediateCount,
-                                }
-                              : {
-                                  id: article.id,
-                                  targetPost: article,
-                                  isIncompleteThread: false,
-                                };
-
+                          if (isFeedItem(article)) {
                             return (
                               <ImpressionWrapper
-                                key={article.id}
+                                key={article.id ?? article.post.id}
                                 itemType="THOUGHT"
-                                itemId={article.id}
+                                itemId={article.id ?? article.post.id}
                                 position={idx}
                               >
                                 <ThoughtFeedSlice
-                                  slice={sliceData as never as FeedSlice}
+                                  item={article}
                                   currentUserId={dbUser?.id || null}
                                   onOpenPost={handleOpenPost}
                                   onOpenArticle={handleOpenArticle}
@@ -991,7 +1005,10 @@ export function FeedDashboard({
         initialText={composerInitialText}
         initialMode={composerInitialMode}
         onPostCreated={(post) =>
-          setLocalPosts((prev) => [post, ...prev.filter((existing) => existing.id !== post.id)])
+          setLocalPosts((prev) => [
+            asLocalFeedItem(post),
+            ...prev.filter((existing) => feedItemId(existing) !== post.id),
+          ])
         }
         onLoginRequired={() => openAuthModal({ mode: 'signup', actionContext: 'comment' })}
       />

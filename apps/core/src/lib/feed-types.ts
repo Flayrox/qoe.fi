@@ -78,6 +78,9 @@ export interface FeedPost {
   createdAt: Date | string;
   tags?: string[];
   author: FeedAuthor;
+  isPinned?: boolean;
+  why?: string;
+  repostId?: string | null;
   parentUnavailable?: boolean;
   parentUnavailableReason?: 'blocked' | 'deleted' | 'unavailable' | string | null;
   parent?: {
@@ -149,6 +152,124 @@ export interface FeedSlice {
   /** Réponse dont le parent est bloqué/supprimé : placeholder, jamais le contenu. */
   parentUnavailable?: boolean;
   parentUnavailableReason?: 'blocked' | 'deleted' | 'unavailable' | string;
+}
+
+// Forme des posts après normalisation pour les cartes (dates ISO, citations
+// renommées `articleQuote`). Distincte du payload brut FeedPost ci-dessus.
+export interface FeedQuotedArticle {
+  id: string;
+  title: string;
+  slug: string;
+  content?: string | null;
+  isPremium: boolean;
+  quoteContext?: {
+    before: string;
+    highlight: string;
+    after: string;
+    start: number;
+    end: number;
+    sha: string;
+  } | null;
+  publisher: {
+    name: string;
+    subdomain: string | null;
+    customDomain: string | null;
+  } | null;
+  author: FeedAuthor;
+}
+
+export interface FeedAnnotationQuote {
+  id: string;
+  note: string;
+  excerpt: string;
+  quoteOrdinal?: number;
+  canonicalStart?: number;
+  canonicalEnd?: number;
+  contentSha?: string;
+  reader: {
+    id: string;
+    name: string | null;
+    username: string | null;
+    logoUrl: string | null;
+    type?: string;
+  };
+}
+
+export interface FeedQuotedThought {
+  id: string;
+  content: string;
+  imageUrl?: string | null;
+  createdAt?: string | Date;
+  author: FeedAuthor;
+  repost?: FeedQuotedThought | null;
+  articleQuote?: FeedQuotedArticle | null;
+  annotationQuote?: FeedAnnotationQuote | null;
+  quotedExcerpt?: string | null;
+}
+
+export interface FeedItemPost {
+  id: string;
+  title?: string;
+  slug?: string;
+  content: string;
+  imageUrl: string | null;
+  createdAt: Date | string;
+  tags?: string[];
+  author: FeedAuthor;
+  isPinned?: boolean;
+  why?: string;
+  parentUnavailable?: boolean;
+  parentUnavailableReason?: 'blocked' | 'deleted' | 'unavailable' | string | null;
+  parent?: {
+    id: string;
+    content: string;
+    createdAt: Date | string;
+    author: FeedAuthor;
+  } | null;
+  repost?: FeedQuotedThought | null;
+  quotedExcerpt?: string | null;
+  rootArticleId?: string | null;
+  rootArticle?: FeedQuotedArticle | null;
+  articleQuote?: FeedQuotedArticle | null;
+  annotationQuote?: FeedAnnotationQuote | null;
+  category?: { name: string } | null;
+  published?: boolean;
+  isPremium?: boolean;
+  readingTime?: number;
+  likesCount?: number;
+  repliesCount?: number;
+  repostsCount?: number;
+  liked?: boolean;
+  reposted?: boolean;
+  _count?: { likes: number; replies: number; reposts: number };
+  poll: FormattedPoll | null;
+}
+
+// Contrat de lecture consommé par la UI : le serveur a déjà choisi le post
+// effectif, le contexte et la raison. Aucun composant ne les redérive.
+export interface FeedItemReason {
+  type: 'repost' | 'pin' | 'article_repost';
+  by: FeedAuthor;
+  at: string;
+}
+
+export interface FeedReplyContext {
+  root: FeedItemPost | null;
+  article?: FeedQuotedArticle | null;
+  parent: FeedItemPost | null;
+  grandparentAuthor?: FeedAuthor | null;
+}
+
+export interface FeedItem {
+  /** Identité de transport de la slice (clé de liste/impression). */
+  id?: string;
+  post: FeedItemPost;
+  reply?: FeedReplyContext;
+  reason?: FeedItemReason;
+  why?: string;
+  /** Métadonnées de pagination de la slice, conservées pour l'affichage. */
+  isIncompleteThread?: boolean;
+  hiddenIntermediateCount?: number;
 }
 
 export interface FeedAttribution {
