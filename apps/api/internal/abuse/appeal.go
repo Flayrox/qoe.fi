@@ -121,14 +121,36 @@ type contestedVerdict struct {
 
 // contestableDecision renvoie le dernier verdict non-allow et non expiré du
 // sujet (celui qu'on conteste), ou ErrNothingToAppeal.
+//
+// Règle produit (tranchée) : le recours conteste le dernier verdict non-allow,
+// QUELLE QUE SOIT SON ORIGINE (essaim automatique ou verdict humain). Un
+// humain peut donc être contesté, et une nouvelle vague automatique rouvre un
+// droit de recours. L'ordre est l'ordre d'INSERTION ("seq"), jamais
+// "createdAt" : mélanger l'horloge de la base et celle de l'application (UTC)
+// faisait gagner un verdict d'une heure. Aucun départage n'interprète
+// l'origine du verdict.
 func contestableDecision(ctx context.Context, pool SignalDB, subjectType, subjectID string, now time.Time) (contestedVerdict, error) {
-	var c contestedVerdict
-	err := pool.QueryRow(ctx, `
+	return scanContested(pool.QueryRow(ctx, `
 		SELECT "id", "policy", "version", "result", "reasonCodes" FROM "RiskDecision"
 		WHERE "subjectType" = $1 AND "subjectId" = $2
 		  AND "result" <> 'allow' AND ("expiresAt" IS NULL OR "expiresAt" > $3)
-		ORDER BY "createdAt" DESC, "decidedBy" DESC, "id" DESC LIMIT 1`,
-		subjectType, subjectID, now).Scan(&c.ID, &c.Policy, &c.Version, &c.Result, &c.Reasons)
+		ORDER BY "seq" DESC LIMIT 1`,
+		subjectType, subjectID, now))
+}
+
+// contestedDecisionByID relit LE verdict lié au dossier. La décision d'un
+// recours ne dépend pas d'un « dernier verdict » recalculé à l'instant de la
+// clôture : un nouveau verdict d'essaim entre-temps ne doit pas changer ce
+// que le staff juge.
+func contestedDecisionByID(ctx context.Context, pool SignalDB, id string) (contestedVerdict, error) {
+	return scanContested(pool.QueryRow(ctx, `
+		SELECT "id", "policy", "version", "result", "reasonCodes" FROM "RiskDecision"
+		WHERE "id" = $1`, id))
+}
+
+func scanContested(row pgx.Row) (contestedVerdict, error) {
+	var c contestedVerdict
+	err := row.Scan(&c.ID, &c.Policy, &c.Version, &c.Result, &c.Reasons)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return contestedVerdict{}, ErrNothingToAppeal
@@ -416,7 +438,10 @@ func DecideAppeal(ctx context.Context, pool SignalDB, appealID, staffID, status,
 		// continue, avec l'avis humain tracé — upheld ne clôt que le
 		// recours, pas la vigilance). Politique et version sont celles du
 		// verdict contesté : c'est lui qu'on rejoue, pas la politique du jour.
-		contested, err := contestableDecision(ctx, pool, a.SubjectType, a.SubjectID, now)
+		if a.DecisionID == nil || *a.DecisionID == "" {
+			return Appeal{}, ErrNothingToAppeal
+		}
+		contested, err := contestedDecisionByID(ctx, pool, *a.DecisionID)
 		if err != nil {
 			return Appeal{}, err
 		}

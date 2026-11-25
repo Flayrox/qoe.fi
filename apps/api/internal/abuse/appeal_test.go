@@ -218,3 +218,50 @@ func TestAppeal_FullCycle(t *testing.T) {
 		t.Fatalf("raisons continues attendues, obtenu %v", liftReasons)
 	}
 }
+
+// TestDecideAppeal_UsesDossierVerdictNotLatest : la clôture rejoue LE verdict
+// lié au dossier. Un verdict plus récent arrivé pendant l'instruction ne doit
+// pas changer ce que le staff juge (sinon le recours glisse vers un autre
+// dossier en silence).
+func TestDecideAppeal_UsesDossierVerdictNotLatest(t *testing.T) {
+	requirePool(t)
+	ctx := context.Background()
+	now := time.Now()
+	user := fmt.Sprintf("appeal-pin-%d", now.UnixNano())
+
+	opened := insertHumanVerdictDirect(ctx, t, SubjectUser, user, "suspend")
+	a, err := OpenAppeal(ctx, poolTest, SubjectUser, user, user, "je conteste CE verdict", now.Add(time.Second))
+	if err != nil {
+		t.Fatalf("ouverture : %v", err)
+	}
+	if a.DecisionID == nil || *a.DecisionID != opened {
+		t.Fatalf("dossier lié au verdict d'ouverture attendu, obtenu %+v", a.DecisionID)
+	}
+	// Nouveau verdict pendant l'instruction (plus récent en insertion).
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "RiskDecision" ("id", "policy", "version", "subjectType", "subjectId", "result", "reasonCodes", "decidedBy", "deciderId", "createdAt")
+		 VALUES (gen_random_uuid()::text, 'abuse-core', 'v1', $1, $2, 'suspend', '{test:newer}', 'human', 'test-staff', $3)`,
+		SubjectUser, user, now.Add(2*time.Second)); err != nil {
+		t.Fatalf("verdict plus récent : %v", err)
+	}
+	if _, err := DecideAppeal(ctx, poolTest, a.ID, "staff-1", "decided", "overturned", "faux positif", "", now.Add(3*time.Second)); err != nil {
+		t.Fatalf("clôture : %v", err)
+	}
+	var reasons []string
+	if err := poolTest.QueryRow(ctx,
+		`SELECT "reasonCodes" FROM "RiskDecision" WHERE "appealRef" = $1`, a.ID).Scan(&reasons); err != nil {
+		t.Fatalf("verdict du recours introuvable : %v", err)
+	}
+	foundFixture, foundNewer := false, false
+	for _, r := range reasons {
+		switch r {
+		case "test:fixture":
+			foundFixture = true
+		case "test:newer":
+			foundNewer = true
+		}
+	}
+	if !foundFixture || foundNewer {
+		t.Fatalf("le recours doit rejouer le verdict lié, obtenu %v", reasons)
+	}
+}

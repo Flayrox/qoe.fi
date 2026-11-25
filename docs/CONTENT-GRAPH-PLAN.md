@@ -636,7 +636,7 @@ milliseconde, dix lectures consécutives strictement identiques, pagination
 lecture complète, sans doublon ni trou. Package `conversations` exécuté
 intégralement trois fois de suite : trois `ok`.
 
-## L46b — ordre total des verdicts de revue (2026-11-24)
+## L46b — ordre total des verdicts de revue et de recours (2026-11-25)
 
 `RiskDecision."createdAt"` est un `TIMESTAMP(3)` : à la milliseconde près, la
 revue n'avait pas d'ordre total. `00102` ajoute `RiskDecision.seq BIGSERIAL`
@@ -645,8 +645,10 @@ comme tie-breaker déterministe par `ListOpenDecisions` et `ResolveDecision`.
 La boucle de vidage de file de la revue converge (elle s'arrête quand la file
 est stable) ; `TestReview_OpenResolveClose` PASS sur Postgres 16 local.
 
-Le recours (`contestableDecision`) reste volontairement hors de ce changement :
-il garde son ordre d'origine et **la question produit reste ouverte** — un
-recours conteste-t-il le dernier verdict automatique d'essaim, ou n'importe
-quel verdict humain ? `TestAppeal_FullCycle` reste rouge, non modifié, non
-skippé, et documenté comme bloqué sur cet arbitrage (seul point en attente).
+Le recours suit la même vérité d'ordre. **Règle tranchée** : il conteste le
+dernier verdict non-allow non expiré, **quelle que soit son origine** (essaim
+ou humain), dans l'ordre d'insertion `seq` (jamais `createdAt`, dont le
+mélange heure locale/UTC faisait gagner un verdict d'une heure).
+`DecideAppeal` rejoue le verdict lié au dossier (`Appeal.decisionId`), pas un
+« dernier » recalculé à la clôture. Preuves : `TestAppeal_FullCycle` et
+`TestDecideAppeal_UsesDossierVerdictNotLatest` PASS sur Postgres 16 local.
