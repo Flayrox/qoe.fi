@@ -366,7 +366,8 @@ func RevokeGrant(ctx context.Context, pool DB, id string, now time.Time) (Grant,
 	}
 	now = abuse.UtcMs(now)
 	updated, err := scanGrant(pool.QueryRow(ctx, `
-		UPDATE "SubscriptionGrant" SET "endsAt" = $2
+		UPDATE "SubscriptionGrant"
+		SET "endsAt" = GREATEST($2, "startsAt" + interval '1 millisecond')
 		WHERE "id" = $1 AND ("endsAt" IS NULL OR "endsAt" > $2)
 		RETURNING `+grantColumns, id, now), now)
 	if err == nil {

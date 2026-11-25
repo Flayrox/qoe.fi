@@ -360,14 +360,14 @@ func (s *Service) ReadingHistory(ctx context.Context, userID string, days int) (
 		       a.id, a.title, a.slug, a."imageUrl", a."readingTime", a."createdAt",
 		       p.id, p.name, p.slug, p.subdomain
 		FROM (
-			SELECT DISTINCT ON (rs."articleId") rs.id, rs.source, rs.status, rs."scrollDepth", rs."dwellSeconds", rs."createdAt", rs."articleId"
+			SELECT DISTINCT ON (rs."articleId") rs.id, rs.source, rs.status, rs."scrollDepth", rs."dwellSeconds", rs."createdAt", rs."seq", rs."articleId"
 			FROM "ReadingSession" rs
 			WHERE rs."userId" = $1 AND rs."createdAt" >= $2
-			ORDER BY rs."articleId", rs."createdAt" DESC
+			ORDER BY rs."articleId", rs."seq" DESC
 		) t
 		JOIN "Article" a ON a.id = t."articleId"
 		LEFT JOIN "Publisher" p ON p.id = a."publisherId"
-		ORDER BY t."createdAt" DESC
+		ORDER BY t."seq" DESC
 		LIMIT 100
 	`, toUUID(userID), since)
 	if err != nil {

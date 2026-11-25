@@ -1549,6 +1549,7 @@ type ReadingSession struct {
 	Hostname           pgtype.Text      `json:"hostname"`
 	ReferrerUsername   pgtype.Text      `json:"referrerUsername"`
 	CreatedAt          pgtype.Timestamp `json:"createdAt"`
+	Seq                int64            `json:"seq"`
 }
 
 type Recommendation struct {

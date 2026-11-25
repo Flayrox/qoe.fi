@@ -2059,12 +2059,16 @@ CREATE TABLE "ReadingSession" (
     "hostname" TEXT,
     "referrerUsername" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "seq" BIGSERIAL NOT NULL,
 
     CONSTRAINT "ReadingSession_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
 CREATE INDEX "ReadingSession_userId_createdAt_idx" ON "ReadingSession"("userId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "ReadingSession_userId_seq_idx" ON "ReadingSession"("userId", "seq" DESC);
 
 -- CreateIndex
 CREATE INDEX "ReadingSession_articleId_createdAt_idx" ON "ReadingSession"("articleId", "createdAt");

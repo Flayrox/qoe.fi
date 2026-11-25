@@ -10130,6 +10130,15 @@ Les index nécessaires existent déjà (`Post_parentId_idx`, `Post_rootId_idx`,
 
 C'est le **seul point en attente d'arbitrage**. Le comportement actuel de `contestableDecision` (`internal/abuse/appeal.go`) est inchangé : dernier verdict non-allow par `createdAt`, `decidedBy`, `id` — aucune règle produit n'a été ajoutée. `TestAppeal_FullCycle` reste donc **rouge**, volontairement, sans être modifié ni skippé : il encode la branche « essaim ». La migration `00102` (`RiskDecision.seq`) ne sert qu'au départage déterministe de la revue (`ListOpenDecisions`, `ResolveDecision`) ; elle n'encode ni « dernier automatique » ni « dernier humain » et n'est pas utilisée par le recours.
 
+## Ordre total des sessions de lecture et révocation exacte (00103, 2026-11-24)
+
+Deux rouges reproduits hors du recours, mesurés avant correction : `TestReadingHistory` **1/15** échecs, `TestAbuseWiring_SuperadminPassthrough` **2/10**. Causes réelles, pas des tests instables à tolérer :
+
+- `ReadingSession."createdAt"` est un `TIMESTAMP(3)` et l'historique départageait par `createdAt` seul : deux sessions de la même milliseconde n'avaient aucun ordre. `00103` ajoute `ReadingSession.seq BIGSERIAL` (+ index `(userId, seq DESC)`) ; `ReadingHistory` déduplique et trie par `seq DESC`. Le test n'est pas modifié.
+- `RevokeGrant` écrivait `endsAt = now` alors que `SubscriptionGrant_dates_check` impose `endsAt > startsAt` : un octroi créé puis révoqué dans la même milliseconde violait la contrainte. `endsAt = GREATEST(now, startsAt + 1 ms)` ; le toggle off renvoie l'état faux par construction (tous les octrois Pro effectifs viennent d'être révoqués), sans relire `HasPro` dans la fenêtre de 1 ms.
+
+Preuves après correctif : `TestReadingHistory` **15/15** PASS, `TestAbuseWiring_SuperadminPassthrough` **10/10** PASS ; suite interne complète : seul `TestAppeal_FullCycle` rouge (question ouverte ci-dessus). Migrations appliquées jusqu'à **103** ; `00100` reste absente de `goose_db_version` et non créée.
+
 ## Graphe de contenu — L45 (2026-11-24)
 
 | Élément                                                                                               | État                              | Preuve                                                                                                                                                                                                                                                                                                                                                                                      |

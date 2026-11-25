@@ -52,5 +52,9 @@ func (s *Service) SetPublisherEmailPro(ctx context.Context, userID, publisherID 
 	s.logAudit(ctx, userID, "publisher.email_pro", "publisher", publisherID, map[string]any{
 		"emailPro": false,
 	})
-	return subscriptions.HasPro(ctx, s.pool, publisherID, now), nil
+	// Tous les octrois Pro effectifs viennent d'être révoqués : l'état renvoyé
+	// est faux par construction. Relire HasPro à `now` rouvrait une fenêtre de
+	// 1 ms quand l'octroi avait démarré dans la même milliseconde que la
+	// révocation (endsAt doit rester strictement > startsAt par contrainte).
+	return false, nil
 }
