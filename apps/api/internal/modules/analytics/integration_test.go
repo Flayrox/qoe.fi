@@ -132,10 +132,18 @@ func seedCounters(t *testing.T, ctx context.Context) {
 		 VALUES (gen_random_uuid()::text, $1, 'art_an_01', now())`, readerID); err != nil {
 		t.Fatalf("bookmark: %v", err)
 	}
-	if _, err := poolTest.Exec(ctx,
+	var commentID string
+	if err := poolTest.QueryRow(ctx,
 		`INSERT INTO "Post" (id, content, "rootArticleId", "authorId", "createdAt", "updatedAt")
-		 VALUES (gen_random_uuid()::text, 'Super !', 'art_an_01', $1, now(), now())`, readerID); err != nil {
+		 VALUES (gen_random_uuid()::text, 'Super !', 'art_an_01', $1, now(), now()) RETURNING id`, readerID).Scan(&commentID); err != nil {
 		t.Fatalf("comment: %v", err)
+	}
+	// Une réponse ne doit pas gonfler le compteur de commentaires de l'article :
+	// le plan L42 ne compte que parentId IS NULL.
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Post" (id, content, "authorId", "createdAt", "updatedAt", "parentId")
+		 VALUES (gen_random_uuid()::text, 'Réponse', $1, now(), now(), $2)`, readerID, commentID); err != nil {
+		t.Fatalf("réponse: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
 		`INSERT INTO "Highlight" (id, text, "isPublic", "articleId", "readerId", "createdAt")
@@ -197,6 +205,10 @@ func TestProductMetrics(t *testing.T) {
 	// art_an_01 : 1 bookmark + 1 comment + 1 highlight + 1 annotation = 4 interactions → en tête.
 	if pm.TopArticles[0].Slug != "tech-a" {
 		t.Fatalf("top article = %s, attendu tech-a", pm.TopArticles[0].Slug)
+	}
+	if pm.TopArticles[0].Comments != 1 || pm.TotalComments != 1 {
+		t.Fatalf("commentaires = %d/%d, attendu 1/1 (racine seule)",
+			pm.TopArticles[0].Comments, pm.TotalComments)
 	}
 	if pm.TopArticles[0].Interactions != 4 {
 		t.Fatalf("interactions = %d, attendu 4", pm.TopArticles[0].Interactions)

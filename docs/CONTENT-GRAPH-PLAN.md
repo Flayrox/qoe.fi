@@ -359,6 +359,31 @@ invariants pour les écritures futures ; `TestThreadScope_TriggerBackfillsMissin
 échoue sans lui (`rootId réparé = <nil>`) et passe avec. `up-to 106` rejoué
 sans erreur.
 
+**Clôture — lecteurs legacy (2026-11-25).** Comparaison `f822ce52d` (L42) →
+`HEAD`. Avant : **2 lecteurs de production logiques**, soit **3 sites** avec la
+copie générée — `apps/api/internal/modules/analytics/service.go:1420`,
+`apps/api/sql/queries/notification_center.sql:26` et
+`apps/api/internal/database/notification_center.sql.go:90` —, **0 écrivain de
+production**, **1 maintenance** (`apps/api/internal/seed/top.go:767`, TRUNCATE)
+et **2 références de fixture** (`analytics/integration_test.go:54,233`). Après :
+**0 lecteur**, **0 écrivain**, la même maintenance, **2 fixtures** et **1
+assertion** (`notifications/integration_test.go:421`). Analytics est passé à
+`Post` en `a33e8a8e5` et notification en `83629fd25` ; le code généré ne
+contient plus la table. Aucune autre table legacy n'est nommée par L42. Le
+compteur analytics remplace bien `parentId IS NULL` (plan ci-dessous), corrigé
+lors de cette clôture.
+
+**Conformité de 00106 au plan.** Les règles du plan sont littérales :
+« `parentId` ⇒ le parent existe et partage le même `rootArticleId` »,
+« réponses : `rootId = COALESCE(parent.rootId, parent.id)`, même
+`rootArticleId` », « `replyCount` recalculé depuis les enfants directs », et
+« `replyCount` et les compteurs d'articles comptent les lignes `deletedAt IS
+NULL` […] Le tombstone occupe une place mais n'est pas compté ». `00106`
+applique exactement ces trois règles : remontée jusqu'à la racine réelle
+(équivalent transitif de `COALESCE`), copie du `rootArticleId` du parent (la
+réponse cross-article rejoint donc l'article du parent), et comptage des seuls
+enfants directs vivants. Aucune correction de la migration n'était nécessaire.
+
 **Décisions prises pendant L42.**
 
 - _Un seul chemin de lecture_ : `posts.ReplyPageFor` sert les trois surfaces ; la politique
