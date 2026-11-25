@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from '@qoe/ui/dialog';
 import { markSkin } from '@qoe/ui/mark-skin';
+import { Textarea } from '@qoe/ui/input';
 
 export interface DetectedBracketAnnotation {
   /** Position de début du motif complet `{Texte}(Note)` dans le document ProseMirror. */
@@ -128,7 +129,7 @@ export const PastedAnnotationsDialog = ({
               >
                 {t`Contenu de l'annotation officielle`}
               </label>
-              <textarea
+              <Textarea
                 id="pasted-annotation-note"
                 rows={2}
                 value={noteDraft}
@@ -139,7 +140,7 @@ export const PastedAnnotationsDialog = ({
                     onConfirmCurrent(effectiveNote);
                   }
                 }}
-                className="w-full resize-none rounded-xl border border-border/60 bg-background p-2.5 font-sans text-xs leading-relaxed text-foreground transition-all placeholder:text-muted-foreground/40 focus:border-primary/60 focus:ring-1 focus:ring-primary/30 focus:outline-none"
+                className="w-full! resize-none rounded-xl border border-border/60 bg-background p-2.5 font-sans text-xs! leading-relaxed! text-foreground transition-all placeholder:text-muted-foreground/40 focus:border-primary/60 focus:ring-1 focus:ring-primary/30 focus:outline-none h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               />
             </div>
           </div>
@@ -156,9 +157,9 @@ export const PastedAnnotationsDialog = ({
                 variant="ghost"
                 size="sm"
                 onClick={onSkipAll}
-                className="text-muted-foreground"
+                className="text-muted-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               >
-                <Ban className="size-3.5" />
+                <Ban className="size-3.5!" />
                 <span>{t`Non pour tous`}</span>
               </Button>
             )}

@@ -74,6 +74,7 @@ import { ArticleHistoryModal } from './ArticleHistoryModal';
 import { RecoverArticleModal } from './RecoverArticleModal';
 import { PastedAnnotationsDialog, type DetectedBracketAnnotation } from './PastedAnnotationsDialog';
 import { EditorShortcutsPanel } from './EditorShortcutsPanel';
+import { Input } from '@qoe/ui/input';
 
 const BRACKET_ANNOTATION_TEST_REGEX = /\{([^{}\n]+?)\}\s*\(([^()\n]+?)\)/;
 const BRACKET_ANNOTATION_GLOBAL_REGEX = /\{([^{}\n]+?)\}\s*\(([^()\n]+?)\)/g;
@@ -2272,9 +2273,9 @@ export function Editor({
                   }
                   setShowRecoverModal(true);
                 }}
-                className="shrink-0"
+                className="shrink-0 h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               >
-                <GitFork className="w-3.5 h-3.5" />
+                <GitFork className="w-3.5! h-3.5!" />
                 {initialSovereignCopyId
                   ? t`Ouvrir ma version personnelle`
                   : t`Récupérer ma version`}
@@ -2309,9 +2310,9 @@ export function Editor({
                     toast.error(res.error.message);
                   }
                 }}
-                className="shrink-0 gap-1.5"
+                className="shrink-0 gap-1.5 h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal "
               >
-                <Send className="w-3 h-3" />
+                <Send className="w-3! h-3!" />
                 {revisionPending ? t`Envoi...` : t`Proposer cette révision au média`}
               </Button>
             </div>
@@ -2347,7 +2348,7 @@ export function Editor({
             </div>
           )}
           <div className="space-y-3">
-            <input
+            <Input
               id="article-title"
               type="text"
               value={title}
@@ -2356,7 +2357,7 @@ export function Editor({
                 if (initialCanEdit) setTitle(event.target.value);
               }}
               placeholder={t`Titre de votre article...`}
-              className="w-full bg-transparent border-0 text-3xl md:text-4xl font-bold tracking-tight text-foreground focus:outline-none placeholder:text-muted-foreground/30 font-sans leading-tight"
+              className="w-full! bg-transparent border-0 text-3xl! md:text-4xl font-bold! tracking-tight text-foreground focus:outline-none placeholder:text-muted-foreground/30 font-sans leading-tight! h-auto! whitespace-normal! justify-normal inline-block "
             />
             {initialCanEdit ? (
               <div className="flex justify-end">
@@ -2366,12 +2367,12 @@ export function Editor({
                   size="xs"
                   onClick={() => void runEditorAssist('title')}
                   disabled={aiDialog?.loading}
-                  className="text-muted-foreground"
+                  className="text-muted-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                 >
                   {aiDialog?.loading && aiDialog.task === 'title' ? (
-                    <Loader2 className="size-3 animate-spin" />
+                    <Loader2 className="size-3! animate-spin" />
                   ) : (
-                    <Sparkles className="size-3 text-primary" />
+                    <Sparkles className="size-3! text-primary" />
                   )}
                   {t`Proposer des titres`}
                 </Button>
@@ -2382,14 +2383,14 @@ export function Editor({
               <span className="text-muted-foreground/60 font-medium whitespace-nowrap shrink-0 select-none">
                 slug:
               </span>
-              <input
+              <Input
                 type="text"
                 value={slug}
                 onChange={(event) =>
                   setSlug(event.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-'))
                 }
                 placeholder="slug-url"
-                className="bg-transparent border-0 p-0 text-xs font-sans font-medium text-muted-foreground focus:outline-none flex-1 min-w-0"
+                className="bg-transparent border-0 p-0 text-xs! font-sans font-medium! text-muted-foreground focus:outline-none flex-1 min-w-0 leading-[16px]! h-auto! whitespace-normal! justify-normal inline-block "
               />
             </div>
           </div>
@@ -2445,11 +2446,11 @@ export function Editor({
               className="h-px w-full pointer-events-none opacity-0 -mb-4"
             />
 
-            <input
+            <Input
               ref={bodyImageInputRef}
               type="file"
               accept="image/*"
-              className="hidden"
+              className="hidden h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal "
               aria-label={t`Insérer image`}
               onChange={(event) => {
                 const file = event.target.files?.[0];
@@ -2457,12 +2458,12 @@ export function Editor({
                 event.target.value = '';
               }}
             />
-            <input
+            <Input
               ref={galleryInputRef}
               type="file"
               accept="image/*"
               multiple
-              className="hidden"
+              className="hidden h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal "
               aria-label={t`Insérer une galerie`}
               onChange={(event) => {
                 const files = Array.from(event.target.files ?? []);
@@ -2470,11 +2471,11 @@ export function Editor({
                 event.target.value = '';
               }}
             />
-            <input
+            <Input
               ref={replaceImageInputRef}
               type="file"
               accept="image/*"
-              className="hidden"
+              className="hidden h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal "
               aria-label={t`Remplacer l'image`}
               onChange={(event) => {
                 const file = event.target.files?.[0];

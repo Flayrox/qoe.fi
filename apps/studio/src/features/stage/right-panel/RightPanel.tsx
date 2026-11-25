@@ -9,6 +9,9 @@ import { Copy, Trash2, ArrowLeft, ArrowUp, ArrowDown, Plus, X } from 'lucide-rea
 import type { LayoutConfig, TemplateBlock, TemplateNode } from '@qoe/ui/templates';
 import { Select } from '@qoe/ui/select';
 import { t } from '@lingui/core/macro';
+import { Button } from '@qoe/ui/button';
+import { Input, Textarea } from '@qoe/ui/input';
+import { CheckboxInput } from '@qoe/ui/checkbox';
 
 interface RightPanelProps {
   layout: LayoutConfig;
@@ -109,25 +112,27 @@ export function RightPanel({
           </span>
         </div>
         <div className="flex items-center gap-1">
-          <button
+          <Button
+            variant="ghost"
             type="button"
             title={t`Dupliquer`}
             onClick={() => onDuplicateBlock(selectedBlock.id)}
-            className="p-1 hover:text-foreground text-muted-foreground rounded transition-colors"
+            className="hover:bg-transparent p-1 hover:text-foreground text-muted-foreground rounded transition-colors h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
           >
-            <Copy className="w-3.5 h-3.5" />
-          </button>
-          <button
+            <Copy className="w-3.5! h-3.5!" />
+          </Button>
+          <Button
+            variant="ghost"
             type="button"
             title={t`Supprimer`}
             onClick={() => {
               onDeleteBlock(selectedBlock.id);
               onSelectBlock(null);
             }}
-            className="p-1 hover:text-destructive-text text-muted-foreground rounded transition-colors"
+            className="hover:bg-transparent p-1 hover:text-destructive-text text-muted-foreground rounded transition-colors h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
           >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+            <Trash2 className="w-3.5! h-3.5!" />
+          </Button>
         </div>
       </div>
 
@@ -136,16 +141,18 @@ export function RightPanel({
         {/* NŒUD SÉLECTIONNÉ */}
         {selectedNode && selectedBlock && selectedOid && (
           <div className="space-y-2 rounded-lg border border-primary/40 bg-primary/5 p-2.5">
-            <button
+            <Button
+              variant="ghost"
+              size="xs"
               type="button"
               onClick={() => onSelectNode(null, null, selectedBlock.id)}
-              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+              className="hover:bg-transparent flex items-center gap-1 text-[11px]! text-muted-foreground hover:text-foreground h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal "
             >
-              <ArrowLeft className="h-3 w-3" />
+              <ArrowLeft className="h-3! w-3!" />
               <span>
                 {selectedBlock.type} › {selectedNode.node.kind}
               </span>
-            </button>
+            </Button>
             <div className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/70">
               {t`Élément ·`} {selectedNode.node.kind}
               {selectedNode.slotKey ? ` · ${selectedNode.slotKey}` : ''}
@@ -155,7 +162,7 @@ export function RightPanel({
               selectedNode.node.kind === 'badge') && (
               <div className="space-y-1">
                 <label className="text-muted-foreground text-[11px]">{t`Texte`}</label>
-                <input
+                <Input
                   type="text"
                   value={
                     (selectedNode.node.overrides?.text as string) ??
@@ -167,14 +174,14 @@ export function RightPanel({
                       overrides: { ...(selectedNode.node.overrides ?? {}), text: e.target.value },
                     })
                   }
-                  className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
+                  className="w-full! bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs! leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                 />
               </div>
             )}
             {selectedNode.node.kind === 'button' && (
               <div className="space-y-1">
                 <label className="text-muted-foreground text-[11px]">{t`Lien`}</label>
-                <input
+                <Input
                   type="text"
                   value={(selectedNode.node.overrides?.href as string) ?? ''}
                   placeholder="/contact"
@@ -183,14 +190,14 @@ export function RightPanel({
                       overrides: { ...(selectedNode.node.overrides ?? {}), href: e.target.value },
                     })
                   }
-                  className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
+                  className="w-full! bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs! leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                 />
               </div>
             )}
             {selectedNode.node.kind === 'image' && (
               <div className="space-y-1">
                 <label className="text-muted-foreground text-[11px]">{t`Source image`}</label>
-                <input
+                <Input
                   type="text"
                   value={(selectedNode.node.overrides?.src as string) ?? ''}
                   placeholder="https://…"
@@ -199,18 +206,21 @@ export function RightPanel({
                       overrides: { ...(selectedNode.node.overrides ?? {}), src: e.target.value },
                     })
                   }
-                  className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
+                  className="w-full! bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs! leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                 />
               </div>
             )}
-            <button
+            <Button
+              variant="solid"
+              tone="danger"
+              size="xs"
               type="button"
               onClick={() => onRemoveNode(selectedBlock.id, selectedOid)}
-              className="flex w-full items-center justify-center gap-1 rounded-lg border border-destructive/40 py-1.5 text-[11px] text-destructive-text hover:bg-destructive/10"
+              className="flex w-full! items-center justify-center gap-1 rounded-lg border border-destructive/40 py-1.5 text-[11px]! text-destructive-text hover:bg-destructive/10 h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! px-0 "
             >
-              <Trash2 className="h-3 w-3" />
+              <Trash2 className="h-3! w-3!" />
               <span>{t`Supprimer l'élément`}</span>
-            </button>
+            </Button>
           </div>
         )}
 
@@ -231,16 +241,18 @@ export function RightPanel({
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {NODE_KINDS.map((k) => (
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="xs"
                       key={k.kind}
                       type="button"
                       onClick={() => onAddNode(selectedBlock.id, slotKey, k.kind)}
-                      className="flex items-center gap-1 rounded-md bg-muted/50 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+                      className="hover:bg-transparent flex items-center gap-1 rounded-md bg-muted/50 px-2 py-1 text-[11px]! text-muted-foreground hover:text-foreground h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal "
                       title={t`Ajouter : ${k.label}`}
                     >
-                      <Plus className="h-3 w-3" />
+                      <Plus className="h-3! w-3!" />
                       <span>{k.label}</span>
-                    </button>
+                    </Button>
                   ))}
                 </div>
                 {(selectedBlock.slots?.[slotKey] ?? []).map((n) => (
@@ -248,38 +260,43 @@ export function RightPanel({
                     key={n.oid}
                     className="mt-1 flex items-center justify-between rounded-md bg-muted/40 px-2 py-1"
                   >
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="xs"
                       type="button"
                       onClick={() => onSelectNode(n.oid, `slots/${slotKey}`, selectedBlock.id)}
-                      className="text-[11px] text-muted-foreground hover:text-foreground"
+                      className="hover:bg-transparent text-[11px]! text-muted-foreground hover:text-foreground h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                     >
                       {n.kind} · {n.oid.slice(0, 6)}
-                    </button>
+                    </Button>
                     <div className="flex items-center">
-                      <button
+                      <Button
+                        variant="ghost"
                         type="button"
                         onClick={() => onMoveNode(selectedBlock.id, n.oid, 'up')}
-                        className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+                        className="hover:bg-transparent rounded p-0.5 text-muted-foreground hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                         title={t`Monter`}
                       >
-                        <ArrowUp className="h-3 w-3" />
-                      </button>
-                      <button
+                        <ArrowUp className="h-3! w-3!" />
+                      </Button>
+                      <Button
+                        variant="ghost"
                         type="button"
                         onClick={() => onMoveNode(selectedBlock.id, n.oid, 'down')}
-                        className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+                        className="hover:bg-transparent rounded p-0.5 text-muted-foreground hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                         title={t`Descendre`}
                       >
-                        <ArrowDown className="h-3 w-3" />
-                      </button>
-                      <button
+                        <ArrowDown className="h-3! w-3!" />
+                      </Button>
+                      <Button
+                        variant="ghost"
                         type="button"
                         onClick={() => onRemoveNode(selectedBlock.id, n.oid)}
-                        className="rounded p-0.5 text-muted-foreground hover:text-destructive-text"
+                        className="hover:bg-transparent rounded p-0.5 text-muted-foreground hover:text-destructive-text h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                         title={t`Supprimer`}
                       >
-                        <X className="h-3 w-3" />
-                      </button>
+                        <X className="h-3! w-3!" />
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -299,11 +316,10 @@ export function RightPanel({
                 <span className="text-muted-foreground text-[11px]">
                   {device === 'mobile' ? t`Masquer sur mobile` : t`Masquer sur tablette`}
                 </span>
-                <input
-                  type="checkbox"
+                <CheckboxInput
                   checked={hidden}
                   onChange={() => onToggleHiddenAt(selectedBlock.id, device)}
-                  className="rounded border-border accent-primary cursor-pointer"
+                  className="rounded border-border accent-primary cursor-pointer h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                 />
               </div>
             );
@@ -338,7 +354,9 @@ export function RightPanel({
               <label className="text-muted-foreground text-[11px]">{t`Hauteur de Section`}</label>
               <div className="grid grid-cols-3 gap-1">
                 {(['compact', 'medium', 'tall'] as const).map((h) => (
-                  <button
+                  <Button
+                    variant="solid"
+                    tone="brand"
                     key={h}
                     type="button"
                     onClick={() => handlePropChange('height', h)}
@@ -346,10 +364,10 @@ export function RightPanel({
                       (props.height || 'medium') === h
                         ? 'bg-primary text-primary-foreground font-medium'
                         : 'bg-muted/50 text-muted-foreground hover:text-foreground'
-                    }`}
+                    } h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block px-0 `}
                   >
                     {h === 'compact' ? t`Compact` : h === 'tall' ? t`Grand` : t`Standard`}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -358,7 +376,9 @@ export function RightPanel({
               <label className="text-muted-foreground text-[11px]">{t`Alignement du Texte`}</label>
               <div className="grid grid-cols-2 gap-1">
                 {(['left', 'center'] as const).map((al) => (
-                  <button
+                  <Button
+                    variant="solid"
+                    tone="brand"
                     key={al}
                     type="button"
                     onClick={() => handlePropChange('alignment', al)}
@@ -366,10 +386,10 @@ export function RightPanel({
                       (props.alignment || 'center') === al
                         ? 'bg-primary text-primary-foreground font-medium'
                         : 'bg-muted/50 text-muted-foreground hover:text-foreground'
-                    }`}
+                    } h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block px-0 `}
                   >
                     {al === 'left' ? t`Gauche` : t`Centré`}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -378,7 +398,9 @@ export function RightPanel({
               <label className="text-muted-foreground text-[11px]">{t`Alignement sur mobile`}</label>
               <div className="grid grid-cols-3 gap-1">
                 {(['auto', 'left', 'center'] as const).map((al) => (
-                  <button
+                  <Button
+                    variant="solid"
+                    tone="brand"
                     key={al}
                     type="button"
                     onClick={() =>
@@ -391,33 +413,33 @@ export function RightPanel({
                       ((props.alignMobile as string) || 'auto') === al
                         ? 'bg-primary text-primary-foreground font-medium'
                         : 'bg-muted/50 text-muted-foreground hover:text-foreground'
-                    }`}
+                    } h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block px-0 `}
                   >
                     {al === 'auto' ? t`Auto` : al === 'left' ? t`Gauche` : t`Centré`}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
 
             <div className="space-y-1">
               <label className="text-muted-foreground text-[11px]">{t`Titre Personnalisé`}</label>
-              <input
+              <Input
                 type="text"
                 value={(props.customTitle as string) || ''}
                 placeholder={t`Laisser vide pour le nom par défaut`}
                 onChange={(e) => handlePropChange('customTitle', e.target.value)}
-                className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
+                className="w-full! bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs! leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               />
             </div>
 
             <div className="space-y-1">
               <label className="text-muted-foreground text-[11px]">{t`Chapeau`}</label>
-              <textarea
+              <Textarea
                 rows={2}
                 value={(props.customTagline as string) || ''}
                 placeholder={t`Laisser vide pour masquer`}
                 onChange={(e) => handlePropChange('customTagline', e.target.value)}
-                className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs resize-none"
+                className="w-full! bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs! resize-none leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               />
             </div>
           </div>
@@ -434,18 +456,20 @@ export function RightPanel({
               <label className="text-muted-foreground text-[11px]">{t`Nombre de Colonnes`}</label>
               <div className="grid grid-cols-2 gap-1">
                 {[2, 3].map((cols) => (
-                  <button
+                  <Button
+                    variant="solid"
+                    tone="brand"
                     key={cols}
                     type="button"
                     onClick={() => handlePropChange('columns', cols)}
-                    className={`py-1 rounded-md font-medium transition-all ${
+                    className={`py-1 rounded-md font-medium! transition-all ${
                       (props.columns || 3) === cols
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-muted/50 text-muted-foreground hover:text-foreground'
-                    }`}
+                    } h-auto! [font-size:inherit]! leading-[inherit]! whitespace-normal! justify-normal inline-block px-0 `}
                   >
                     {cols} {t`Colonnes`}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -454,29 +478,30 @@ export function RightPanel({
               <label className="text-muted-foreground text-[11px]">{t`Colonnes sur mobile`}</label>
               <div className="grid grid-cols-2 gap-1">
                 {[1, 2].map((cols) => (
-                  <button
+                  <Button
+                    variant="solid"
+                    tone="brand"
                     key={cols}
                     type="button"
                     onClick={() => handlePropChange('columnsMobile', cols)}
-                    className={`py-1 rounded-md font-medium transition-all ${
-                      ((props.columnsMobile as number) || 1) === cols
+                    className={`py-1 rounded-md font-medium! transition-all ${
+                      (props.columns || 3) === cols
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-muted/50 text-muted-foreground hover:text-foreground'
-                    }`}
+                    } h-auto! [font-size:inherit]! leading-[inherit]! whitespace-normal! justify-normal inline-block px-0 `}
                   >
                     {cols}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
 
             <div className="flex items-center justify-between py-1">
               <span className="text-muted-foreground text-[11px]">{t`Afficher les Catégories`}</span>
-              <input
-                type="checkbox"
+              <CheckboxInput
                 checked={props.showCategories !== false}
                 onChange={(e) => handlePropChange('showCategories', e.target.checked)}
-                className="rounded border-border accent-primary cursor-pointer"
+                className="rounded border-border accent-primary cursor-pointer h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               />
             </div>
 
@@ -484,12 +509,12 @@ export function RightPanel({
               <label className="text-muted-foreground text-[11px]">
                 {t`Rubrique (slug, vide = toutes)`}
               </label>
-              <input
+              <Input
                 type="text"
                 value={(props.categoryFilter as string) || ''}
                 placeholder={t`ex. essais`}
                 onChange={(e) => handlePropChange('categoryFilter', e.target.value)}
-                className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
+                className="w-full! bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs! leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               />
             </div>
           </div>
@@ -504,12 +529,12 @@ export function RightPanel({
 
             <div className="space-y-1">
               <label className="text-muted-foreground text-[11px]">{t`Slug de la rubrique`}</label>
-              <input
+              <Input
                 type="text"
                 value={(props.categorySlug as string) || ''}
                 placeholder={t`ex. essais`}
                 onChange={(e) => handlePropChange('categorySlug', e.target.value)}
-                className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
+                className="w-full! bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs! leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               />
             </div>
 
@@ -517,12 +542,12 @@ export function RightPanel({
               <label className="text-muted-foreground text-[11px]">
                 {t`Titre (vide = nom de la rubrique)`}
               </label>
-              <input
+              <Input
                 type="text"
                 value={(props.title as string) || ''}
                 placeholder={t`Titre`}
                 onChange={(e) => handlePropChange('title', e.target.value)}
-                className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
+                className="w-full! bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs! leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               />
             </div>
 
@@ -530,7 +555,9 @@ export function RightPanel({
               <label className="text-muted-foreground text-[11px]">{t`Présentation`}</label>
               <div className="grid grid-cols-2 gap-1">
                 {(['framed', 'plain'] as const).map((l) => (
-                  <button
+                  <Button
+                    variant="solid"
+                    tone="brand"
                     key={l}
                     type="button"
                     onClick={() => handlePropChange('layout', l)}
@@ -538,17 +565,17 @@ export function RightPanel({
                       (props.layout || 'framed') === l
                         ? 'bg-primary text-primary-foreground font-medium'
                         : 'bg-muted/50 text-muted-foreground hover:text-foreground'
-                    }`}
+                    } h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block px-0 `}
                   >
                     {l === 'framed' ? t`Encadré` : t`Simple`}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
 
             <div className="space-y-1">
               <label className="text-muted-foreground text-[11px]">{t`Articles (1-6)`}</label>
-              <input
+              <Input
                 type="number"
                 min={1}
                 max={6}
@@ -559,17 +586,16 @@ export function RightPanel({
                     Math.max(1, Math.min(6, Number(e.target.value) || 3))
                   )
                 }
-                className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
+                className="w-full! bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs! leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               />
             </div>
 
             <div className="flex items-center justify-between py-1">
               <span className="text-muted-foreground text-[11px]">{t`Temps de lecture`}</span>
-              <input
-                type="checkbox"
+              <CheckboxInput
                 checked={props.showReadingTime !== false}
                 onChange={(e) => handlePropChange('showReadingTime', e.target.checked)}
-                className="rounded border-border accent-primary cursor-pointer"
+                className="rounded border-border accent-primary cursor-pointer h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               />
             </div>
           </div>
@@ -602,29 +628,30 @@ export function RightPanel({
               <label className="text-muted-foreground text-[11px]">{t`Colonnes mobile (grille)`}</label>
               <div className="grid grid-cols-2 gap-1">
                 {[1, 2].map((cols) => (
-                  <button
+                  <Button
+                    variant="solid"
+                    tone="brand"
                     key={cols}
                     type="button"
                     onClick={() => handlePropChange('columnsMobile', cols)}
-                    className={`py-1 rounded-md font-medium transition-all ${
-                      ((props.columnsMobile as number) || 1) === cols
+                    className={`py-1 rounded-md font-medium! transition-all ${
+                      (props.columns || 3) === cols
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-muted/50 text-muted-foreground hover:text-foreground'
-                    }`}
+                    } h-auto! [font-size:inherit]! leading-[inherit]! whitespace-normal! justify-normal inline-block px-0 `}
                   >
                     {cols}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
 
             <div className="flex items-center justify-between py-1">
               <span className="text-muted-foreground text-[11px]">{t`Filtre par Catégories`}</span>
-              <input
-                type="checkbox"
+              <CheckboxInput
                 checked={props.showCategories !== false}
                 onChange={(e) => handlePropChange('showCategories', e.target.checked)}
-                className="rounded border-border accent-primary cursor-pointer"
+                className="rounded border-border accent-primary cursor-pointer h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               />
             </div>
 
@@ -632,12 +659,12 @@ export function RightPanel({
               <label className="text-muted-foreground text-[11px]">
                 {t`Rubrique (slug, vide = toutes)`}
               </label>
-              <input
+              <Input
                 type="text"
                 value={(props.categoryFilter as string) || ''}
                 placeholder={t`ex. essais`}
                 onChange={(e) => handlePropChange('categoryFilter', e.target.value)}
-                className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
+                className="w-full! bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs! leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               />
             </div>
           </div>
@@ -652,23 +679,23 @@ export function RightPanel({
 
             <div className="space-y-1">
               <label className="text-muted-foreground text-[11px]">{t`Titre d'Incitation`}</label>
-              <input
+              <Input
                 type="text"
                 value={(props.title as string) || ''}
                 placeholder={t`Titre`}
                 onChange={(e) => handlePropChange('title', e.target.value)}
-                className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
+                className="w-full! bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs! leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               />
             </div>
 
             <div className="space-y-1">
               <label className="text-muted-foreground text-[11px]">{t`Texte du Bouton`}</label>
-              <input
+              <Input
                 type="text"
                 value={(props.buttonText as string) || ''}
                 placeholder={t`Texte du bouton`}
                 onChange={(e) => handlePropChange('buttonText', e.target.value)}
-                className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
+                className="w-full! bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs! leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               />
             </div>
           </div>
@@ -682,11 +709,10 @@ export function RightPanel({
             </div>
             <div className="flex items-center justify-between py-1">
               <span className="text-muted-foreground text-[11px]">{t`En-tête Collante (Sticky)`}</span>
-              <input
-                type="checkbox"
+              <CheckboxInput
                 checked={props.sticky !== false}
                 onChange={(e) => handlePropChange('sticky', e.target.checked)}
-                className="rounded border-border accent-primary cursor-pointer"
+                className="rounded border-border accent-primary cursor-pointer h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               />
             </div>
           </div>
@@ -701,12 +727,12 @@ export function RightPanel({
 
             <div className="space-y-1">
               <label className="text-muted-foreground text-[11px]">{t`Badge`}</label>
-              <input
+              <Input
                 type="text"
                 value={(props.badgeText as string) || ''}
                 placeholder={t`Laisser vide pour masquer`}
                 onChange={(e) => handlePropChange('badgeText', e.target.value)}
-                className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
+                className="w-full! bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs! leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               />
             </div>
 
@@ -714,18 +740,21 @@ export function RightPanel({
               <label className="text-muted-foreground text-[11px]">{t`Ratio image`}</label>
               <div className="grid grid-cols-4 gap-1">
                 {(['16:9', '21:9', '4:3', '1:1'] as const).map((r) => (
-                  <button
+                  <Button
+                    variant="solid"
+                    tone="brand"
+                    size="xs"
                     key={r}
                     type="button"
                     onClick={() => handlePropChange('aspectRatio', r)}
-                    className={`py-1 rounded-md font-mono text-[11px] transition-all ${
+                    className={`py-1 rounded-md font-mono text-[11px]! transition-all ${
                       (props.aspectRatio || '16:9') === r
                         ? 'bg-primary text-primary-foreground font-medium'
                         : 'bg-muted/50 text-muted-foreground hover:text-foreground'
-                    }`}
+                    } h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block px-0 `}
                   >
                     {r}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -740,11 +769,10 @@ export function RightPanel({
             ).map(([key, label]) => (
               <div key={key} className="flex items-center justify-between py-1">
                 <span className="text-muted-foreground text-[11px]">{label}</span>
-                <input
-                  type="checkbox"
+                <CheckboxInput
                   checked={props[key] !== false}
                   onChange={(e) => handlePropChange(key, e.target.checked)}
-                  className="rounded border-border accent-primary cursor-pointer"
+                  className="rounded border-border accent-primary cursor-pointer h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                 />
               </div>
             ))}
@@ -753,12 +781,12 @@ export function RightPanel({
               <label className="text-muted-foreground text-[11px]">
                 {t`Rubrique (slug, vide = toutes)`}
               </label>
-              <input
+              <Input
                 type="text"
                 value={(props.categoryFilter as string) || ''}
                 placeholder={t`ex. essais`}
                 onChange={(e) => handlePropChange('categoryFilter', e.target.value)}
-                className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
+                className="w-full! bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs! leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               />
             </div>
           </div>
@@ -775,30 +803,32 @@ export function RightPanel({
               <label className="text-muted-foreground text-[11px]">{t`Disposition`}</label>
               <div className="grid grid-cols-2 gap-1">
                 {(['columns', 'minimal-row'] as const).map((l) => (
-                  <button
+                  <Button
+                    variant="solid"
+                    tone="brand"
                     key={l}
                     type="button"
                     onClick={() => handlePropChange('layout', l)}
                     className={`py-1 rounded-md transition-all ${
-                      (props.layout || 'columns') === l
+                      (props.layout || 'framed') === l
                         ? 'bg-primary text-primary-foreground font-medium'
                         : 'bg-muted/50 text-muted-foreground hover:text-foreground'
-                    }`}
+                    } h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block px-0 `}
                   >
                     {l === 'columns' ? t`Colonnes` : t`Ligne`}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
 
             <div className="space-y-1">
               <label className="text-muted-foreground text-[11px]">{t`Mention copyright`}</label>
-              <input
+              <Input
                 type="text"
                 value={(props.customCopyright as string) || ''}
                 placeholder={t`Tous droits réservés.`}
                 onChange={(e) => handlePropChange('customCopyright', e.target.value)}
-                className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
+                className="w-full! bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs! leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               />
             </div>
 
@@ -810,11 +840,10 @@ export function RightPanel({
             ).map(([key, label]) => (
               <div key={key} className="flex items-center justify-between py-1">
                 <span className="text-muted-foreground text-[11px]">{label}</span>
-                <input
-                  type="checkbox"
+                <CheckboxInput
                   checked={props[key] !== false}
                   onChange={(e) => handlePropChange(key, e.target.checked)}
-                  className="rounded border-border accent-primary cursor-pointer"
+                  className="rounded border-border accent-primary cursor-pointer h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                 />
               </div>
             ))}

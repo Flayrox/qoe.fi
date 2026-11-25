@@ -6,6 +6,8 @@
 
 import React, { useState } from 'react';
 import { t } from '@lingui/core/macro';
+import { Button } from '@qoe/ui/button';
+import { Input } from '@qoe/ui/input';
 
 export function InputRange({
   label,
@@ -26,16 +28,16 @@ export function InputRange({
   return (
     <div className="flex items-center gap-2">
       <span className="w-10 shrink-0 text-[10px] text-muted-foreground">{label}</span>
-      <input
+      <Input
         type="range"
         min={min}
         max={max}
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="h-1 flex-1 cursor-pointer accent-primary"
+        className="h-1! flex-1 cursor-pointer border-0 bg-transparent accent-primary focus-visible:ring-0 [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
       />
-      <input
+      <Input
         type="number"
         min={min}
         max={max}
@@ -60,7 +62,7 @@ export function InputRange({
             onChange(Math.max(min, value - (e.shiftKey ? step * 10 : step)));
           }
         }}
-        className="w-12 rounded-md border border-border/60 bg-muted/50 px-1 py-0.5 text-right font-mono text-[11px]"
+        className="w-12! rounded-md border border-border/60 bg-muted/50 px-1 py-0.5 text-right font-mono text-[11px]! h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
       />
     </div>
   );
@@ -80,13 +82,13 @@ export function SpacingInputs({
   const Cell = ({ side, k }: { side: 'top' | 'right' | 'bottom' | 'left'; k: string }) => (
     <label className="flex items-center gap-1 rounded-md border border-border/50 bg-muted/40 px-1 py-0.5">
       <span className="text-[9px] text-muted-foreground">{k}</span>
-      <input
+      <Input
         type="number"
         min={0}
         max={corners ? 64 : 240}
         value={values[side] ?? 0}
         onChange={(e) => onSide(side, Math.max(0, Number(e.target.value) || 0))}
-        className="w-9 bg-transparent text-right font-mono text-[11px] outline-none"
+        className="w-9! bg-transparent text-right font-mono text-[11px]! outline-none h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
       />
     </label>
   );
@@ -94,17 +96,19 @@ export function SpacingInputs({
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-medium text-muted-foreground">{title}</span>
-        <button
+        <Button
+          variant="ghost"
+          size="xs"
           type="button"
           onClick={() => {
             const avg = Math.round((values.top + values.right + values.bottom + values.left) / 4);
             onSide('all', avg);
           }}
-          className="text-[10px] text-primary hover:underline"
+          className="hover:bg-transparent text-[10px]! text-primary hover:underline h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
           title={t`Uniformiser (moyenne)`}
         >
           {t`Tous`}
-        </button>
+        </Button>
       </div>
       <div className="grid grid-cols-2 gap-1">
         <Cell side="top" k={corners ? '↖' : '↑'} />
@@ -128,19 +132,21 @@ export function InputRadio<T extends string>({
   return (
     <div className="flex items-center gap-0.5 rounded-lg border border-border/50 bg-muted/40 p-0.5">
       {options.map((o) => (
-        <button
+        <Button
+          variant="ghost"
+          size="xs"
           key={o.value}
           type="button"
           title={o.title ?? o.value}
           onClick={() => onChange(o.value)}
-          className={`flex-1 rounded-md px-1.5 py-1 text-[11px] transition-colors ${
+          className={`hover:bg-transparent flex-1 rounded-md px-1.5 py-1 text-[11px]! transition-colors ${
             value === o.value
               ? 'bg-background font-medium text-foreground shadow-sm'
               : 'text-muted-foreground hover:text-foreground'
-          }`}
+          } h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block `}
         >
           {o.label}
-        </button>
+        </Button>
       ))}
     </div>
   );
@@ -165,27 +171,28 @@ export function ColorField({
           style={{ backgroundColor: value || 'transparent' }}
           title={t`Choisir`}
         >
-          <input
+          <Input
             type="color"
             value={/^#[0-9a-fA-F]{6}$/.test(value) ? value : '#EE4B2B'}
             onChange={(e) => onChange(e.target.value)}
-            className="h-0 w-0 opacity-0"
+            className="h-0! w-0! opacity-0 [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
           />
         </label>
-        <input
+        <Input
           type="text"
           value={value || ''}
           placeholder="#EE4B2B"
           onChange={(e) => onChange(e.target.value)}
-          className="w-20 rounded-md border border-border/60 bg-muted/50 px-1.5 py-1 font-mono text-[11px] uppercase"
+          className="w-20! rounded-md border border-border/60 bg-muted/50 px-1.5 py-1 font-mono text-[11px]! uppercase h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
         />
         <div className="flex items-center gap-1">
           {presets.map((p) => (
-            <button
+            <Button
+              variant="outline"
               key={p}
               type="button"
               onClick={() => onChange(p)}
-              className="h-5 w-5 rounded border border-border/60 shadow-sm"
+              className="h-5! w-5! rounded border border-border/60 shadow-sm [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               style={{ backgroundColor: p }}
               title={p}
             />

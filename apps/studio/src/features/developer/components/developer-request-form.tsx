@@ -91,17 +91,18 @@ export function DeveloperRequestForm({ rejected = false }: { rejected?: boolean 
                 const selected = selectedPreset === preset.id;
 
                 return (
-                  <button
+                  <Button
                     key={preset.id}
-                    type="button"
+                    variant="ghost"
+                    block
                     onClick={() => {
                       setSelectedPreset(preset.id);
                       setReason(preset.template);
                     }}
                     className={
                       selected
-                        ? 'flex items-start gap-2.5 rounded-lg border border-primary/40 bg-primary/5 p-3 text-left transition-colors'
-                        : 'flex items-start gap-2.5 rounded-lg border border-border/60 bg-muted/20 p-3 text-left transition-colors hover:border-border hover:bg-muted/40'
+                        ? 'items-start justify-start gap-2.5 rounded-lg border border-primary/40 bg-primary/5 p-3 text-left hover:bg-primary/5 [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! '
+                        : 'items-start gap-2.5 rounded-lg border border-border/60 bg-muted/20 p-3 text-left hover:border-border hover:bg-muted/40 h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal '
                     }
                   >
                     <span
@@ -111,7 +112,7 @@ export function DeveloperRequestForm({ rejected = false }: { rejected?: boolean 
                           : 'mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md border border-border/60 bg-card text-muted-foreground'
                       }
                     >
-                      <Icon className="size-3.5" strokeWidth={1.8} />
+                      <Icon className="size-3.5!" strokeWidth={1.8} />
                     </span>
                     <span className="min-w-0">
                       <span className="block truncate text-xs font-semibold text-foreground">
@@ -121,7 +122,7 @@ export function DeveloperRequestForm({ rejected = false }: { rejected?: boolean 
                         {preset.subtitle}
                       </span>
                     </span>
-                  </button>
+                  </Button>
                 );
               })}
             </div>
@@ -153,6 +154,7 @@ export function DeveloperRequestForm({ rejected = false }: { rejected?: boolean 
             htmlFor="developer-project-url"
           >
             <Input
+              className=" h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               id="developer-project-url"
               type="url"
               value={projectUrl}

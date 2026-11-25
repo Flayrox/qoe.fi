@@ -44,6 +44,7 @@ import { t } from '@lingui/core/macro';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@qoe/ui/ui/tooltip';
 import { nextToolbarIndex } from '../lib/toolbar-navigation';
 import { useModKey } from '../hooks/useModKey';
+import { Button } from '@qoe/ui/button';
 
 interface ToolbarButtonProps {
   /** État « allumé » : la mise en forme est active au curseur. */
@@ -455,14 +456,15 @@ export function EditorToolbar({
                   {uploadProgress.fileName}
                 </span>
                 {onCancelUpload ? (
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    shape="icon"
                     onClick={onCancelUpload}
                     aria-label={t`Annuler l'envoi`}
-                    className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/60"
+                    className="size-6! shrink-0 rounded-md p-0 text-muted-foreground hover:bg-background hover:text-foreground [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                   >
-                    <X className="size-3.5" />
-                  </button>
+                    <X className="size-3.5!" />
+                  </Button>
                 ) : null}
               </div>
             ) : null}

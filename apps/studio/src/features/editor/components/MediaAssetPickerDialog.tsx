@@ -115,6 +115,7 @@ export function MediaAssetPickerDialog({
         <div className="py-1">
           <InputGroup left={<Search className="size-3.5 text-muted-foreground" />}>
             <Input
+              className=" h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={t`Rechercher par adresse d'image…`}
@@ -154,10 +155,11 @@ export function MediaAssetPickerDialog({
                 const meta = [dimensions, formatBytes(asset.sizeBytes)].filter(Boolean).join(' · ');
                 return (
                   <li key={asset.id}>
-                    <button
-                      type="button"
+                    <Button
+                      variant="ghost"
+                      block
                       onClick={() => choose(asset)}
-                      className="group block w-full overflow-hidden rounded-control border border-border/45 bg-muted/10 text-left transition-colors hover:border-primary/45 hover:bg-muted/25 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
+                      className="group w-full! overflow-hidden rounded-control border border-border/45 bg-muted/10 text-left hover:border-primary/45 hover:bg-muted/25 h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                       aria-label={t`Utiliser l'image ${index + 1}`}
                     >
                       <span className="relative block aspect-[4/3] overflow-hidden bg-muted/30">
@@ -174,7 +176,7 @@ export function MediaAssetPickerDialog({
                           {meta || asset.mimeType}
                         </span>
                       </span>
-                    </button>
+                    </Button>
                   </li>
                 );
               })}

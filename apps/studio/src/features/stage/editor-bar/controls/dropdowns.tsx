@@ -10,6 +10,8 @@ import React from 'react';
 import { InputRadio, InputRange, SpacingInputs, ColorField } from './inputs';
 import { useQoefiStyle } from '../useQoefiStyle';
 import { t } from '@lingui/core/macro';
+import { Button } from '@qoe/ui/button';
+import { CheckboxInput } from '@qoe/ui/checkbox';
 
 export function BorderControl() {
   const { style, patch } = useQoefiStyle();
@@ -104,11 +106,10 @@ export function MarginControl() {
       />
       <label className="flex cursor-pointer items-center justify-between text-[11px] text-muted-foreground">
         <span>{t`Centrer auto (margin auto)`}</span>
-        <input
-          type="checkbox"
+        <CheckboxInput
           checked={!!m.auto}
           onChange={(e) => patch({ margin: { ...m, auto: e.target.checked } })}
-          className="accent-primary"
+          className="accent-primary h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
         />
       </label>
     </div>
@@ -232,14 +233,16 @@ export function OpacityControl() {
       />
       <div className="flex gap-1">
         {[100, 80, 50, 25, 0].map((p) => (
-          <button
+          <Button
+            variant="ghost"
+            size="xs"
             key={p}
             type="button"
             onClick={() => patch({ opacity: p })}
-            className="flex-1 rounded-md bg-muted/50 py-1 font-mono text-[10px] text-muted-foreground hover:text-foreground"
+            className="hover:bg-transparent flex-1 rounded-md bg-muted/50 py-1 font-mono text-[10px]! text-muted-foreground hover:text-foreground h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block px-0 "
           >
             {p}
-          </button>
+          </Button>
         ))}
       </div>
     </div>

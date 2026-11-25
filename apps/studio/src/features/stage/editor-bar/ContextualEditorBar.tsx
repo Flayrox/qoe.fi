@@ -23,6 +23,7 @@ import {
 } from './controls/dropdowns';
 import { AdvancedTypoControls, FontControls } from './controls/text-controls';
 import { t } from '@lingui/core/macro';
+import { Button } from '@qoe/ui/button';
 
 type PanelTab = 'style' | 'text' | 'content' | null;
 
@@ -30,16 +31,18 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   const [open, setOpen] = useState(false);
   return (
     <div className="rounded-lg border border-border/50">
-      <button
+      <Button
+        variant="ghost"
+        size="xs"
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between px-2 py-1.5 text-[11px] font-medium"
+        className="hover:bg-transparent flex w-full! items-center justify-between px-2 py-1.5 text-[11px]! font-medium! h-auto! leading-[inherit]! whitespace-normal! "
       >
         <span>{title}</span>
         <ChevronDown
-          className={`h-3 w-3 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`}
+          className={`h-3! w-3! text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`}
         />
-      </button>
+      </Button>
       {open && <div className="space-y-2 border-t border-border/40 p-2">{children}</div>}
     </div>
   );
@@ -72,65 +75,74 @@ export function ContextualEditorBar() {
             </div>
             <div className="mx-1 h-4 w-px bg-border/60" />
             {(['style', 'text', 'content'] as const).map((panelId) => (
-              <button
+              <Button
+                variant="solid"
+                tone="brand"
+                size="xs"
                 key={panelId}
                 type="button"
                 onClick={() => setPanel((p) => (p === panelId ? null : panelId))}
-                className={`rounded-lg px-2 py-1 text-[11px] font-medium transition-colors ${
+                className={`rounded-lg px-2 py-1 text-[11px]! font-medium! transition-colors ${
                   panel === panelId
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
-                }`}
+                } h-auto! leading-[inherit]! whitespace-normal! justify-normal inline-block `}
               >
                 {panelId === 'style' ? t`Style` : panelId === 'text' ? t`Texte` : t`Contenu`}
-              </button>
+              </Button>
             ))}
             <div className="mx-1 h-4 w-px bg-border/60" />
             <div className="flex items-center gap-0.5">
-              <button
+              <Button
+                variant="ghost"
                 type="button"
                 onClick={() => engine.moveBlock(selected.id, 'up')}
                 title={t`Monter (⌥↑)`}
-                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               >
-                <ArrowUp className="h-3.5 w-3.5" />
-              </button>
-              <button
+                <ArrowUp className="h-3.5! w-3.5!" />
+              </Button>
+              <Button
+                variant="ghost"
                 type="button"
                 onClick={() => engine.moveBlock(selected.id, 'down')}
                 title={t`Descendre (⌥↓)`}
-                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               >
-                <ArrowDown className="h-3.5 w-3.5" />
-              </button>
-              <button
+                <ArrowDown className="h-3.5! w-3.5!" />
+              </Button>
+              <Button
+                variant="ghost"
                 type="button"
                 onClick={() => engine.duplicateBlock(selected.id)}
                 title={t`Dupliquer (⌘D)`}
-                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               >
-                <Copy className="h-3.5 w-3.5" />
-              </button>
-              <button
+                <Copy className="h-3.5! w-3.5!" />
+              </Button>
+              <Button
+                variant="ghost"
                 type="button"
                 onClick={() => engine.toggleVisibility(selected.id)}
                 title={selected.visible ? t`Masquer` : t`Afficher`}
-                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               >
                 {selected.visible ? (
-                  <Eye className="h-3.5 w-3.5" />
+                  <Eye className="h-3.5! w-3.5!" />
                 ) : (
-                  <EyeOff className="h-3.5 w-3.5 text-destructive-text" />
+                  <EyeOff className="h-3.5! w-3.5! text-destructive-text" />
                 )}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="solid"
+                tone="danger"
                 type="button"
                 onClick={() => engine.deleteBlock(selected.id)}
                 title={t`Supprimer (⌫)`}
-                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive-text"
+                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive-text h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+                <Trash2 className="h-3.5! w-3.5!" />
+              </Button>
             </div>
           </div>
 
@@ -193,18 +205,21 @@ export function ContextualEditorBar() {
                   {selected.type === 'bento-grid' && (
                     <div className="flex items-center gap-1">
                       {[2, 3].map((cols) => (
-                        <button
+                        <Button
+                          variant="solid"
+                          tone="brand"
+                          size="xs"
                           key={cols}
                           type="button"
                           onClick={() => engine.updateBlockProps(selected.id, { columns: cols })}
-                          className={`rounded-lg px-2 py-1 text-[11px] font-medium transition-colors ${
+                          className={`rounded-lg px-2 py-1 text-[11px]! font-medium! transition-colors ${
                             (props.columns || 3) === cols
                               ? 'bg-primary text-primary-foreground'
                               : 'text-muted-foreground hover:bg-muted/50'
-                          }`}
+                          } h-auto! leading-[inherit]! whitespace-normal! justify-normal inline-block `}
                         >
                           {cols} {t`Cols`}
-                        </button>
+                        </Button>
                       ))}
                     </div>
                   )}

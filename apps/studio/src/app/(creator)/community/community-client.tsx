@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, MessageSquare, Trash2 } from 'lucide-react';
 import { t } from '@lingui/core/macro';
+import { Button } from '@qoe/ui/button';
 import {
   deleteArticleCommentAction,
   getArticleCommentsAction,
@@ -135,21 +136,22 @@ export function CommunityClient({ articles }: { articles: CommunityArticle[] }) 
             const active = article.id === selectedId;
             return (
               <li key={article.id}>
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setSelectedId(article.id)}
-                  className={`flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-xs transition-colors ${
+                  className={`flex w-full! justify-between gap-2 rounded-xl px-3 py-2 text-left transition-colors ${
                     active
                       ? 'bg-muted font-semibold text-foreground'
                       : 'text-muted-foreground hover:bg-muted/60'
-                  }`}
+                  } h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! `}
                 >
                   <span className="line-clamp-2">{article.title}</span>
                   <span className="inline-flex shrink-0 items-center gap-1 text-[10px] tabular-nums">
-                    <MessageSquare className="h-3 w-3" />
+                    <MessageSquare className="h-3! w-3!" />
                     {count}
                   </span>
-                </button>
+                </Button>
               </li>
             );
           })}
@@ -196,14 +198,15 @@ export function CommunityClient({ articles }: { articles: CommunityArticle[] }) 
                     )}
                   </div>
                   {!comment.tombstone && (
-                    <button
-                      type="button"
+                    <Button
+                      variant="ghost"
+                      size="xs"
                       onClick={() => void remove(comment.id)}
-                      className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-destructive-text"
+                      className="shrink-0 gap-1 rounded-lg border border-border px-2 py-1 font-medium! text-muted-foreground transition-colors hover:bg-transparent hover:text-destructive-text h-auto! [font-size:inherit]! leading-[inherit]! whitespace-normal! justify-normal "
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 />
                       {t`Supprimer`}
-                    </button>
+                    </Button>
                   )}
                 </div>
               </li>
@@ -211,15 +214,15 @@ export function CommunityClient({ articles }: { articles: CommunityArticle[] }) 
           </ul>
         )}
         {hasMore && !loading && (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="xs"
             onClick={() => void loadMore()}
-            disabled={loadingMore}
-            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground disabled:opacity-50"
+            loading={loadingMore}
+            className="mt-3 gap-1.5 rounded-lg border border-border px-3 py-1.5 font-medium! text-muted-foreground hover:bg-transparent hover:text-foreground [&_svg]:size-3! [font-size:inherit]! leading-[inherit]! whitespace-normal! justify-normal "
           >
-            {loadingMore && <Loader2 className="h-3 w-3 animate-spin" />}
             {t`Afficher plus`}
-          </button>
+          </Button>
         )}
       </section>
     </div>

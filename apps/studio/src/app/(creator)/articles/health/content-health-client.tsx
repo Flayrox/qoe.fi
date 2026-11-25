@@ -15,7 +15,7 @@ import {
   Sparkles,
   Tags,
 } from 'lucide-react';
-import { buttonClasses } from '@qoe/ui/button';
+import { Button, buttonClasses } from '@qoe/ui/button';
 import { StudioHeader, StudioPage, StudioSection } from '@/components/studio-page';
 import { t } from '@lingui/core/macro';
 
@@ -145,38 +145,38 @@ export function ContentHealthClient({
               {t`Filtrer par point à corriger`}
             </h2>
             <div className="flex flex-wrap gap-1.5">
-              <button
+              <Button
                 type="button"
+                variant={filter === 'all' ? 'solid' : 'outline'}
+                size="xs"
                 onClick={() => setFilter('all')}
                 aria-pressed={filter === 'all'}
-                className={buttonClasses({
-                  variant: filter === 'all' ? 'solid' : 'outline',
-                  size: 'xs',
-                })}
               >
                 {t`Tout`} ({report.articles.length})
-              </button>
+              </Button>
               {HEALTH_ISSUES.map((issue) => {
                 const Icon = ISSUE_ICONS[issue.id];
                 const count = report.issueCounts[issue.id];
                 const active = filter === issue.id;
                 return (
-                  <button
+                  <Button
                     key={issue.id}
                     type="button"
+                    variant={active ? 'solid' : 'outline'}
+                    size="xs"
                     onClick={() => setFilter(active ? 'all' : issue.id)}
                     aria-pressed={active}
                     disabled={count === 0}
                     title={issue.hint}
-                    className={buttonClasses({
-                      variant: active ? 'solid' : 'outline',
-                      size: 'xs',
-                      className: count === 0 ? 'opacity-45' : undefined,
-                    })}
+                    className={
+                      count === 0
+                        ? 'opacity-45 h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block '
+                        : undefined
+                    }
                   >
-                    <Icon className="size-3.5" strokeWidth={1.5} />
+                    <Icon className="size-3.5!" strokeWidth={1.5} />
                     {issue.label} ({count})
-                  </button>
+                  </Button>
                 );
               })}
             </div>

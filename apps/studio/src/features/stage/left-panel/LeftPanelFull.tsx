@@ -39,6 +39,8 @@ import { useStageEngine, StageEditorMode } from '../context/StageEngineContext';
 import { ARTICLE_VARIANTS, type BlockType, type TemplateBlock } from '@qoe/ui/templates';
 import { stageScopeTitle } from '../scope-label';
 import { t } from '@lingui/core/macro';
+import { Button } from '@qoe/ui/button';
+import { Input } from '@qoe/ui/input';
 
 const BLOCK_CATALOG = (): {
   type: BlockType;
@@ -145,24 +147,26 @@ function LayersTab() {
     <div className="space-y-1">
       <label className="flex items-center gap-1.5 rounded-lg border border-border/50 bg-muted/40 px-2 py-1.5">
         <Search className="h-3 w-3 text-muted-foreground" />
-        <input
+        <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t`Filtrer les calques`}
-          className="w-full bg-transparent text-[11px] outline-none placeholder:text-muted-foreground/60"
+          className="w-full! bg-transparent text-[11px]! outline-none placeholder:text-muted-foreground/60 h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
         />
       </label>
-      <button
+      <Button
+        variant="ghost"
+        size="xs"
         type="button"
         onClick={() => setCollapsed((c) => !c)}
-        className="flex w-full items-center gap-1 px-2 py-1 text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase"
+        className="hover:bg-transparent flex w-full! items-center gap-1 px-2 py-1 text-[10px]! font-semibold! tracking-wider text-muted-foreground/70 uppercase h-auto! leading-[inherit]! whitespace-normal! justify-normal "
       >
-        {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        {collapsed ? <ChevronRight className="h-3! w-3!" /> : <ChevronDown className="h-3! w-3!" />}
         <span>
           {stageScopeTitle(engine.stagePage, engine.articleCategory)} ({engine.layout.blocks.length}
           )
         </span>
-      </button>
+      </Button>
       {!collapsed && (
         <div className="space-y-0.5">
           {blocks.map((block: TemplateBlock, index: number) => {
@@ -205,33 +209,40 @@ function LayersTab() {
                   {block.locked && <Lock className="h-2.5 w-2.5 text-muted-foreground" />}
                 </div>
                 <div className="flex shrink-0 items-center gap-0.5 opacity-60 transition-opacity group-hover:opacity-100">
-                  <button
+                  <Button
+                    variant="ghost"
                     type="button"
                     title={block.visible ? t`Masquer` : t`Afficher`}
                     onClick={(e) => {
                       e.stopPropagation();
                       engine.toggleVisibility(block.id);
                     }}
-                    className="rounded p-1 hover:text-foreground"
+                    className="hover:bg-transparent rounded p-1 hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                   >
                     {block.visible ? (
-                      <Eye className="h-3 w-3" />
+                      <Eye className="h-3! w-3!" />
                     ) : (
-                      <EyeOff className="h-3 w-3 text-destructive-text" />
+                      <EyeOff className="h-3! w-3! text-destructive-text" />
                     )}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
                     type="button"
                     title={block.locked ? t`Déverrouiller` : t`Verrouiller`}
                     onClick={(e) => {
                       e.stopPropagation();
                       engine.toggleLock(block.id);
                     }}
-                    className="rounded p-1 hover:text-foreground"
+                    className="hover:bg-transparent rounded p-1 hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                   >
-                    {block.locked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
-                  </button>
-                  <button
+                    {block.locked ? (
+                      <Lock className="h-3! w-3!" />
+                    ) : (
+                      <Unlock className="h-3! w-3!" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
                     type="button"
                     disabled={index === 0 || !!block.locked}
                     title={t`Monter`}
@@ -239,11 +250,12 @@ function LayersTab() {
                       e.stopPropagation();
                       engine.moveBlock(block.id, 'up');
                     }}
-                    className="rounded p-1 hover:text-foreground disabled:opacity-20"
+                    className="hover:bg-transparent rounded p-1 hover:text-foreground disabled:opacity-20 h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                   >
-                    <ArrowUp className="h-3 w-3" />
-                  </button>
-                  <button
+                    <ArrowUp className="h-3! w-3!" />
+                  </Button>
+                  <Button
+                    variant="ghost"
                     type="button"
                     disabled={index === engine.layout.blocks.length - 1 || !!block.locked}
                     title={t`Descendre`}
@@ -251,11 +263,12 @@ function LayersTab() {
                       e.stopPropagation();
                       engine.moveBlock(block.id, 'down');
                     }}
-                    className="rounded p-1 hover:text-foreground disabled:opacity-20"
+                    className="hover:bg-transparent rounded p-1 hover:text-foreground disabled:opacity-20 h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                   >
-                    <ArrowDown className="h-3 w-3" />
-                  </button>
-                  <button
+                    <ArrowDown className="h-3! w-3!" />
+                  </Button>
+                  <Button
+                    variant="ghost"
                     type="button"
                     disabled={!!block.locked}
                     title={t`Supprimer`}
@@ -263,10 +276,10 @@ function LayersTab() {
                       e.stopPropagation();
                       engine.deleteBlock(block.id);
                     }}
-                    className="rounded p-1 hover:text-destructive-text disabled:opacity-20"
+                    className="hover:bg-transparent rounded p-1 hover:text-destructive-text disabled:opacity-20 h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                   >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
+                    <Trash2 className="h-3! w-3!" />
+                  </Button>
                 </div>
               </div>
             );
@@ -298,25 +311,26 @@ function BrandTab() {
             style={{ backgroundColor: accent }}
             title={t`Pipette`}
           >
-            <input
+            <Input
               type="color"
               value={/^#[0-9a-fA-F]{6}$/.test(accent) ? accent : '#EE4B2B'}
               onChange={(e) => engine.updateTokens({ accentColor: e.target.value })}
-              className="h-0 w-0 opacity-0"
+              className="h-0! w-0! opacity-0 [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
             />
           </label>
-          <input
+          <Input
             value={accent}
             onChange={(e) => engine.updateTokens({ accentColor: e.target.value })}
-            className="w-24 rounded-lg border border-border/60 bg-muted/50 px-2 py-1 font-mono text-[11px] uppercase"
+            className="w-24! rounded-lg border border-border/60 bg-muted/50 px-2 py-1 font-mono text-[11px]! uppercase h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
           />
           <div className="flex gap-1">
             {ACCENT_PRESETS.map((c) => (
-              <button
+              <Button
+                variant="outline"
                 key={c}
                 type="button"
                 onClick={() => engine.updateTokens({ accentColor: c })}
-                className="h-5 w-5 rounded border border-border/60"
+                className="h-5! w-5! rounded border border-border/60 [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                 style={{ backgroundColor: c }}
                 title={c}
               />
@@ -326,11 +340,12 @@ function BrandTab() {
             <summary className="cursor-pointer hover:text-foreground">{t`Plus de couleurs`}</summary>
             <div className="mt-1.5 flex gap-1">
               {ACCENT_PRESETS_ADVANCED.map((c) => (
-                <button
+                <Button
+                  variant="outline"
                   key={c}
                   type="button"
                   onClick={() => engine.updateTokens({ accentColor: c })}
-                  className="h-5 w-5 rounded border border-border/60"
+                  className="h-5! w-5! rounded border border-border/60 [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                   style={{ backgroundColor: c }}
                   title={c}
                 />
@@ -358,14 +373,16 @@ function BrandTab() {
         </span>
         <div className="grid grid-cols-3 gap-1">
           {(['rounded-none', 'rounded-xl', 'rounded-3xl'] as const).map((shape) => (
-            <button
+            <Button
+              variant="solid"
+              tone="brand"
               key={shape}
               type="button"
               onClick={() => engine.updateTokens({ cardShape: shape })}
-              className={`rounded-lg px-2 py-1.5 text-center font-medium transition-all ${engine.layout.tokens.cardShape === shape ? 'bg-primary text-primary-foreground shadow-xs' : 'bg-muted/50 text-muted-foreground hover:text-foreground'}`}
+              className={`rounded-lg px-2 py-1.5 text-center font-medium! transition-all ${engine.layout.tokens.cardShape === shape ? 'bg-primary text-primary-foreground shadow-xs' : 'bg-muted/50 text-muted-foreground hover:text-foreground'} h-auto! [font-size:inherit]! leading-[inherit]! whitespace-normal! justify-normal inline-block `}
             >
               {shape === 'rounded-none' ? t`Carré` : shape === 'rounded-xl' ? t`Arrondi` : t`Large`}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -375,14 +392,17 @@ function BrandTab() {
         </span>
         <div className="grid grid-cols-3 gap-1">
           {(['compact', 'standard', 'spacious'] as const).map((dens) => (
-            <button
+            <Button
+              variant="solid"
+              tone="brand"
+              size="xs"
               key={dens}
               type="button"
               onClick={() => engine.updateTokens({ density: dens })}
-              className={`rounded-lg px-1 py-1.5 text-center text-[10px] font-medium capitalize transition-all ${engine.layout.tokens.density === dens ? 'bg-primary text-primary-foreground shadow-xs' : 'bg-muted/50 text-muted-foreground hover:text-foreground'}`}
+              className={`rounded-lg px-1 py-1.5 text-center text-[10px]! font-medium! capitalize transition-all ${engine.layout.tokens.density === dens ? 'bg-primary text-primary-foreground shadow-xs' : 'bg-muted/50 text-muted-foreground hover:text-foreground'} h-auto! leading-[inherit]! whitespace-normal! justify-normal inline-block `}
             >
               {dens === 'compact' ? t`Compact` : dens === 'standard' ? t`Standard` : t`Aéré`}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -392,14 +412,17 @@ function BrandTab() {
         </span>
         <div className="grid grid-cols-3 gap-1">
           {(['flat', 'bordered', 'glassmorphic'] as const).map((surf) => (
-            <button
+            <Button
+              variant="solid"
+              tone="brand"
+              size="xs"
               key={surf}
               type="button"
               onClick={() => engine.updateTokens({ surface: surf })}
-              className={`rounded-lg px-1 py-1.5 text-center text-[10px] font-medium capitalize transition-all ${engine.layout.tokens.surface === surf ? 'bg-primary text-primary-foreground shadow-xs' : 'bg-muted/50 text-muted-foreground hover:text-foreground'}`}
+              className={`rounded-lg px-1 py-1.5 text-center text-[10px]! font-medium! capitalize transition-all ${engine.layout.tokens.surface === surf ? 'bg-primary text-primary-foreground shadow-xs' : 'bg-muted/50 text-muted-foreground hover:text-foreground'} h-auto! leading-[inherit]! whitespace-normal! justify-normal inline-block `}
             >
               {surf === 'flat' ? t`Plat` : surf === 'bordered' ? t`Bordé` : t`Verre`}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -431,17 +454,18 @@ function PagesTab() {
             style={{ paddingLeft: 8 + depth * 12 }}
           >
             {kids.length > 0 ? (
-              <button
+              <Button
+                variant="ghost"
                 type="button"
                 onClick={() => setOpen((o) => ({ ...o, [n.id]: !isOpen }))}
-                className="p-0.5"
+                className="hover:bg-transparent p-0.5 h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               >
                 {isOpen ? (
-                  <ChevronDown className="h-3 w-3" />
+                  <ChevronDown className="h-3! w-3!" />
                 ) : (
-                  <ChevronRight className="h-3 w-3" />
+                  <ChevronRight className="h-3! w-3!" />
                 )}
-              </button>
+              </Button>
             ) : (
               <span className="w-4 text-center font-mono text-[10px] text-primary/70">#</span>
             )}
@@ -457,18 +481,20 @@ function PagesTab() {
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-1 rounded-lg border border-border/50 bg-muted/40 p-1">
         {(['home', 'article'] as const).map((page) => (
-          <button
+          <Button
+            variant="ghost"
+            size="xs"
             key={page}
             type="button"
             onClick={() => engine.setStagePage(page)}
-            className={`rounded-md px-2 py-1.5 text-[11px] font-medium transition-colors ${
+            className={`hover:bg-transparent rounded-md px-2 py-1.5 text-[11px]! font-medium! transition-colors ${
               engine.stagePage === page
                 ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
-            }`}
+            } h-auto! leading-[inherit]! whitespace-normal! justify-normal inline-block `}
           >
             {page === 'home' ? t`Accueil` : t`Article`}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -495,15 +521,16 @@ function PagesTab() {
             {t`Type de vue article`}
           </div>
           {ARTICLE_VARIANTS.map((v) => (
-            <button
+            <Button
+              variant="outline"
               key={v.id}
               type="button"
               onClick={() => engine.applyArticleVariant(v.id)}
-              className="w-full rounded-lg border border-border/40 p-2 text-left hover:border-border"
+              className="w-full! rounded-lg border border-border/40 p-2 text-left hover:border-border h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
             >
               <div className="text-[12px] font-medium text-foreground">{v.name}</div>
               <p className="mt-0.5 text-[10px] text-muted-foreground">{v.description}</p>
-            </button>
+            </Button>
           ))}
         </div>
       )}
@@ -513,13 +540,15 @@ function PagesTab() {
           <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
             {t`Versions publiées`}
           </span>
-          <button
+          <Button
+            variant="ghost"
+            size="xs"
             type="button"
             onClick={() => engine.loadSnapshots()}
-            className="rounded-md bg-muted/60 px-2 py-0.5 text-[10px] font-medium hover:text-foreground"
+            className="hover:bg-transparent rounded-md bg-muted/60 px-2 py-0.5 text-[10px]! font-medium! hover:text-foreground h-auto! leading-[inherit]! whitespace-normal! justify-normal inline-block "
           >
             {t`Actualiser`}
-          </button>
+          </Button>
         </div>
         {engine.snapshotsLoading && (
           <p className="px-1 text-[10px] text-muted-foreground">{t`Chargement…`}</p>
@@ -541,25 +570,27 @@ function PagesTab() {
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-0.5">
-              <button
+              <Button
+                variant="ghost"
+                size="xs"
                 type="button"
                 onClick={() => engine.restoreSnapshot(s.id)}
-                className="rounded p-1 text-[11px] font-medium text-primary hover:bg-muted"
+                className="rounded p-1 text-[11px]! font-medium! text-primary hover:bg-muted h-auto! leading-[inherit]! whitespace-normal! justify-normal inline-block "
                 title={t`Restaurer vers le brouillon`}
               >
                 {t`Restaurer`}
-              </button>
+              </Button>
             </div>
           </div>
         ))}
       </div>
       <label className="flex items-center gap-1.5 rounded-lg border border-border/50 bg-muted/40 px-2 py-1.5">
         <Search className="h-3 w-3 text-muted-foreground" />
-        <input
+        <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t`Rechercher une page`}
-          className="w-full bg-transparent text-[11px] outline-none"
+          className="w-full! bg-transparent text-[11px]! outline-none h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
         />
       </label>
       {filtered ? (
@@ -608,11 +639,11 @@ function ImagesTab() {
     <div className="space-y-2">
       <label className="flex items-center gap-1.5 rounded-lg border border-border/50 bg-muted/40 px-2 py-1.5">
         <Search className="h-3 w-3 text-muted-foreground" />
-        <input
+        <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t`Rechercher un visuel`}
-          className="w-full bg-transparent text-[11px] outline-none"
+          className="w-full! bg-transparent text-[11px]! outline-none h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
         />
       </label>
       <div className="grid grid-cols-2 gap-1.5">
@@ -629,14 +660,15 @@ function ImagesTab() {
               <span className="truncate text-[10px] text-muted-foreground" title={a.label}>
                 {a.label}
               </span>
-              <button
+              <Button
+                variant="ghost"
                 type="button"
                 title={t`Copier l'URL`}
                 onClick={() => void navigator.clipboard?.writeText(a.url).catch(() => null)}
-                className="rounded p-1 text-muted-foreground hover:text-foreground"
+                className="hover:bg-transparent rounded p-1 text-muted-foreground hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               >
-                <Copy className="h-3 w-3" />
-              </button>
+                <Copy className="h-3! w-3!" />
+              </Button>
             </div>
           </div>
         ))}
@@ -663,18 +695,19 @@ function WindowsTab() {
         Cadre & appareil
       </div>
       {widths.map((d) => (
-        <button
+        <Button
+          variant="outline"
           key={d.id}
           type="button"
           onClick={() => engine.setDevice(d.id)}
-          className={`flex w-full items-center justify-between rounded-xl border p-2.5 text-left ${engine.device === d.id ? 'border-primary bg-primary/10' : 'border-border/40 hover:border-border'}`}
+          className={`flex w-full! items-center justify-between rounded-xl border p-2.5 text-left ${engine.device === d.id ? 'border-primary bg-primary/10' : 'border-border/40 hover:border-border'} h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! `}
         >
           <span className="flex items-center gap-2 text-[12px] font-medium">
-            <Monitor className="h-3.5 w-3.5 text-muted-foreground" />
+            <Monitor className="h-3.5! w-3.5! text-muted-foreground" />
             {d.label}
           </span>
           <span className="font-mono text-[10px] text-muted-foreground">{d.w}px</span>
-        </button>
+        </Button>
       ))}
       <div className="space-y-1.5 border-t border-border/40 pt-2">
         <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
@@ -687,23 +720,27 @@ function WindowsTab() {
             { label: '200%', v: 2 },
             { label: t`Fit`, v: 0.95 },
           ].map((z) => (
-            <button
+            <Button
+              variant="ghost"
+              size="xs"
               key={z.label}
               type="button"
               onClick={() => engine.setScale(z.v)}
-              className="rounded-lg bg-muted/50 py-1.5 font-mono text-[11px] text-muted-foreground hover:text-foreground"
+              className="hover:bg-transparent rounded-lg bg-muted/50 py-1.5 font-mono text-[11px]! text-muted-foreground hover:text-foreground h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block px-0 "
             >
               {z.label}
-            </button>
+            </Button>
           ))}
         </div>
-        <button
+        <Button
+          variant="outline"
+          size="xs"
           type="button"
           onClick={engine.resetZoom}
-          className="w-full rounded-lg border border-border/50 py-1.5 text-[11px] hover:bg-muted/50"
+          className="w-full! rounded-lg border border-border/50 py-1.5 text-[11px]! hover:bg-muted/50 h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block px-0 "
         >
           {t`Recentrer (⇧0)`}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -753,31 +790,35 @@ export function LeftPanelFull() {
           const Icon = tab.icon;
           const isSelected = engine.leftPanelTab === tab.id;
           return (
-            <button
+            <Button
+              variant="solid"
+              tone="brand"
               key={tab.id}
               type="button"
               onClick={() => handleTabClick(tab.id)}
-              className={`flex h-11 w-12 flex-col items-center justify-center gap-0.5 rounded-xl transition-all ${
+              className={`flex h-11! w-12! flex-col items-center justify-center gap-0.5 rounded-xl transition-all ${
                 isSelected
                   ? 'bg-primary font-medium text-primary-foreground shadow-sm'
                   : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
-              }`}
+              } [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! `}
             >
-              <Icon className="h-4 w-4" />
+              <Icon className="h-4! w-4!" />
               <span className="text-[8px] leading-none font-medium">{tab.label}</span>
-            </button>
+            </Button>
           );
         })}
         <div className="mt-auto flex flex-col items-center gap-1.5 border-t border-border/40 pt-2">
           <div className="relative">
-            <button
+            <Button
+              variant="ghost"
+              size="xs"
               type="button"
               onClick={() => setIsZoomMenuOpen((p) => !p)}
               title={t`Contrôles de zoom`}
-              className="flex h-8 w-10 items-center justify-center rounded-lg font-mono text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+              className="flex h-8! w-10! items-center justify-center rounded-lg font-mono text-[10px]! font-medium! text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground leading-[inherit]! whitespace-normal! "
             >
               {Math.round(engine.scale * 100)}%
-            </button>
+            </Button>
             {isZoomMenuOpen && (
               <div className="absolute bottom-0 left-12 z-50 w-40 space-y-1 rounded-lg border border-border bg-background/95 p-1.5 shadow-md">
                 {[
@@ -788,30 +829,33 @@ export function LeftPanelFull() {
                   { label: '100%', hint: '', fn: () => engine.setScale(1) },
                   { label: '200%', hint: '', fn: () => engine.setScale(2) },
                 ].map((b) => (
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="xs"
                     key={b.label}
                     type="button"
                     onClick={() => {
                       b.fn();
                       setIsZoomMenuOpen(false);
                     }}
-                    className="flex w-full items-center justify-between rounded px-2 py-1 text-left text-[11px] hover:bg-muted"
+                    className="flex w-full! items-center justify-between rounded px-2 py-1 text-left text-[11px]! hover:bg-muted h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! "
                   >
                     <span>{b.label}</span>
                     <span className="font-mono text-muted-foreground">{b.hint}</span>
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}
           </div>
-          <button
+          <Button
+            variant="ghost"
             type="button"
             onClick={() => setIsHelpOpen(true)}
             title={t`Raccourcis & Aide`}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+            className="flex h-8! w-8! items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! "
           >
-            <HelpCircle className="h-4 w-4" />
-          </button>
+            <HelpCircle className="h-4! w-4!" />
+          </Button>
         </div>
       </div>
 
@@ -828,13 +872,14 @@ export function LeftPanelFull() {
               <span className="font-semibold text-foreground">
                 {titles[engine.leftPanelTab as TabId]}
               </span>
-              <button
+              <Button
+                variant="ghost"
                 type="button"
                 onClick={() => engine.setLeftPanelTab(null)}
-                className="rounded p-1 text-muted-foreground hover:text-foreground"
+                className="hover:bg-transparent rounded p-1 text-muted-foreground hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               >
-                <X className="h-3.5 w-3.5" />
-              </button>
+                <X className="h-3.5! w-3.5!" />
+              </Button>
             </div>
             <div className="flex-1 overflow-y-auto p-2">
               {engine.leftPanelTab === 'layers' && <LayersTab />}
@@ -889,13 +934,14 @@ export function LeftPanelFull() {
           <div className="w-[360px] space-y-4 rounded-xl border border-border bg-background p-4 shadow-lg">
             <div className="flex items-center justify-between border-b border-border/40 pb-2">
               <span className="text-sm font-bold text-foreground">{t`Raccourcis clavier`}</span>
-              <button
+              <Button
+                variant="ghost"
                 type="button"
                 onClick={() => setIsHelpOpen(false)}
-                className="p-1 text-muted-foreground hover:text-foreground"
+                className="hover:bg-transparent p-1 text-muted-foreground hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               >
-                <X className="h-4 w-4" />
-              </button>
+                <X className="h-4! w-4!" />
+              </Button>
             </div>
             <div className="space-y-2 text-xs">
               {[

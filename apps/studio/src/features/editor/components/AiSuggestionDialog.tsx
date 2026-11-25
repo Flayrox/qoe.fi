@@ -71,13 +71,14 @@ export function AiSuggestionDialog({
             <ul className="space-y-1.5">
               {suggestions.map((suggestion, index) => (
                 <li key={`${index}-${suggestion}`}>
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    block
                     onClick={() => {
                       onApply(suggestion);
                       onClose();
                     }}
-                    className="group flex w-full items-start gap-2 rounded-control border border-border/45 bg-muted/10 px-3 py-2 text-left text-sm transition-colors hover:border-primary/40 hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
+                    className="group w-full! items-start gap-2 rounded-control border border-border/45 bg-muted/10 px-3 py-2 text-left text-sm! hover:border-primary/40 hover:bg-primary/5 leading-[20px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal "
                   >
                     <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
                       {index + 1}
@@ -86,10 +87,10 @@ export function AiSuggestionDialog({
                       {suggestion}
                     </span>
                     <ArrowRight
-                      className="mt-0.5 size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
+                      className="mt-0.5 size-3.5! shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
                       aria-hidden
                     />
-                  </button>
+                  </Button>
                 </li>
               ))}
             </ul>

@@ -6,6 +6,7 @@ import { Clock, Highlighter, ImageOff, Keyboard, ShieldCheck, Type } from 'lucid
 import { t } from '@lingui/core/macro';
 import { useModKey } from '../hooks/useModKey';
 import { countMissingAlt } from '../lib/alt-coverage';
+import { Button } from '@qoe/ui/button';
 
 export interface EditorStatusBarProps {
   editor: Editor;
@@ -73,54 +74,59 @@ export function EditorStatusBar({
         </span>
       )}
       {stats.annotation && onOpenAnnotation && (
-        <button
-          type="button"
+        <Button
+          variant="soft"
+          tone="brand"
+          size="xs"
           // Le bouton est hors de l'éditeur : sans cela, le focus quittait le
           // document et la sélection courante pouvait être perdue.
           onMouseDown={(event) => event.preventDefault()}
           onClick={onOpenAnnotation}
-          className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-primary/20 bg-primary/10 px-2 py-1 font-semibold text-primary transition-colors hover:bg-primary/15 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
+          className="h-auto items-center gap-1.5 rounded-md border border-primary/20 px-2 py-1 font-semibold text-primary hover:bg-primary/15"
         >
           <Highlighter className="h-3 w-3 shrink-0" aria-hidden="true" />
           {t`Modifier la note d'auteur`}
-        </button>
+        </Button>
       )}
       {stats.altMissing > 0 && onFixAltMissing && (
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="xs"
           onMouseDown={(event) => event.preventDefault()}
           onClick={onFixAltMissing}
           title={t`Corriger la première image sans description`}
-          className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-highlight/25 bg-highlight/10 px-2 py-1 font-semibold text-highlight transition-colors hover:bg-highlight/15 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
+          className="items-center gap-1.5 rounded-md border border-highlight/25 bg-highlight/10 px-2 py-1 font-semibold! text-highlight hover:bg-highlight/15 h-auto! [font-size:inherit]! leading-[inherit]! whitespace-normal! justify-normal "
         >
-          <ImageOff className="h-3 w-3 shrink-0" aria-hidden="true" />
+          <ImageOff className="h-3! w-3! shrink-0" aria-hidden="true" />
           {stats.altMissing} {stats.altMissing === 1 ? t`image sans alt` : t`images sans alt`}
-        </button>
+        </Button>
       )}
       <div className="ml-auto flex items-center gap-3">
         {onOpenPreflight && (
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            size="xs"
             onMouseDown={(event) => event.preventDefault()}
             onClick={onOpenPreflight}
             title={t`Vérifier l'article avant publication`}
-            className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border/50 bg-background/60 px-2 py-1 font-semibold text-foreground transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
+            className="items-center gap-1.5 rounded-md border-border/50 bg-background/60 px-2 py-1 font-semibold! text-foreground hover:bg-muted/60 h-auto! [font-size:inherit]! leading-[inherit]! whitespace-normal! justify-normal "
           >
-            <ShieldCheck className="h-3 w-3" aria-hidden="true" />
+            <ShieldCheck className="h-3! w-3!" aria-hidden="true" />
             {t`Prêt à publier`}
-          </button>
+          </Button>
         )}
         {onOpenShortcuts && (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="xs"
             onMouseDown={(event) => event.preventDefault()}
             onClick={onOpenShortcuts}
             title={t`Afficher les raccourcis`}
-            className="inline-flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
+            className="items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px]! text-muted-foreground hover:bg-muted/60 hover:text-foreground h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal "
           >
-            <Keyboard className="h-3 w-3" aria-hidden="true" />
+            <Keyboard className="h-3! w-3!" aria-hidden="true" />
             {t`Raccourcis`}
-          </button>
+          </Button>
         )}
         <span className="hidden text-[11px] text-muted-foreground/60 sm:inline">
           {t`Enregistrement auto · ${MOD}S pour forcer`}

@@ -239,6 +239,7 @@ function SubscribersImport() {
 
           <StudioField label={t`Précisions (facultatif)`} htmlFor="import-source-detail">
             <Input
+              className=" h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               id="import-source-detail"
               size="sm"
               value={sourceDetail}
@@ -249,6 +250,7 @@ function SubscribersImport() {
 
           <StudioField label={t`Période de collecte`} htmlFor="import-collection-period">
             <Input
+              className=" h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               id="import-collection-period"
               size="sm"
               value={collectionPeriod}
@@ -262,6 +264,7 @@ function SubscribersImport() {
             htmlFor="import-opt-in"
           >
             <Input
+              className=" h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               id="import-opt-in"
               size="sm"
               value={optInMethod}
@@ -277,6 +280,7 @@ function SubscribersImport() {
           hint={t`Obligatoire pour que la liste puisse être examinée.`}
         >
           <Input
+            className=" h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
             id="import-consent-purpose"
             size="sm"
             value={consentPurpose}
@@ -312,13 +316,13 @@ function SubscribersImport() {
           />
         </div>
 
-        <input
+        <Input
           ref={fileInputRef}
           id="import-subscribers-file"
           type="file"
           accept=".csv,text/csv"
           onChange={handleFileInput}
-          className="sr-only"
+          className="sr-only h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
         />
 
         <label

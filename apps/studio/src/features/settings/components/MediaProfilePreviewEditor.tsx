@@ -246,19 +246,19 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
 
           {/* Boutons d'action sur la bannière */}
           <div className="absolute top-3 right-3 flex items-center gap-1.5 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-            <input
+            <Input
               type="file"
               ref={bannerInputRef}
               onChange={handleBannerFileChange}
               accept="image/*"
-              className="hidden"
+              className="hidden h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal "
             />
             <Button
               variant="soft"
               size="xs"
               loading={isUploadingBanner}
               onClick={() => bannerInputRef.current?.click()}
-              className="bg-background/90 shadow-xs backdrop-blur-md hover:bg-background"
+              className="bg-background/90 shadow-xs backdrop-blur-md hover:bg-background h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
             >
               {!isUploadingBanner && <Camera className="text-primary" aria-hidden />}
               <span>{isUploadingBanner ? t`Upload...` : t`Changer la bannière`}</span>
@@ -271,7 +271,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
                 size="xs"
                 shape="icon"
                 onClick={() => setCurrent((prev) => ({ ...prev, headerImageUrl: null }))}
-                className="bg-background/90 shadow-xs backdrop-blur-md"
+                className="bg-background/90 shadow-xs backdrop-blur-md h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                 aria-label={t`Supprimer la bannière`}
                 title={t`Supprimer la bannière`}
               >
@@ -286,18 +286,18 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
           {/* Avatar / Logo qui chevauche la bannière */}
           <div className="flex items-end justify-between -mt-12 sm:-mt-14 mb-4">
             <div className="relative group/logo">
-              <input
+              <Input
                 type="file"
                 ref={logoInputRef}
                 onChange={handleLogoFileChange}
                 accept="image/*"
-                className="hidden"
+                className="hidden h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal "
               />
               <Button
                 variant="ghost"
                 onClick={() => logoInputRef.current?.click()}
                 aria-label={current.logoUrl ? t`Changer le logo` : t`Ajouter un logo`}
-                className="relative flex h-24 w-24 cursor-pointer items-center justify-center overflow-hidden rounded-xl border-4 border-card bg-muted/60 p-0 shadow-lg transition-transform hover:scale-105 hover:bg-transparent sm:h-28 sm:w-28"
+                className="relative flex h-24! w-24! cursor-pointer items-center justify-center overflow-hidden rounded-xl border-4 border-card bg-muted/60 p-0 shadow-lg transition-transform hover:scale-105 hover:bg-transparent sm:h-28 sm:w-28 [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! "
                 style={{ backgroundColor: accentColor }}
               >
                 {current.logoUrl ? (
@@ -315,7 +315,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
 
                 {/* Overlay hover */}
                 <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/40 text-[10px] font-semibold text-white opacity-0 transition-opacity group-hover/logo:opacity-100">
-                  <Camera className="size-4" aria-hidden />
+                  <Camera className="size-4!" aria-hidden />
                   <span>{isUploadingLogo ? t`Upload...` : t`Modifier`}</span>
                 </span>
               </Button>
@@ -327,7 +327,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
                   size="xs"
                   shape="icon"
                   onClick={() => setCurrent((prev) => ({ ...prev, logoUrl: null }))}
-                  className="absolute -top-1 -right-1 z-10 rounded-full border border-border/60 bg-background opacity-0 shadow-xs transition-opacity group-hover/logo:opacity-100"
+                  className="absolute -top-1 -right-1 z-10 rounded-full border border-border/60 bg-background opacity-0 shadow-xs transition-opacity group-hover/logo:opacity-100 h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                   aria-label={t`Supprimer le logo`}
                   title={t`Supprimer le logo`}
                 >
@@ -356,7 +356,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
                   onChange={(e) => setCurrent((prev) => ({ ...prev, name: e.target.value }))}
                   placeholder={t`Nom du média (ex. L'Écho Indépendant)`}
                   aria-label={t`Nom du média`}
-                  className="border-x-0 border-t-0 border-b border-transparent bg-transparent px-0 pb-0.5 text-xl font-black hover:border-border/60 focus-visible:border-primary/80 focus-visible:ring-0 sm:text-2xl"
+                  className="border-x-0 border-t-0 border-b border-transparent bg-transparent pb-0.5 text-xl! font-black! hover:border-border/60 focus-visible:border-primary/80 focus-visible:ring-0 sm:text-2xl leading-[32px]! h-auto! whitespace-normal! justify-normal inline-block px-0 "
                 />
                 <Edit2 className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover/title:opacity-60 shrink-0 pointer-events-none" />
               </div>
@@ -376,7 +376,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
                 rows={2}
                 placeholder={t`Décrivez en quelques mots la mission, les valeurs et les thématiques couvertes par votre média...`}
                 aria-label={t`Ligne éditoriale du média`}
-                className="bg-muted/20 p-3 text-xs leading-relaxed hover:bg-muted/30 focus:bg-background sm:text-[13px]"
+                className="bg-muted/20 p-3 text-xs! leading-relaxed! hover:bg-muted/30 focus:bg-background sm:text-[13px] h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               />
             </div>
 
@@ -395,7 +395,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
                         size="xs"
                         disabled
                         title={field.readOnlyHint}
-                        className="max-w-full"
+                        className="max-w-full h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                       >
                         <IconComponent className="text-primary" aria-hidden />
                         <span className="max-w-[200px] truncate">
@@ -411,8 +411,9 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
                           setEditingDraft(value);
                         }}
                         className={cn(
-                          'max-w-full',
-                          !value && 'border-dashed text-muted-foreground'
+                          'max-w-full h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! ',
+                          !value &&
+                            'border-dashed text-muted-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block '
                         )}
                         title={t`Modifier : ${field.label}`}
                       >
@@ -445,7 +446,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
                             field.setValue(editingDraft.trim(), setCurrent);
                             setActiveMetadataModal(null);
                           }}
-                          className="min-w-[220px] border-0 bg-transparent px-2 py-0.5 focus-visible:ring-0"
+                          className="min-w-[220px] border-0 bg-transparent px-2 py-0.5 focus-visible:ring-0 h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                         />
                         <Button
                           variant="ghost"

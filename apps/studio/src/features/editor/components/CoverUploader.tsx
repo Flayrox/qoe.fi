@@ -12,6 +12,7 @@ import {
   type ImageEditorResult,
 } from '@qoe/ui/ui/ImageEditorDialog';
 import { MediaAssetPickerDialog } from './MediaAssetPickerDialog';
+import { CheckboxInput } from '@qoe/ui/checkbox';
 
 export interface CoverUploaderProps {
   imageUrl: string | null;
@@ -98,11 +99,11 @@ export function CoverUploader({
 
   return (
     <div className="space-y-2">
-      <input
+      <Input
         ref={inputRef}
         type="file"
         accept="image/*"
-        className="hidden"
+        className="hidden h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal "
         aria-label={t`Choisir la couverture de l'article`}
         onChange={(event) => handleFiles(event.target.files?.[0])}
       />
@@ -140,9 +141,9 @@ export function CoverUploader({
               size="sm"
               onClick={() => inputRef.current?.click()}
               disabled={isUploading}
-              className="rounded-xl border border-border/40 bg-background/90 px-3.5 py-1.5 shadow-lg backdrop-blur-md"
+              className="rounded-xl border border-border/40 bg-background/90 px-3.5 py-1.5 shadow-lg backdrop-blur-md h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
             >
-              <ImageIcon className="w-3.5 h-3.5 text-primary" />
+              <ImageIcon className="w-3.5! h-3.5! text-primary" />
               <span>{t`Changer l'image`}</span>
             </Button>
             {onSelectImage ? (
@@ -152,9 +153,9 @@ export function CoverUploader({
                 size="sm"
                 onClick={() => setShowLibrary(true)}
                 disabled={isUploading}
-                className="rounded-xl border border-border/40 bg-background/90 px-3.5 py-1.5 shadow-lg backdrop-blur-md"
+                className="rounded-xl border border-border/40 bg-background/90 px-3.5 py-1.5 shadow-lg backdrop-blur-md h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               >
-                <Images className="h-3.5 w-3.5 text-primary" />
+                <Images className="h-3.5! w-3.5! text-primary" />
                 <span>{t`Médiathèque`}</span>
               </Button>
             ) : null}
@@ -164,9 +165,9 @@ export function CoverUploader({
               tone="danger"
               size="sm"
               onClick={onRemove}
-              className="rounded-xl border border-destructive/30 bg-background/90 px-3.5 py-1.5 shadow-lg backdrop-blur-md"
+              className="rounded-xl border border-destructive/30 bg-background/90 px-3.5 py-1.5 shadow-lg backdrop-blur-md h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
             >
-              <Trash2 className="w-3.5 h-3.5" />
+              <Trash2 className="w-3.5! h-3.5!" />
               <span>{t`Supprimer`}</span>
             </Button>
           </div>
@@ -181,16 +182,16 @@ export function CoverUploader({
               onClick={() => inputRef.current?.click()}
               disabled={isUploading}
               className={cn(
-                'h-auto max-w-full rounded-xl border-dashed px-3.5 py-2 text-left whitespace-normal shadow-2xs',
+                'max-w-full rounded-xl border-dashed px-3.5 py-2 text-left shadow-2xs h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! ',
                 isDragOver
                   ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary/30'
-                  : 'border-border/60 bg-muted/10 text-muted-foreground hover:border-primary/50 hover:bg-muted/30 hover:text-foreground'
+                  : 'border-border/60 bg-muted/10 text-muted-foreground hover:border-primary/50 hover:bg-muted/30 hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block '
               )}
             >
               {isUploading ? (
-                <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin text-primary" />
+                <Loader2 className="w-3.5! h-3.5! shrink-0 animate-spin text-primary" />
               ) : (
-                <ImageIcon className="w-3.5 h-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
+                <ImageIcon className="w-3.5! h-3.5! shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
               )}
               <span className="min-w-0">
                 {isDragOver
@@ -221,6 +222,7 @@ export function CoverUploader({
               {t`Description de la couverture (alt)`}
             </span>
             <Input
+              className=" h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               id="cover-alt"
               type="text"
               size="sm"
@@ -241,11 +243,10 @@ export function CoverUploader({
             </p>
           ) : null}
           <label className="flex cursor-pointer items-start gap-2 text-[11px] text-muted-foreground">
-            <input
-              type="checkbox"
+            <CheckboxInput
               checked={coverDecorative}
               onChange={(event) => onCoverDecorativeChange(event.target.checked)}
-              className="mt-0.5 size-3.5 rounded border-border accent-primary"
+              className="mt-0.5 size-3.5! rounded border-border accent-primary [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
             />
             <span>
               {t`Image purement décorative`}

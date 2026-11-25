@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Laptop, Smartphone, Tablet, Globe, Monitor } from 'lucide-react';
 import { UmamiPageMetric } from '@qoe/analytics/server';
 import { t } from '@lingui/core/macro';
+import { Button } from '@qoe/ui/button';
 
 interface DevicesAndGeoBlockProps {
   devices: UmamiPageMetric[];
@@ -77,17 +78,19 @@ export function DevicesAndGeoBlock({ devices, browsers, countries }: DevicesAndG
               { id: 'countries', label: t`Pays` },
             ] as const
           ).map((tab) => (
-            <button
+            <Button
               key={tab.id}
+              variant="ghost"
+              size="xs"
               onClick={() => setActiveTab(tab.id)}
-              className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+              className={`rounded-md px-3 py-1 text-xs! font-medium! hover:bg-transparent ${
                 activeTab === tab.id
                   ? 'bg-card text-foreground font-semibold shadow-sm border border-border/30'
                   : 'text-muted-foreground hover:text-foreground'
-              }`}
+              } leading-[16px]! h-auto! whitespace-normal! justify-normal inline-block `}
             >
               {tab.label}
-            </button>
+            </Button>
           ))}
         </div>
       </div>

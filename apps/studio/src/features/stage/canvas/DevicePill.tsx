@@ -6,6 +6,7 @@ import React from 'react';
 import { Monitor, Tablet, Smartphone } from 'lucide-react';
 import { useStageEngine } from '../context/StageEngineContext';
 import { DEVICE_DIMENSIONS, type StageDevice } from '../types';
+import { Button } from '@qoe/ui/button';
 
 const ORDER: StageDevice[] = ['desktop', 'tablet', 'mobile'];
 
@@ -17,20 +18,22 @@ export function DevicePill() {
         const active = engine.device === d;
         const Icon = d === 'desktop' ? Monitor : d === 'tablet' ? Tablet : Smartphone;
         return (
-          <button
+          <Button
+            variant="ghost"
+            size="xs"
             key={d}
             type="button"
             onClick={() => engine.setDevice(d)}
             title={`${DEVICE_DIMENSIONS[d].label} · ${DEVICE_DIMENSIONS[d].width}px`}
-            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] transition-colors ${
+            className={`hover:bg-transparent flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px]! transition-colors ${
               active
                 ? 'bg-muted font-medium text-foreground'
                 : 'text-muted-foreground hover:text-foreground'
-            }`}
+            } h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal `}
           >
-            <Icon className="h-3.5 w-3.5" />
+            <Icon className="h-3.5! w-3.5!" />
             <span className="hidden lg:inline">{DEVICE_DIMENSIONS[d].width}</span>
-          </button>
+          </Button>
         );
       })}
     </div>

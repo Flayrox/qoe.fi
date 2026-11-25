@@ -13,6 +13,7 @@ import { X } from 'lucide-react';
 import { Sidebar } from '@qoe/ui/sidebar';
 import type { SidebarProps } from '@qoe/ui/sidebar';
 import { t } from '@lingui/core/macro';
+import { Button } from '@qoe/ui/button';
 
 interface SidebarDrawerProps {
   isOpen: boolean;
@@ -83,16 +84,17 @@ export function SidebarDrawer({ isOpen, onClose, sidebarProps }: SidebarDrawerPr
         className="relative z-10 flex flex-col h-full bg-background border-r border-border shadow-lg animate-in slide-in-from-left duration-200"
       >
         {/* Bouton Fermer Flottant */}
-        <button
+        <Button
+          variant="ghost"
           ref={closeRef}
           type="button"
           onClick={onClose}
           aria-label={t`Fermer le menu`}
           title={t`Fermer le menu (Échap)`}
-          className="absolute top-3 right-3 z-30 flex items-center justify-center w-8 h-8 rounded-md bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+          className="absolute top-3 right-3 z-30 flex items-center justify-center w-8! h-8! rounded-md bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! "
         >
-          <X className="w-4 h-4" aria-hidden="true" />
-        </button>
+          <X className="w-4! h-4!" aria-hidden="true" />
+        </Button>
 
         {/* Le VRAI composant <Sidebar /> de @qoe/ui/sidebar */}
         {sidebarProps ? (

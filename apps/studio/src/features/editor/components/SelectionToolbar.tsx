@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
+import { Button } from '@qoe/ui/button';
 
 export interface SelectionToolbarProps {
   editor: Editor;
@@ -33,23 +34,24 @@ interface BubbleButtonProps {
 
 function BubbleButton({ active, onClick, label, children }: BubbleButtonProps) {
   return (
-    <button
-      type="button"
+    <Button
+      variant="ghost"
+      shape="icon"
       onClick={onClick}
       onMouseDown={(event) => event.preventDefault()}
       title={label}
       aria-label={label}
       aria-pressed={active ?? undefined}
       className={cn(
-        'h-7 w-7 flex items-center justify-center rounded-md transition-colors cursor-pointer',
+        'h-7! w-7! flex items-center justify-center rounded-md transition-colors cursor-pointer [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! ',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
         active
           ? 'bg-foreground text-background'
-          : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground'
+          : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! '
       )}
     >
       {children}
-    </button>
+    </Button>
   );
 }
 

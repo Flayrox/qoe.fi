@@ -5,8 +5,10 @@
 // =====================================================================
 
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
 import { t } from '@lingui/core/macro';
+import { Button } from '@qoe/ui/button';
+import { Input } from '@qoe/ui/input';
+import { CheckboxInput } from '@qoe/ui/checkbox';
 
 export interface BookArticle {
   id: string;
@@ -85,11 +87,10 @@ export function BooksClient({ articles }: { articles: BookArticle[] }) {
             return (
               <li key={article.id}>
                 <label className="flex cursor-pointer items-center gap-3 py-2.5">
-                  <input
-                    type="checkbox"
+                  <CheckboxInput
                     checked={order >= 0}
                     onChange={() => toggle(article.id)}
-                    className="h-4 w-4"
+                    className="h-4! w-4! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                   />
                   <span className="min-w-0 flex-1 truncate text-sm text-foreground">
                     {article.title}
@@ -111,20 +112,20 @@ export function BooksClient({ articles }: { articles: BookArticle[] }) {
         <div className="mt-3 space-y-3">
           <label className="block text-xs font-medium text-foreground">
             {t`Titre`}
-            <input
+            <Input
               value={title}
               onChange={(event) => setTitle(event.target.value)}
               placeholder={t`Recueil 2026`}
-              className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              className="mt-1 w-full! rounded-xl border border-border bg-background px-3 py-2 text-sm! leading-[20px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
             />
           </label>
           <label className="block text-xs font-medium text-foreground">
             {t`Auteur (optionnel)`}
-            <input
+            <Input
               value={author}
               onChange={(event) => setAuthor(event.target.value)}
               placeholder={t`Votre nom de publication`}
-              className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              className="mt-1 w-full! rounded-xl border border-border bg-background px-3 py-2 text-sm! leading-[20px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
             />
           </label>
         </div>
@@ -138,15 +139,15 @@ export function BooksClient({ articles }: { articles: BookArticle[] }) {
           </p>
         )}
 
-        <button
-          type="button"
+        <Button
+          variant="solid"
+          block
           onClick={() => void compile()}
-          disabled={loading}
-          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-foreground px-4 py-2 text-xs font-bold text-background transition-opacity hover:opacity-90 disabled:opacity-60"
+          loading={loading}
+          className="mt-4 items-center justify-center gap-2 rounded-xl bg-foreground px-4 py-2 text-xs! font-bold! text-background leading-[16px]! h-auto! whitespace-normal! "
         >
-          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
           {loading ? t`Compilation…` : t`Télécharger l’EPUB`}
-        </button>
+        </Button>
         <p className="mt-2 text-[11px] text-muted-foreground">
           {selected.length} {t`chapitre(s) sélectionné(s)`}
         </p>

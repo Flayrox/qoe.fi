@@ -8,6 +8,7 @@ import { ThemeToggle, useCommandMenu } from '@qoe/ui';
 
 import { HeaderWorkspaceSwitcher } from './HeaderWorkspaceSwitcher';
 import { t } from '@lingui/core/macro';
+import { Button } from '@qoe/ui/button';
 
 export function HeaderClient() {
   const searchParams = useSearchParams();
@@ -28,27 +29,33 @@ export function HeaderClient() {
       <div className="w-full flex items-center justify-between">
         {/* Left: Mobile Trigger & Search Bar */}
         <div className="flex items-center gap-2.5 md:gap-4">
-          <button
+          <Button
+            variant="outline"
+            shape="icon"
             onClick={() => window.dispatchEvent(new CustomEvent('toggle-mobile-sidebar'))}
-            className="md:hidden p-2 text-muted-foreground hover:text-foreground rounded-lg bg-muted/50 border border-border/30 active:scale-95 transition-all"
+            className="rounded-lg border-border/30 bg-muted/50 p-2 text-muted-foreground active:scale-95 hover:text-foreground md:hidden h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal "
             aria-label={t`Ouvrir la navigation`}
           >
-            <Menu className="w-4 h-4 shrink-0" strokeWidth={1.5} />
-          </button>
+            <Menu className="w-4! h-4! shrink-0" strokeWidth={1.5} />
+          </Button>
 
-          <button
+          <Button
+            variant="ghost"
             onClick={() => setIsOpen(true)}
-            className="w-48 sm:w-72 md:w-80 flex items-center justify-between font-sans text-xs text-muted-foreground/80 bg-muted/50 border border-transparent rounded-lg py-1.5 px-3.5 hover:bg-muted hover:text-foreground transition-all duration-200 cursor-pointer"
+            className="w-48! items-center justify-between rounded-lg border border-transparent bg-muted/50 px-3.5 py-1.5 font-sans text-xs! text-muted-foreground/80 hover:bg-muted hover:text-foreground sm:w-72 md:w-80 leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! "
           >
             <div className="flex items-center gap-2.5">
-              <Search className="w-3.5 h-3.5 shrink-0 text-muted-foreground/70" strokeWidth={1.5} />
+              <Search
+                className="w-3.5! h-3.5! shrink-0 text-muted-foreground/70"
+                strokeWidth={1.5}
+              />
               <span className="text-[13px] font-normal">{t`Rechercher...`}</span>
             </div>
             <div className="flex items-center gap-0.5 border border-border/30 bg-background/60 text-[10px] px-1.5 py-0.5 rounded font-medium text-muted-foreground select-none">
-              <Command className="w-2.5 h-2.5 shrink-0" strokeWidth={1.5} />
+              <Command className="w-2.5! h-2.5! shrink-0" strokeWidth={1.5} />
               <span>K</span>
             </div>
-          </button>
+          </Button>
         </div>
 
         {/* Right: Workspace Switcher & Navigation Links */}
@@ -57,16 +64,16 @@ export function HeaderClient() {
 
           <nav className="hidden lg:flex items-center gap-5">
             {[t`Writer`, t`Studio`, t`Advanced`].map((label) => (
-              <button
+              <Button
                 key={label}
-                type="button"
+                variant="ghost"
                 disabled
                 aria-disabled="true"
                 title={t`Bientôt disponible`}
-                className="cursor-not-allowed border-b-2 border-transparent py-1.5 text-muted-foreground/45 opacity-60 select-none"
+                className="select-none rounded-none border-b-2 border-transparent py-1.5 text-muted-foreground/45 opacity-60 hover:bg-transparent h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block px-0 "
               >
                 {label}
-              </button>
+              </Button>
             ))}
           </nav>
 

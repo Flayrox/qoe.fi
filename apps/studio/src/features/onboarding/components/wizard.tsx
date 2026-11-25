@@ -27,6 +27,8 @@ import {
   Plus,
 } from 'lucide-react';
 import { BentoPlateau, BentoItem } from '@qoe/ui/ui/BentoPlateau';
+import { Button } from '@qoe/ui/button';
+import { Input } from '@qoe/ui/input';
 
 // Règles miroir de l'API Go (apps/api/internal/modules/settings/service.go) :
 // on valide côté client, l'API tranche au final. La liste des noms réservés
@@ -338,10 +340,10 @@ export function OnboardingWizard({
                           <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
                             {t`Ton nom d'affichage`}
                           </label>
-                          <input
+                          <Input
                             type="text"
                             placeholder={t`Ton nom ou pseudo`}
-                            className="w-full bg-[#FAF9F6] border border-border rounded-lg p-4 text-foreground focus:outline-none focus:border-[#EE4B2B] focus:ring-1 focus:ring-[#EE4B2B] transition-all"
+                            className="w-full! bg-[#FAF9F6] border border-border rounded-lg p-4 text-foreground focus:outline-none focus:border-[#EE4B2B] focus:ring-1 focus:ring-[#EE4B2B] transition-all h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                           />
@@ -403,13 +405,14 @@ export function OnboardingWizard({
                     {t`Thème minimal + accroche par défaut. Tout se change dans les réglages.`}
                   </p>
 
-                  <button
+                  <Button
+                    variant="solid"
                     onClick={handleLaunch}
                     disabled={!name.trim()}
-                    className="flex items-center bg-[#EE4B2B] hover:bg-[#d63d20] text-white px-6 py-3 rounded-full text-xs font-bold uppercase tracking-wider transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-red-500/10"
+                    className="items-center rounded-full bg-[#EE4B2B] px-6 py-3 text-xs! font-bold! uppercase tracking-wider text-white shadow-md shadow-red-500/10 hover:bg-[#d63d20] leading-[16px]! h-auto! whitespace-normal! justify-normal "
                   >
                     {t`Lancer mon espace`} <ArrowRight size={14} className="ml-1.5" />
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>

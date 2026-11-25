@@ -9,6 +9,7 @@ import { MousePointer, Hand, Plus, ZoomIn, ZoomOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStageEngine, StageEditorMode } from '../context/StageEngineContext';
 import { t } from '@lingui/core/macro';
+import { Button } from '@qoe/ui/button';
 
 export function BottomBar() {
   const engine = useStageEngine();
@@ -26,85 +27,94 @@ export function BottomBar() {
             className="flex items-center gap-1 p-1 bg-background/90 backdrop-blur-md border border-border/60 rounded-lg shadow-md text-xs"
           >
             {/* Outil Sélection (V) */}
-            <button
+            <Button
+              variant="solid"
+              tone="brand"
               type="button"
               onClick={() => engine.setEditorMode(StageEditorMode.DESIGN)}
               title={t`Sélectionner (V)`}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium! transition-all ${
                 engine.editorMode === StageEditorMode.DESIGN
                   ? 'bg-primary text-primary-foreground shadow-xs'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-              }`}
+              } h-auto! [font-size:inherit]! leading-[inherit]! whitespace-normal! justify-normal `}
             >
-              <MousePointer className="w-3.5 h-3.5" />
+              <MousePointer className="w-3.5! h-3.5!" />
               <span>{t`Sélection`}</span>
               <kbd className="hidden sm:inline-block ml-1 px-1 py-0.2 rounded text-[10px] bg-background/20 font-mono">
                 V
               </kbd>
-            </button>
+            </Button>
 
             {/* Outil Main / Pan (H) */}
-            <button
+            <Button
+              variant="solid"
+              tone="brand"
               type="button"
               onClick={() => engine.setEditorMode(StageEditorMode.PAN)}
               title={t`Main panoramique (H)`}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium! transition-all ${
                 engine.editorMode === StageEditorMode.PAN
                   ? 'bg-primary text-primary-foreground shadow-xs'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-              }`}
+              } h-auto! [font-size:inherit]! leading-[inherit]! whitespace-normal! justify-normal `}
             >
-              <Hand className="w-3.5 h-3.5" />
+              <Hand className="w-3.5! h-3.5!" />
               <span>{t`Pan`}</span>
               <kbd className="hidden sm:inline-block ml-1 px-1 py-0.2 rounded text-[10px] bg-background/20 font-mono">
                 H
               </kbd>
-            </button>
+            </Button>
 
             <div className="h-4 w-px bg-border/60 mx-1" />
 
             {/* Bouton Ajouter Section Rapide */}
-            <button
+            <Button
+              variant="ghost"
               type="button"
               onClick={() => {
                 engine.setLeftPanelTab('blocks');
                 engine.setLeftPanelLocked(true);
               }}
               title={t`Ajouter un bloc`}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-foreground hover:bg-muted/60 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium! text-foreground hover:bg-muted/60 transition-colors h-auto! [font-size:inherit]! leading-[inherit]! whitespace-normal! justify-normal "
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-3.5! h-3.5!" />
               <span>{t`Ajouter`}</span>
-            </button>
+            </Button>
 
             <div className="h-4 w-px bg-border/60 mx-1" />
 
             {/* Zoom rapide & Recentrage */}
             <div className="flex items-center gap-0.5">
-              <button
+              <Button
+                variant="ghost"
                 type="button"
                 onClick={engine.zoomOut}
                 title={t`Zoom arrière (⌘-)`}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               >
-                <ZoomOut className="w-3.5 h-3.5" />
-              </button>
-              <button
+                <ZoomOut className="w-3.5! h-3.5!" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="xs"
                 type="button"
                 onClick={engine.resetZoom}
                 title={t`Recentrer le plan de travail (⇧0)`}
-                className="px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground/80 hover:text-foreground"
+                className="hover:bg-transparent px-1.5 py-0.5 font-mono text-[11px]! font-semibold! text-foreground/80 hover:text-foreground h-auto! leading-[inherit]! whitespace-normal! justify-normal inline-block "
               >
                 {Math.round(engine.scale * 100)}%
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="ghost"
                 type="button"
                 onClick={engine.zoomIn}
                 title={t`Zoom avant (⌘+)`}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               >
-                <ZoomIn className="w-3.5 h-3.5" />
-              </button>
+                <ZoomIn className="w-3.5! h-3.5!" />
+              </Button>
             </div>
           </motion.div>
         )}

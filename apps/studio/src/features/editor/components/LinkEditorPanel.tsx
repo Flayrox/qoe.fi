@@ -108,6 +108,7 @@ export function LinkEditorPanel({
       </div>
 
       <Input
+        className=" h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
         autoFocus
         type="text"
         inputMode="url"
@@ -136,6 +137,7 @@ export function LinkEditorPanel({
           </p>
           <InputGroup size="sm" left={<Search className="size-3.5 text-muted-foreground" />}>
             <Input
+              className=" h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               size="sm"
               value={internalQuery}
               onChange={(event) => setInternalQuery(event.target.value)}
@@ -154,18 +156,19 @@ export function LinkEditorPanel({
             <ul className="max-h-36 space-y-0.5 overflow-y-auto">
               {internalResults.map((hit) => (
                 <li key={hit.id}>
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    block
                     onClick={() => {
                       onChange(resolveArticleUrl(hit));
                       setInternalQuery('');
                       setInternalResults([]);
                     }}
-                    className="flex w-full items-start gap-1.5 rounded-md px-1.5 py-1 text-left text-[11px] text-foreground transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
+                    className="w-full! items-start gap-1.5 rounded-md px-1.5 py-1 text-left text-[11px]! text-foreground hover:bg-muted/60 h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal "
                   >
-                    <FileText className="mt-0.5 size-3 shrink-0 text-primary" aria-hidden />
+                    <FileText className="mt-0.5 size-3! shrink-0 text-primary" aria-hidden />
                     <span className="line-clamp-2">{hit.title}</span>
-                  </button>
+                  </Button>
                 </li>
               ))}
             </ul>

@@ -10,6 +10,8 @@
 import { useState, useTransition } from 'react';
 import { createCreatorTierAction, openBillingPortalAction, type BillingTier } from '@qoe/sdk';
 import { t } from '@lingui/core/macro';
+import { Button } from '@qoe/ui/button';
+import { Input } from '@qoe/ui/input';
 
 interface MonetizationClientProps {
   publisherId: string;
@@ -94,14 +96,14 @@ export function MonetizationClient({
               {t`Ces formules apparaissent sur le paywall de votre publication. Chaque formule doit être reliée à un tarif Stripe pour être payable ; ce tarif est vérifié et doit débiter exactement le montant affiché, en euros, chaque mois.`}
             </p>
           </div>
-          <button
-            type="button"
+          <Button
+            variant="outline"
             onClick={openPortal}
             disabled={isPending}
-            className="rounded-xl border border-border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-60"
+            className="rounded-xl px-3 py-2 text-xs! font-semibold! text-foreground hover:bg-muted leading-[16px]! h-auto! whitespace-normal! justify-normal inline-block "
           >
             {t`Portail de facturation`}
-          </button>
+          </Button>
         </div>
 
         {error && (
@@ -159,41 +161,41 @@ export function MonetizationClient({
         <form onSubmit={submit} className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="text-xs font-medium text-foreground">
             {t`Nom`}
-            <input
+            <Input
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder={t`Membre Premium`}
-              className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              className="mt-1 w-full! rounded-xl border border-border bg-background px-3 py-2 text-sm! leading-[20px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
             />
           </label>
 
           <label className="text-xs font-medium text-foreground">
             {t`Prix mensuel (€)`}
-            <input
+            <Input
               value={priceEuro}
               onChange={(event) => setPriceEuro(event.target.value)}
               inputMode="decimal"
-              className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              className="mt-1 w-full! rounded-xl border border-border bg-background px-3 py-2 text-sm! leading-[20px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
             />
           </label>
 
           <label className="text-xs font-medium text-foreground sm:col-span-2">
             {t`Description (optionnel)`}
-            <input
+            <Input
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               placeholder={t`Accès aux archives et aux articles réservés.`}
-              className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              className="mt-1 w-full! rounded-xl border border-border bg-background px-3 py-2 text-sm! leading-[20px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
             />
           </label>
 
           <label className="text-xs font-medium text-foreground sm:col-span-2">
             {t`Tarif Stripe mensuel (price_…)`}
-            <input
+            <Input
               value={stripePriceId}
               onChange={(event) => setStripePriceId(event.target.value)}
               placeholder="price_1P…"
-              className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 font-mono text-sm"
+              className="mt-1 w-full! rounded-xl border border-border bg-background px-3 py-2 font-mono text-sm! leading-[20px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
             />
             <span className="mt-1 block font-normal text-muted-foreground">
               {t`Créez le prix dans Stripe, puis collez son identifiant : sans lui, la formule reste affichée mais non payable.`}
@@ -201,13 +203,14 @@ export function MonetizationClient({
           </label>
 
           <div className="sm:col-span-2">
-            <button
+            <Button
               type="submit"
-              disabled={isPending}
-              className="rounded-xl bg-foreground px-4 py-2 text-xs font-bold text-background transition-opacity hover:opacity-90 disabled:opacity-60"
+              variant="solid"
+              loading={isPending}
+              className="rounded-xl bg-foreground px-4 py-2 text-xs! font-bold! text-background leading-[16px]! h-auto! whitespace-normal! justify-normal inline-block "
             >
               {isPending ? t`Création…` : t`Créer la formule`}
-            </button>
+            </Button>
           </div>
         </form>
       </section>

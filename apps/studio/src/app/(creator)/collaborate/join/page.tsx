@@ -18,8 +18,8 @@ import {
   type CollaborationInviteLinkPreview,
 } from '@qoe/sdk/actions/articles';
 import { SafeAvatar } from '@qoe/ui';
-import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
+import { Button } from '@qoe/ui/button';
 
 export default function CollaborateJoinPage() {
   const searchParams = useSearchParams();
@@ -156,13 +156,14 @@ export default function CollaborateJoinPage() {
                 t`Ce lien d'invitation n'est plus actif, a été révoqué ou a atteint sa limite d'utilisations.`}
             </p>
           </div>
-          <button
-            type="button"
+          <Button
+            variant="soft"
+            block
             onClick={() => router.push('/articles')}
-            className="w-full rounded-xl bg-muted py-2.5 px-4 text-xs font-semibold text-foreground hover:bg-muted/80 transition-colors"
+            className="rounded-xl bg-muted px-4 py-2.5 text-xs! font-semibold! text-foreground hover:bg-muted/80 leading-[16px]! h-auto! whitespace-normal! justify-normal inline-block "
           >
             {t`Retourner aux articles`}
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -244,26 +245,26 @@ export default function CollaborateJoinPage() {
               <span>{t`Invitation acceptée ! Redirection en cours…`}</span>
             </div>
           ) : (
-            <button
-              type="button"
-              disabled={isPending}
+            <Button
+              variant="solid"
+              tone="brand"
+              block
               onClick={handleJoin}
-              className={cn(
-                'group flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 px-6 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 hover:opacity-95 active:scale-[0.99] transition-all disabled:opacity-60'
-              )}
+              loading={isPending}
+              className="items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-sm! font-bold! shadow-lg shadow-primary/20 active:scale-[0.99] leading-[20px]! h-auto! whitespace-normal! "
             >
               {isPending ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4! w-4! animate-spin" />
                   <span>{t`Acceptation en cours…`}</span>
                 </>
               ) : (
                 <>
                   <span>{t`Accepter et ouvrir l’éditeur`}</span>
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                  <ArrowRight className="h-4! w-4! transition-transform group-hover:translate-x-0.5" />
                 </>
               )}
-            </button>
+            </Button>
           )}
 
           <p className="text-center text-[11px] text-muted-foreground">

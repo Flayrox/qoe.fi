@@ -7,6 +7,7 @@ import { t } from '@lingui/core/macro';
 import { Button } from '@qoe/ui/button';
 import { PopoverPanel } from '@qoe/ui/popover-panel';
 import { useModKey } from '../hooks/useModKey';
+import { Textarea } from '@qoe/ui/input';
 
 export interface AnnotationNotePanelProps {
   open: boolean;
@@ -78,7 +79,7 @@ export function AnnotationNotePanel({
               variant="ghost"
               onClick={onClose}
               aria-label={t`Fermer`}
-              className="shrink-0"
+              className="shrink-0 h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
             >
               <X />
             </Button>
@@ -101,12 +102,12 @@ export function AnnotationNotePanel({
                   variant="ghost"
                   onClick={() => setQuoteExpanded((value) => !value)}
                   aria-expanded={quoteExpanded}
-                  className="min-h-6 gap-1 px-1 text-[10px] font-medium text-muted-foreground"
+                  className="min-h-6 gap-1 px-1 text-[10px]! font-medium! text-muted-foreground leading-[inherit]! whitespace-normal! justify-normal py-0 "
                 >
                   {quoteExpanded ? (
-                    <ChevronUp className="size-3" />
+                    <ChevronUp className="size-3!" />
                   ) : (
-                    <ChevronDown className="size-3" />
+                    <ChevronDown className="size-3!" />
                   )}
                   {quoteExpanded ? t`Replier la citation` : t`Déplier la citation`}
                 </Button>
@@ -115,7 +116,7 @@ export function AnnotationNotePanel({
           )}
 
           <div>
-            <textarea
+            <Textarea
               autoFocus
               rows={4}
               value={note}
@@ -128,7 +129,7 @@ export function AnnotationNotePanel({
               }}
               placeholder={t`Ajoutez une note, précision ou source...`}
               aria-label={t`Note d'auteur`}
-              className="min-h-24 w-full resize-none rounded-xl border border-border/60 bg-background p-3 font-sans text-xs leading-relaxed text-foreground transition-all placeholder:text-muted-foreground/40 focus:border-highlight/60 focus:ring-1 focus:ring-highlight/30 focus:outline-none"
+              className="min-h-24 w-full! resize-none rounded-xl border border-border/60 bg-background p-3 font-sans text-xs! leading-relaxed! text-foreground transition-all placeholder:text-muted-foreground/40 focus:border-highlight/60 focus:ring-1 focus:ring-highlight/30 focus:outline-none [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
             />
             <div className="mt-1.5 flex items-center justify-between gap-3 text-[10px] text-muted-foreground/70">
               <span>{t`${MOD} + Entrée pour enregistrer`}</span>
