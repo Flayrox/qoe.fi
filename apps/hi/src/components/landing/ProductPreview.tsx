@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { t } from '@lingui/core/macro';
 import { Type, Eye, Coffee, Accessibility } from 'lucide-react';
+import { Button } from '@qoe/ui/button';
 
 type FontSize = 'text-base' | 'text-lg' | 'text-xl';
 
@@ -65,17 +66,17 @@ export const ProductPreview = ({ config }: ProductPreviewProps) => {
                 </label>
                 <div className="flex gap-2">
                   {['text-base', 'text-lg', 'text-xl'].map((size) => (
-                    <button
+                    <Button
                       key={size}
                       onClick={() => setFontSize(size as FontSize)}
-                      className={`flex-1 py-3 rounded-xl border text-sm transition-all ${
+                      className={`flex-1 rounded-xl border py-3 text-sm! ${
                         fontSize === size
                           ? 'bg-white text-black border-white'
                           : 'bg-white/5 text-white/40 border-white/10 hover:border-white/20'
-                      }`}
+                      } leading-[20px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block px-0 `}
                     >
                       {size === 'text-base' ? 'A' : size === 'text-lg' ? 'A+' : 'A++'}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               </div>
@@ -85,41 +86,41 @@ export const ProductPreview = ({ config }: ProductPreviewProps) => {
                   <Eye className="w-3 h-3" /> {t`Mode d'affichage`}
                 </label>
                 <div className="grid grid-cols-1 gap-3">
-                  <button
+                  <Button
                     onClick={() => setReadingMode('classic')}
-                    className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${
+                    className={`items-center justify-start gap-4 rounded-xl border p-4 hover:bg-transparent ${
                       readingMode === 'classic'
                         ? 'bg-white/10 border-white/40'
                         : 'bg-white/5 border-white/10 hover:border-white/20'
-                    }`}
+                    } h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal `}
                   >
                     <div className="w-6 h-6 rounded-full bg-[#fcfbf9] border border-border" />
                     <span className="text-white text-sm font-medium">
                       {t`Sanctuaire Elfique (Clair)`}
                     </span>
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     onClick={() => setReadingMode('sepia')}
-                    className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${
+                    className={`items-center justify-start gap-4 rounded-xl border p-4 hover:bg-transparent ${
                       readingMode === 'sepia'
                         ? 'bg-[#f4ecd8]/10 border-[#d3c1a5]/40'
                         : 'bg-white/5 border-white/10 hover:border-white/20'
-                    }`}
+                    } h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal `}
                   >
                     <div className="w-6 h-6 rounded-full bg-[#f4ecd8] border border-[#d3c1a5]" />
                     <span className="text-white text-sm font-medium">{t`Sépia (Reposant)`}</span>
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     onClick={() => setReadingMode('dyslexia')}
-                    className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${
+                    className={`items-center justify-start gap-4 rounded-xl border p-4 hover:bg-transparent ${
                       readingMode === 'dyslexia'
                         ? 'bg-white/10 border-white/40'
                         : 'bg-white/5 border-white/10 hover:border-white/20'
-                    }`}
+                    } h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal `}
                   >
-                    <Accessibility className="w-6 h-6 text-white" />
+                    <Accessibility className="w-6! h-6! text-white" />
                     <span className="text-white text-sm font-medium">{t`Dyslexia Friendly`}</span>
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>

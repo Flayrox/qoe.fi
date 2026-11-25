@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { t } from '@lingui/core/macro';
 import { FileText, Mail, Volume2, BarChart2, Zap, Circle, Maximize2, Terminal } from 'lucide-react';
+import { Button } from '@qoe/ui/button';
 
 interface FormatPreviewProps {
   config: Record<string, string>;
@@ -106,18 +107,20 @@ export const FormatPreview = ({ config }: FormatPreviewProps) => {
               {formats.map((f) => {
                 const Icon = f.icon;
                 return (
-                  <button
+                  <Button
                     key={f.id}
+                    variant="ghost"
+                    block
                     onClick={() => setActiveFormat(f.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-lg text-left text-xs font-medium tracking-wide transition-all duration-300 cursor-pointer ${
+                    className={`w-full! items-center gap-3 rounded-lg px-4 py-3.5 text-left text-xs! font-medium! tracking-wide hover:bg-transparent ${
                       activeFormat === f.id
                         ? 'bg-card border border-border/40 text-foreground font-bold shadow-md'
                         : 'text-muted-foreground hover:text-foreground'
-                    }`}
+                    } leading-[16px]! h-auto! whitespace-normal! justify-normal `}
                   >
-                    <Icon className={`w-4 h-4 ${f.color}`} />
+                    <Icon className={`w-4! h-4! ${f.color}`} />
                     <span>{f.label}</span>
-                  </button>
+                  </Button>
                 );
               })}
             </div>

@@ -20,6 +20,7 @@ import Link from 'next/link';
 import { cn } from '@qoe/utils';
 import { URLS } from '@qoe/config';
 import { isFilledString, isRecord, parseJsonArray } from '@/lib/config-json';
+import { Button } from '@qoe/ui/button';
 
 interface HeroProps {
   config: Record<string, string>;
@@ -250,12 +251,15 @@ function MacDot({
   pulsing?: boolean;
 }) {
   return (
-    <button
+    <Button
+      variant="ghost"
+      shape="icon"
       title={label}
       onClick={onClick}
       className={cn(
-        'w-3 h-3 rounded-full flex-shrink-0 focus:outline-none hover:brightness-90 transition-all relative',
-        pulsing && 'ring-2 ring-offset-1'
+        'relative w-3! shrink-0 rounded-full p-0 hover:bg-transparent hover:brightness-90 h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! ',
+        pulsing &&
+          'ring-2 ring-offset-1 h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block '
       )}
       style={{ background: bg, ...(pulsing ? { ringColor: bg } : {}) }}
     >
@@ -265,7 +269,7 @@ function MacDot({
           style={{ background: bg }}
         />
       )}
-    </button>
+    </Button>
   );
 }
 
@@ -528,10 +532,11 @@ function PlateauPreview({
             </motion.div>
 
             {/* Hidden ref element on red dot position for cursor targeting */}
-            <button
+            <Button
               ref={redDotRef}
+              variant="ghost"
               data-reddot
-              className="absolute -top-9 left-3 w-3 h-3 opacity-0 pointer-events-none"
+              className="pointer-events-none absolute -top-9 left-3 h-3! w-3! p-0 opacity-0 hover:bg-transparent [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               aria-hidden
             />
 
