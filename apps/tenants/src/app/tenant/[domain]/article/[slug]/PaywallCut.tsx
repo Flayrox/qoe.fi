@@ -10,6 +10,7 @@ import { getCreatorTiersAction, startSubscriptionCheckoutAction, type BillingTie
 
 import { sanitizeHtml } from '@/lib/sanitize';
 import { t } from '@lingui/core/macro';
+import { Button } from '@qoe/ui/button';
 
 /** Prix de l'achat à l'unité, en centimes (source unique pour l'UI et l'API). */
 const ARTICLE_UNLOCK_PRICE_CENTS = 200;
@@ -284,16 +285,15 @@ export function PaywallOverlay({
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             {/* Achat à l'unité */}
-            <button
-              type="button"
+            <Button
+              variant="ghost"
               onClick={handleUnlock}
-              disabled={unlocking}
-              aria-busy={unlocking}
-              className={`group flex flex-col justify-between rounded-xl p-4 text-left transition-all focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none disabled:opacity-70 ${
+              loading={unlocking}
+              className={`flex-col items-stretch justify-between rounded-xl p-4 text-left hover:bg-transparent ${
                 isBrutalist
                   ? 'border-2 border-foreground hover:bg-muted'
                   : 'border border-border/70 bg-background hover:-translate-y-0.5 hover:border-[var(--tenant-accent)]/50 hover:shadow-md'
-              }`}
+              } h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! `}
             >
               <div>
                 <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--tenant-accent)]">
@@ -316,28 +316,27 @@ export function PaywallOverlay({
                   style={{ backgroundColor: accentColor || 'var(--tenant-accent)' }}
                 >
                   {unlocking ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <Loader2 className="h-3.5! w-3.5! animate-spin" />
                   ) : (
                     <>
-                      <Wallet className="h-3.5 w-3.5" />
+                      <Wallet className="h-3.5! w-3.5!" />
                       <span>{t`Débloquer`}</span>
                     </>
                   )}
                 </span>
               </div>
-            </button>
+            </Button>
 
             {/* Abonnement — Checkout Stripe réel (ou message honnête) */}
-            <button
-              type="button"
+            <Button
+              variant="ghost"
               onClick={handleSubscribe}
-              disabled={subscribing}
-              aria-busy={subscribing}
-              className={`group flex flex-col justify-between rounded-xl p-4 text-left transition-all focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none disabled:opacity-70 ${
+              loading={subscribing}
+              className={`flex-col items-stretch justify-between rounded-xl p-4 text-left hover:bg-transparent ${
                 isBrutalist
                   ? 'border-2 border-foreground hover:bg-muted'
                   : 'border border-border/70 bg-background hover:-translate-y-0.5 hover:border-foreground/30 hover:shadow-md'
-              }`}
+              } h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! `}
             >
               <div>
                 <div className="flex items-center justify-between gap-2">
@@ -363,16 +362,16 @@ export function PaywallOverlay({
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-full bg-foreground px-3 py-1.5 text-xs font-semibold text-background transition-opacity group-hover:opacity-90">
                   {subscribing ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <Loader2 className="h-3.5! w-3.5! animate-spin" />
                   ) : (
                     <>
                       {t`S'abonner`}
-                      <ArrowRight className="h-3.5 w-3.5" />
+                      <ArrowRight className="h-3.5! w-3.5!" />
                     </>
                   )}
                 </span>
               </div>
-            </button>
+            </Button>
           </div>
 
           <div className="mt-6 border-t border-border/50 pt-4 text-center text-xs text-muted-foreground">
