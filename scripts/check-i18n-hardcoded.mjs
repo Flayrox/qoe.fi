@@ -35,6 +35,9 @@ const ZONES = process.env.QOE_I18N_ZONES
       'apps/studio/src/features/devtools',
       'apps/studio/src/app/login',
       'apps/studio/src/app/onboarding',
+      // App publique migrée lot L22k (25/11/2026) : la zone entre dans la
+      // garde une fois à zéro, sinon elle peut rediverger sans bruit.
+      'apps/tenants/src',
     ];
 // Exemption assumée par décision produit (R142, 2026-11-23) : `app/dev` est un atelier
 // interne jamais livré (`devRoutesEnabled()` le ferme hors dev/E2E). Ses spécimens sont
@@ -49,6 +52,12 @@ for (const exempt of EXEMPT_ZONES) {
   }
 }
 const SKIP_DIRS = new Set(['node_modules', '__tests__', 'vendor', '.next']);
+
+// Fichiers hors copie produit, par décision explicite :
+// - `apps/tenants/src/app/page.tsx` : placeholder de scaffold de l'app publique
+//   (texte anglais assumé, « Sera remplacé en Phase 2 », écrit dans son en-tête).
+//   Ce n'est pas une surface produit : le migrer figerait une copie morte.
+const EXEMPT_FILES = new Set(['apps/tenants/src/app/page.tsx']);
 
 // Lexique de mots-outils et de vocabulaire d'interface : sert à reconnaître une
 // chaîne française même sans accent (« Action », « lecteurs », « En attente »).
@@ -309,11 +318,22 @@ function isFrenchLiteral(text) {
 
 // Les métadonnées sont rendues hors du provider i18n : leur copie FR/EN est
 // volontairement littérale (cf. generateMetadata du studio).
+// ⚠️ Les apps déclarent aussi `generateTenantArticleMetadata`, `generateTenant-
+// CategoryMetadata`… : le nom exact seul laissait passer leur copie bilingue.
 function inGenerateMetadata(node) {
   for (let p = node.parent; p && !ts.isSourceFile(p); p = p.parent) {
-    if (ts.isFunctionDeclaration(p) && p.name?.getText() === 'generateMetadata') return true;
+    if (ts.isFunctionDeclaration(p) && /^generate\w*Metadata$/.test(p.name?.getText() ?? '')) {
+      return true;
+    }
   }
   return false;
+}
+
+// Gabarits de balisage (flux RSS, XML, JSON-LD) : leur texte est de la
+// structure de document, pas de la copie d'interface. Le lexique français y
+// reconnaissait « description », « channel » ou « title ».
+function isMarkupTemplate(text) {
+  return /^\s*<\?xml|^\s*<rss|<channel>|<item>/i.test(text);
 }
 
 // Paire bilingue : l'autre branche porte déjà une macro, donc celle-ci est sa
@@ -378,6 +398,7 @@ for (const file of files) {
   const src = fs.readFileSync(file, 'utf8');
   const sf = ts.createSourceFile(file, src, ts.ScriptTarget.ESNext, true, ts.ScriptKind.TSX);
   const rel = path.relative(ROOT, file);
+  if (EXEMPT_FILES.has(rel)) continue;
   const report = (node, kind) => {
     const { line, character } = sf.getLineAndCharacterOfPosition(node.getStart(sf));
     const text = node.getText(sf).replace(/\s+/g, ' ');
@@ -455,6 +476,7 @@ for (const file of files) {
         !/\? 's' : ''/.test(whole) &&
         !whole.includes('://') &&
         isFrenchLiteral(prose) &&
+        !isMarkupTemplate(whole) &&
         !inGenerateMetadata(node) &&
         !bilingualSibling(node)
       ) {
