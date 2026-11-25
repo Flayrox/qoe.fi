@@ -45,8 +45,6 @@ import {
 } from './mappers';
 import type { EligibilitySurface, SurfaceEligibilityResult } from './eligibility';
 
-export * from './eligibility';
-
 /** Résultat du découpage paywall (shape Go GET /v1/articles/{slug}). */
 export interface PaywallCutResult {
   content: string;
