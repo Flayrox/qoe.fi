@@ -832,6 +832,8 @@ export interface CommentRepliesPage {
   items: ArticleCommentPayload[];
   nextCursor: string;
   hasMore: boolean;
+  // Nombre de places de la portée (tombstones compris), pas seulement la page.
+  totalCount: number;
 }
 
 export const postArticleCommentAction = safeAction<
@@ -867,6 +869,7 @@ export const getArticleCommentsAction = safeAction<
       items: page.items ?? [],
       nextCursor: page.nextCursor ?? '',
       hasMore: Boolean(page.hasMore),
+      totalCount: page.totalCount ?? 0,
     };
   },
   { requireAuth: false }
@@ -889,6 +892,7 @@ export const getPostRepliesAction = safeAction<
       items: page.items ?? [],
       nextCursor: page.nextCursor ?? '',
       hasMore: Boolean(page.hasMore),
+      totalCount: page.totalCount ?? 0,
     };
   },
   { requireAuth: false }

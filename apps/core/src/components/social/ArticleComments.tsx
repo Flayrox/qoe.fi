@@ -61,6 +61,8 @@ function tombstoneOf(comment: ArticleCommentPayload): ArticleCommentPayload {
 
 export function ArticleComments({ articleId, currentUserId = null }: ArticleCommentsProps) {
   const [roots, setRoots] = useState<ArticleCommentPayload[]>([]);
+  // Total serveur de la discussion : il ne dépend pas des pages déjà chargées.
+  const [totalCount, setTotalCount] = useState(0);
   const [cursor, setCursor] = useState('');
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -74,6 +76,7 @@ export function ArticleComments({ articleId, currentUserId = null }: ArticleComm
   useEffect(() => {
     let cancelled = false;
     setRoots([]);
+    setTotalCount(0);
     setCursor('');
     setHasMore(false);
     setLoading(true);
@@ -84,6 +87,7 @@ export function ArticleComments({ articleId, currentUserId = null }: ArticleComm
         if (cancelled) return;
         if (res.ok) {
           setRoots(res.data.items);
+          setTotalCount(res.data.totalCount ?? res.data.items.length);
           setCursor(res.data.nextCursor);
           setHasMore(res.data.hasMore);
         } else {
@@ -108,6 +112,11 @@ export function ArticleComments({ articleId, currentUserId = null }: ArticleComm
       const res = await getArticleCommentsAction({ articleId, cursor, limit: PAGE_SIZE });
       if (res.ok) {
         setRoots((current) => [...current, ...res.data.items]);
+        setTotalCount((current) =>
+          typeof res.data.totalCount === 'number'
+            ? res.data.totalCount
+            : current + res.data.items.length
+        );
         setCursor(res.data.nextCursor);
         setHasMore(res.data.hasMore);
       } else {
@@ -132,6 +141,7 @@ export function ArticleComments({ articleId, currentUserId = null }: ArticleComm
         return;
       }
       setRoots((current) => [...current, res.data]);
+      setTotalCount((current) => current + 1);
       setContent('');
     } catch {
       setError(t`Publication impossible.`);
@@ -143,15 +153,15 @@ export function ArticleComments({ articleId, currentUserId = null }: ArticleComm
   const tombstoneRoot = (commentId: string) =>
     setRoots((current) => current.map((c) => (c.id === commentId ? asTombstone(c) : c)));
 
-  const totalLoaded = roots.length;
+  const displayedTotal = totalCount || roots.length;
 
   return (
     <section id="comments" className="not-prose mt-12 border-t border-border/40 pt-8">
       <h2 className="flex items-center gap-2 text-sm font-bold text-foreground">
         <MessageSquare className="h-4 w-4 text-muted-foreground" />
         {t`Discussion`}
-        {totalLoaded > 0 && (
-          <span className="text-xs font-normal text-muted-foreground">({totalLoaded})</span>
+        {displayedTotal > 0 && (
+          <span className="text-xs font-normal text-muted-foreground">({displayedTotal})</span>
         )}
       </h2>
 

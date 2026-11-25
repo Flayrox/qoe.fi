@@ -54,11 +54,17 @@ type CommentPage = {
   items: CommentItem[];
   nextCursor: string;
   hasMore: boolean;
+  totalCount?: number;
 };
 
 /** Une page de fil : le curseur est vide tant qu'il n'y a pas de suite. */
-function pageOf(items: CommentItem[], nextCursor = '', hasMore = false): CommentPage {
-  return { items, nextCursor, hasMore };
+function pageOf(
+  items: CommentItem[],
+  nextCursor = '',
+  hasMore = false,
+  totalCount = items.length
+): CommentPage {
+  return { items, nextCursor, hasMore, totalCount };
 }
 
 function deferred<T>() {
@@ -272,6 +278,18 @@ describe('ArticleComments', () => {
       fast.resolve({ ok: true, data: pageOf([commentFixture('de-b')]) });
     });
     await waitFor(() => expect(screen.getByText('commentaire-de-b')).toBeTruthy());
+  });
+
+  it('affiche le total serveur, pas seulement les commentaires chargés', async () => {
+    mockComments.mockResolvedValue({
+      ok: true,
+      data: pageOf([commentFixture('premier')], 'suite', true, 7),
+    });
+
+    render(<ArticleComments articleId="art-1" />);
+    await waitFor(() => expect(screen.getByText('commentaire-premier')).toBeTruthy());
+    // La page ne contient qu'un commentaire ; l'en-tête annonce les 7 places.
+    expect(screen.getByText('(7)')).toBeTruthy();
   });
 
   it('garde la place d’un commentaire supprimé et laisse ses réponses lisibles', async () => {

@@ -11,6 +11,41 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countThreadPage = `-- name: CountThreadPage :one
+SELECT COUNT(*)::int AS total
+FROM "Post" p
+WHERE (
+        ($1::text = 'children' AND p."parentId" = $2::text)
+     OR ($1::text = 'thread'   AND p."rootId"    = $3::text)
+     OR ($1::text = 'roots'    AND p."rootArticleId" = $4::text
+                                             AND p."parentId" IS NULL)
+      )
+  AND p."isDraft" = false
+`
+
+type CountThreadPageParams struct {
+	Scope     string `json:"scope"`
+	ParentID  string `json:"parent_id"`
+	RootID    string `json:"root_id"`
+	ArticleID string `json:"article_id"`
+}
+
+// Total de la même portée que ListThreadPage, SANS curseur : il compte les
+// places du fil (tombstones compris), exactement ce que la pagination finit
+// par rendre. Le filtre structurel est le même ; la politique de visibilité
+// reste dans le LATERAL de ListThreadPage, jamais recopiée ici.
+func (q *Queries) CountThreadPage(ctx context.Context, arg CountThreadPageParams) (int32, error) {
+	row := q.db.QueryRow(ctx, countThreadPage,
+		arg.Scope,
+		arg.ParentID,
+		arg.RootID,
+		arg.ArticleID,
+	)
+	var total int32
+	err := row.Scan(&total)
+	return total, err
+}
+
 const listAuthorReplyIDsPage = `-- name: ListAuthorReplyIDsPage :many
 SELECT p.id, p."createdAt"
 FROM "Post" p

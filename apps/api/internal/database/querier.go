@@ -125,6 +125,11 @@ type Querier interface {
 	// Total de pensées indexables (dimensionne les shards du sitemap index).
 	CountSitemapPosts(ctx context.Context) (int64, error)
 	CountSubscribersByPublisher(ctx context.Context, publisherid string) (int64, error)
+	// Total de la même portée que ListThreadPage, SANS curseur : il compte les
+	// places du fil (tombstones compris), exactement ce que la pagination finit
+	// par rendre. Le filtre structurel est le même ; la politique de visibilité
+	// reste dans le LATERAL de ListThreadPage, jamais recopiée ici.
+	CountThreadPage(ctx context.Context, arg CountThreadPageParams) (int32, error)
 	// Nombre de conversations avec au moins un message non lu (badge tab).
 	// Les messages que l'on a SOI-MÊME envoyés ne comptent jamais comme non-lus ;
 	// COUNT(DISTINCT conversation) : plusieurs messages ≠ plusieurs badges.

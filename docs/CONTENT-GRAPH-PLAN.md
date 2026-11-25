@@ -325,12 +325,24 @@ déploiement) — reprise dans le reste-à-faire final.
 | Surfaces                                | ✅   | `ArticleComments` (arbre récursif, chargement par nœud), studio communauté, onglet profil, surfaces `tenants` adaptées                                                                                                                                                   |
 | Curseur testé unitairement              | ✅   | `posts/replies_test.go` : aller-retour exact, curseur vide = première page, curseur illisible = `ErrInvalidCursor`, bornes `NormalizeReplyLimit`                                                                                                                         |
 | Pagination cliente du fil               | ✅   | `repliesCursor`/`repliesTruncated` exposés par le mapping SDK ; `getPostThreadRepliesAction` (`scope=thread`) + `mergeThreadReplies` (rattachement au parent réel, idempotent, orphelin visible et marqué) ; bouton « Charger la suite du fil » dans `ThoughtThreadList` |
+| Total de discussion                     | ✅   | complément 2026-11-25 : `CountThreadPage` (même portée structurelle, sans curseur) + `totalCount` dans `ReplyPage`, le SDK et l'en-tête « Discussion » ; tombstones comptés comme places, page 2 stable |
 
 **R134 et R314 absorbés, aucun cas séparé.** Il n'existe plus de liste de commentaires
 « complète » ni de fil de pensée plafonné : `ListArticleComments`,
 `GetRepliesForThought`, `GetReplyIDsForThought` et `GetPostThread` ont été **supprimées**,
 et `ListThreadPage` (via `posts.ReplyPageFor`) est la seule lecture de fil, pour les
 articles, les pensées et les commentaires.
+
+**Complément 2026-11-25 — le total de discussion est enfin serveur.** L'en-tête
+« Discussion (n) » n'affiche plus `roots.length` (les seuls commentaires chargés).
+`CountThreadPage` compte la portée demandée sans curseur — mêmes filtres structurels
+que `ListThreadPage`, tombstones compris — et `ReplyPage.TotalCount` le transporte
+jusqu'au SDK puis au composant. Aucune migration ni backfill de données : le total se
+dérive des `Post` existants, et une page suivante renvoie le même total. Preuves :
+`TestCommentsPage_TotalCountAcrossPages` (3 racines dont 1 supprimée, pages 2+1,
+total 3/3 ; rouge à `TotalCount: 0`), test UI « affiche le total serveur » (7 annoncés
+pour 1 chargé ; rouge avec `roots.length`), `guard:sqlc` 41 fichiers, `go build`,
+`go vet`, `go test articles/posts` et vitest core.
 
 **Décisions prises pendant L42.**
 
@@ -377,8 +389,8 @@ articles, les pensées et les commentaires.
 - **Tests d'intégration Go non exécutés** : `articles` et `feed` exigent
   Docker/testcontainers, indisponibles en local ; le dry-run SQL documenté en tient lieu,
   mais le code Go contre une vraie base reste à prouver en CI.
-- **Compteur total** : l'API de fil ne renvoie pas de total ; l'en-tête « Discussion (n) »
-  affiche les commentaires chargés, pas ceux de l'article.
+- ~~**Compteur total**~~ : **livré le 2026-11-25** — `ReplyPage.TotalCount` et
+  `CountThreadPage` ; l'en-tête affiche le total de la portée, pas la page chargée.
 
 ### 2026-11-24 — L43 livré (éligibilité par surface, `why`, ranking configurable)
 

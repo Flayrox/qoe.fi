@@ -79,6 +79,10 @@ type ReplyPage struct {
 	Items      []ReplyItem `json:"items"`
 	NextCursor string      `json:"nextCursor"`
 	HasMore    bool        `json:"hasMore"`
+	// TotalCount est le nombre de places de la portée demandée (tombstones
+	// compris), indépendant de la page et du curseur. L'en-tête « Discussion »
+	// n'affiche donc plus seulement les commentaires déjà chargés.
+	TotalCount int `json:"totalCount"`
 }
 
 // NormalizeReplyLimit ramène une taille de page demandée dans les bornes.
@@ -158,6 +162,7 @@ func ReplyItemFromRow(row db.ListThreadPageRow) ReplyItem {
 // branche aussi bien sur db.Queries que sur l'interface de test d'un module.
 type ReplyQuerier interface {
 	ListThreadPage(ctx context.Context, arg db.ListThreadPageParams) ([]db.ListThreadPageRow, error)
+	CountThreadPage(ctx context.Context, arg db.CountThreadPageParams) (int32, error)
 }
 
 // ReplyPageFor lit une page de fil. C'est l'unique chemin de lecture des
@@ -171,6 +176,17 @@ func ReplyPageFor(
 ) (ReplyPage, error) {
 	page := NormalizeReplyLimit(limit)
 	cursorAt, cursorID, err := DecodeReplyCursor(cursor)
+	if err != nil {
+		return ReplyPage{}, err
+	}
+	// Total de la portée : une requête séparée, sans curseur, pour qu'une page
+	// vide (curseur au-delà de la fin) ne fasse pas retomber le total à zéro.
+	total, err := q.CountThreadPage(ctx, db.CountThreadPageParams{
+		Scope:     scope,
+		ParentID:  parentID,
+		RootID:    rootID,
+		ArticleID: articleID,
+	})
 	if err != nil {
 		return ReplyPage{}, err
 	}
@@ -189,7 +205,7 @@ func ReplyPageFor(
 	if err != nil {
 		return ReplyPage{}, err
 	}
-	out := ReplyPage{Items: make([]ReplyItem, 0, page)}
+	out := ReplyPage{Items: make([]ReplyItem, 0, page), TotalCount: int(total)}
 	for i, row := range rows {
 		if i == page {
 			last := rows[page-1]

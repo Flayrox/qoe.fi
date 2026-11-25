@@ -61,6 +61,21 @@ WHERE (
 ORDER BY p."createdAt" ASC, p.id ASC
 LIMIT sqlc.arg('take_count')::int;
 
+-- Total de la même portée que ListThreadPage, SANS curseur : il compte les
+-- places du fil (tombstones compris), exactement ce que la pagination finit
+-- par rendre. Le filtre structurel est le même ; la politique de visibilité
+-- reste dans le LATERAL de ListThreadPage, jamais recopiée ici.
+-- name: CountThreadPage :one
+SELECT COUNT(*)::int AS total
+FROM "Post" p
+WHERE (
+        (sqlc.arg('scope')::text = 'children' AND p."parentId" = sqlc.arg('parent_id')::text)
+     OR (sqlc.arg('scope')::text = 'thread'   AND p."rootId"    = sqlc.arg('root_id')::text)
+     OR (sqlc.arg('scope')::text = 'roots'    AND p."rootArticleId" = sqlc.arg('article_id')::text
+                                             AND p."parentId" IS NULL)
+      )
+  AND p."isDraft" = false;
+
 -- Onglet « réponses » d'un profil : les réponses vivantes d'un compte, du plus
 -- récent au plus ancien. Les ids seuls suffisent, l'hydratation (auteur,
 -- capacités, pièces jointes) réutilise celle du feed.

@@ -124,6 +124,54 @@ func TestComments_CreateListDelete(t *testing.T) {
 	}
 }
 
+// Le total ne dépend pas de la page : une racine supprimée garde sa place
+// (tombstone) et reste comptée, tandis qu'une page suivante continue de
+// renvoyer le même total. C'est l'en-tête « Discussion (n) » qui l'affiche.
+func TestCommentsPage_TotalCountAcrossPages(t *testing.T) {
+	requirePool(t)
+	ctx := context.Background()
+	seed(t)
+	svc := newSvc()
+	reader := seedReader(t, ctx)
+
+	ids := make([]string, 0, 3)
+	for _, text := range []string{"un", "deux", "trois"} {
+		comment, err := svc.CreateComment(ctx, "art_test_000", reader, text, nil)
+		if err != nil {
+			t.Fatalf("CreateComment(%s): %v", text, err)
+		}
+		ids = append(ids, comment.ID)
+	}
+	if err := svc.DeleteComment(ctx, ids[2], reader); err != nil {
+		t.Fatalf("DeleteComment: %v", err)
+	}
+
+	first, err := svc.ListCommentsPage(ctx, "art_test_000", "", "", 2)
+	if err != nil {
+		t.Fatalf("première page: %v", err)
+	}
+	if len(first.Items) != 2 || !first.HasMore || first.NextCursor == "" {
+		t.Fatalf("première page = %d items, hasMore=%v, cursor=%q", len(first.Items), first.HasMore, first.NextCursor)
+	}
+	if first.TotalCount != 3 {
+		t.Fatalf("total première page = %d, attendu 3 (tombstone compris)", first.TotalCount)
+	}
+
+	second, err := svc.ListCommentsPage(ctx, "art_test_000", "", first.NextCursor, 2)
+	if err != nil {
+		t.Fatalf("seconde page: %v", err)
+	}
+	if len(second.Items) != 1 || second.HasMore {
+		t.Fatalf("seconde page = %d items, hasMore=%v", len(second.Items), second.HasMore)
+	}
+	if second.TotalCount != 3 {
+		t.Fatalf("total seconde page = %d, attendu 3", second.TotalCount)
+	}
+	if !second.Items[0].Tombstone {
+		t.Fatalf("la racine supprimée doit rester une place (tombstone), obtenu %+v", second.Items[0])
+	}
+}
+
 func TestComments_Disabled(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
