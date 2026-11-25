@@ -60,7 +60,11 @@ d'environnement. Règle appliquée à chaque lot (axe 8 de la checklist).
 - Domaines locaux : `qoe.test` (core), `studio.qoe.test`, `admin.qoe.test`, `*.qoe.test` (tenants), API sur `api.qoe.test:15407`.
 - **Suite e2e complète** : `pnpm e2e:isolated` (relais Hetzner + Postgres de test local) joue les
   6 vagues du dépôt, builds compris ; `QOE_E2E_SKIP_BUILD=1` réutilise les builds. Mesuré le
-  2026-11-25 : **252 cas + setup verts, 0 skip**, deux runs consécutifs.
+  2026-11-25 : **252 cas + setup verts, 0 échec / 0 skip / 0 flaky**, deux runs consécutifs ;
+  suite visuelle séparée `pnpm e2e:visual` : **26/26**.
+  Hors de portée local : `pnpm e2e:studio-auth` exige Docker et une pile jetable
+  Postgres/Redis/GoTrue (chemin CI uniquement, spec derrière `STUDIO_AUTH_JOURNEY=1`) ; la CI
+  distante n'a pas d'accès SSH au VPS Hetzner et garde donc ses propres services et skips visibles.
 - **Stack Supabase de test/dev = celui du VPS Hetzner** (self-hosted, `116.203.158.47:54321`).
   Aucun `supabase start` local n'est requis : `pnpm dev:vps` (ou
   `scripts/ensure-supabase-hetzner.sh ensure`) ouvre un tunnel SSH et l'expose sur

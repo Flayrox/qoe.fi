@@ -10260,7 +10260,7 @@ Total : **13 cas verts**, dont les 10 qui se sautaient faute de GoTrue (5 `smoke
 | Setup d'authentification                                                  | 1             | 1             |
 | Échecs / skips / flaky                                                    | **0 / 0 / 0** | **0 / 0 / 0** |
 
-`pnpm e2e:visual` (suite visuelle séparée, sans DB ni Supabase) : **26 passed**.
+`pnpm e2e:visual` (suite visuelle séparée, sans DB ni Supabase) : **26/26 passed**.
 
 **Corrections révélées par la suite complète**
 
