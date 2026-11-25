@@ -6053,9 +6053,6 @@ msgstr "Legal information"
 msgid "Infrastructure européenne souveraine & Option auto-hébergée"
 msgstr "Sovereign European infrastructure & Self-hosted option"
 
-msgid "Inscriptions fermées pour le moment. Demandez une invitation."
-msgstr "Sign-ups are closed for now. Please request an invitation."
-
 msgid "Inscriptions sur invitation — vérifiez votre email"
 msgstr "Invite-only sign-up — check your email"
 

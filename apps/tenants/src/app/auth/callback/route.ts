@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { t } from '@lingui/core/macro';
 import { createClient } from '@qoe/supabase/server';
 
 function sanitizeNextPath(target: string | null): string {
@@ -56,7 +55,12 @@ export async function GET(request: Request) {
             // 🚪 Inscriptions fermées / email non invité : pas de ligne User.
             // Session coupée (anti compte orphelin), retour avec message clair.
             await supabase.auth.signOut();
-            let msg = t`Inscriptions fermées pour le moment. Demandez une invitation.`;
+            // ⚠️ Littéral volontaire, PAS une macro `t` : un route handler
+            // s'exécute hors de l'arbre de layouts, donc sans `initI18n()` —
+            // `i18n._()` lève alors « without setting a locale » et le 403
+            // deviendrait un 500. Le message est transporté par l'URL de
+            // redirection, pas rendu par un composant.
+            let msg = 'Inscriptions fermées pour le moment. Demandez une invitation.';
             try {
               const body = (await res.json()) as { error?: string };
               if (body.error) msg = body.error;

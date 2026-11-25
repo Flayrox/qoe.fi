@@ -57,7 +57,14 @@ const SKIP_DIRS = new Set(['node_modules', '__tests__', 'vendor', '.next']);
 // - `apps/tenants/src/app/page.tsx` : placeholder de scaffold de l'app publique
 //   (texte anglais assumé, « Sera remplacé en Phase 2 », écrit dans son en-tête).
 //   Ce n'est pas une surface produit : le migrer figerait une copie morte.
-const EXEMPT_FILES = new Set(['apps/tenants/src/app/page.tsx']);
+const EXEMPT_FILES = new Set([
+  'apps/tenants/src/app/page.tsx',
+  // 🔌 Route handler sans arbre de layouts : `initI18n()` n'y tourne jamais,
+  // donc une macro `i18n._()` lèverait « without setting a locale » et
+  // transformerait le 403 en 500. Le message part dans l'URL de redirection
+  // (`?error=…`), il n'est pas rendu par un composant.
+  'apps/tenants/src/app/auth/callback/route.ts',
+]);
 
 // Lexique de mots-outils et de vocabulaire d'interface : sert à reconnaître une
 // chaîne française même sans accent (« Action », « lecteurs », « En attente »).
