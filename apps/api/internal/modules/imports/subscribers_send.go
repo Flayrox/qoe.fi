@@ -157,7 +157,7 @@ func (s *Service) StartSendWave(ctx context.Context, staffID, batchID string, ca
 		SELECT "id", "expiresAt", "limits"
 		FROM "SubscriberImportDecision"
 		WHERE "batchId" = $1 AND "decision" = 'approved_direct'
-		ORDER BY "createdAt" DESC LIMIT 1`,
+		ORDER BY "createdAt" DESC, "id" DESC LIMIT 1`,
 		batchID).Scan(&decisionID, &decisionExpires, &limitsRaw)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return SendWaveDTO{}, errSendNotApproved
@@ -950,7 +950,7 @@ func (s *Service) activeSendWave(ctx context.Context, batchID string) (SendWaveD
 	err := s.pool.QueryRow(ctx, `
 		SELECT "id" FROM "ImportSendWave"
 		WHERE "batchId" = $1 AND "status" IN ('queued', 'sending', 'paused')
-		ORDER BY "createdAt" DESC LIMIT 1`, batchID).Scan(&id)
+		ORDER BY "createdAt" DESC, "id" DESC LIMIT 1`, batchID).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return SendWaveDTO{}, nil
 	}
@@ -1004,7 +1004,7 @@ func (s *Service) ListSendWaves(ctx context.Context, batchID string) ([]SendWave
 		FROM "ImportSendWave" w
 		JOIN "ImportSendBudget" b ON b."id" = w."budgetId"
 		WHERE w."batchId" = $1
-		ORDER BY w."createdAt" DESC`, batchID)
+		ORDER BY w."createdAt" DESC, w."id" DESC`, batchID)
 	if err != nil {
 		return nil, err
 	}

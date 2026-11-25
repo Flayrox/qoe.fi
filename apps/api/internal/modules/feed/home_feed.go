@@ -198,7 +198,7 @@ func (s *Service) fetchFollowedPublishers(ctx context.Context, userID string) ([
 		FROM "Follows" f
 		JOIN "Publisher" p ON p.id = f."publisherId"
 		WHERE f."readerId" = $1
-		ORDER BY f."createdAt" DESC`, toUUID(userID))
+		ORDER BY f."createdAt" DESC, f."publisherId" DESC`, toUUID(userID))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -243,7 +243,7 @@ func (s *Service) fetchHiddenAuthors(ctx context.Context, followedUserIDs, pubID
 		         WHERE rd."decidedBy" = 'human' AND rd."result" = 'suspend'
 		           AND rd."subjectType" = 'user' AND rd."subjectId" = u.id::text
 		           AND (rd."expiresAt" IS NULL OR rd."expiresAt" > now())
-		         ORDER BY rd."createdAt" DESC LIMIT 1) AS suspend_until
+		         ORDER BY rd."seq" DESC LIMIT 1) AS suspend_until
 		FROM "User" u
 		WHERE (u.id::text = ANY($1::text[])
 		    OR u.id IN (SELECT a."authorId" FROM "Article" a
@@ -401,7 +401,7 @@ func (s *Service) loadGroup(ctx context.Context, group *HomeFeedGroup, pubIDs, f
 func (s *Service) fetchBookmarks(ctx context.Context, userID string) ([]HydrateArticle, error) {
 	ids, err := s.queryIDs(ctx, `
 		SELECT b."articleId" FROM "Bookmark" b
-		WHERE b."readerId" = $1 ORDER BY b."createdAt" DESC LIMIT 20`, toUUID(userID))
+		WHERE b."readerId" = $1 ORDER BY b."createdAt" DESC, b."articleId" DESC LIMIT 20`, toUUID(userID))
 	if err != nil || len(ids) == 0 {
 		return []HydrateArticle{}, err
 	}
@@ -447,7 +447,7 @@ func (s *Service) activityLast7Days(ctx context.Context, userID string) []int {
 
 // fetchMutedWordsAll renvoie tous les mots masqués de l'utilisateur.
 func (s *Service) fetchMutedWordsAll(ctx context.Context, userID string) ([]string, error) {
-	return s.queryIDs(ctx, `SELECT word FROM "MutedWord" WHERE "userId" = $1 ORDER BY "createdAt" DESC`, toUUID(userID))
+	return s.queryIDs(ctx, `SELECT word FROM "MutedWord" WHERE "userId" = $1 ORDER BY "createdAt" DESC, word DESC`, toUUID(userID))
 }
 
 // fetchFeaturedArticle renvoie l'article à la une (editor pick sinon plus récent).
@@ -456,7 +456,7 @@ func (s *Service) fetchFeaturedArticle(ctx context.Context, viewerID string) (*H
 		SELECT a.id FROM "Article" a JOIN "User" u ON u.id = a."authorId"
 		WHERE a.published = true AND u."isShadowbanned" = false AND u."isSuspended" = false
 		  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())`+articleEligibility("$1", true)+`
-		ORDER BY a."isEditorPick" DESC, a."createdAt" DESC LIMIT 1`, toUUID(viewerID))
+		ORDER BY a."isEditorPick" DESC, a."createdAt" DESC, a.id DESC LIMIT 1`, toUUID(viewerID))
 	if err != nil || len(ids) == 0 {
 		return nil, err
 	}

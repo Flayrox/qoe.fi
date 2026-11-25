@@ -10136,6 +10136,22 @@ Conséquences : l'auteur voit dans son dossier le verdict réellement contesté 
 
 Preuves : `go test ./internal/abuse -run 'TestAppeal_FullCycle|TestDecideAppeal_UsesDossierVerdictNotLatest'` → PASS sur PostgreSQL 16 local ; suites complètes ci-dessous.
 
+## Tris métier — audit transverse `createdAt` (2026-11-25)
+
+**Périmètre mesuré** : 68 clauses `ORDER BY …createdAt` dans `sql/queries/*.sql` et 93 dans les requêtes Go brutes hors `internal/database`. Toutes les listes paginées ou « la plus récente » sans clé secondaire ont reçu un départage déterministe : `id` (ou `seq` quand la table en a un, ou une clé unique de portée comme `email`, `featureKey`, `word`).
+
+Corrections de fond :
+
+- **conversations** : `ORDER BY COALESCE(lm."createdAt", c."createdAt") DESC, COALESCE(lm.id, c.id) DESC` ;
+- **feed** : le flux scoré (`likeCount + repostCount + replyCount`) se termine par `p.id DESC` ; les candidats vectoriels/scores (`engine_candidates.go`) par `a.id DESC` / `p.id DESC` ; follows par `publisherId`, bookmarks par `articleId`, mots masqués par `word` ;
+- **notifications** : `NotificationDelivery`, `SecurityEvent`, audit admin → `id DESC` ;
+- **verdicts** : `abuse/metrics.go`, `trust/trust.go`, `feed/home_feed.go` lisent le dernier `RiskDecision` par `seq DESC` (plus de `createdAt` + `decidedBy` + `id` en trois clés) ;
+- listes admin/analytics/newsletter/webhooks/média/support/ebooks/exports/imports/fil d'activité : `id` en dernière clé.
+
+**Centralisation** : garde CI `pnpm guard:order-total` (`scripts/guard-order-total.mjs`) — échoue sur tout `ORDER BY` contenant `createdAt` sans clé secondaire, dans les requêtes sqlc et les requêtes Go brutes (seeds de démo explicitement hors périmètre). Câblé dans `.github/workflows/ci.yml` après `guard:sqlc`.
+
+Preuves : `node scripts/guard-order-total.mjs` → `✅ tous les tris createdAt ont un départage total` ; `sqlc generate` + `guard:sqlc` 41 fichiers ; `go build ./...`, `go vet ./...` ; suite interne complète sur PostgreSQL 16 local.
+
 ## Ordre total des sessions de lecture et révocation exacte (00103, 2026-11-24)
 
 Deux rouges reproduits hors du recours, mesurés avant correction : `TestReadingHistory` **1/15** échecs, `TestAbuseWiring_SuperadminPassthrough` **2/10**. Causes réelles, pas des tests instables à tolérer :

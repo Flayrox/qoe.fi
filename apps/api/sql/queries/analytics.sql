@@ -21,18 +21,18 @@ WHERE "publisherId" = $1;
 SELECT id, email, "isActive", "isPremium", "ltvCents", "createdAt"
 FROM "Subscriber"
 WHERE "publisherId" = $1
-ORDER BY "createdAt" DESC;
+ORDER BY "createdAt" DESC, id DESC;
 
 -- name: GetRecentArticlesForAnalytics :many
 SELECT id, title, "createdAt"
 FROM "Article"
 WHERE "publisherId" = $1 AND published = true
-ORDER BY "createdAt" DESC
+ORDER BY "createdAt" DESC, id DESC
 LIMIT $2;
 
 -- name: GetRecentThoughtsForAnalytics :many
 SELECT id, content, "createdAt", "likeCount", "repostCount"
 FROM "Post"
 WHERE "authorId" = $1 AND "isDraft" = false AND "deletedAt" IS NULL
-ORDER BY "createdAt" DESC
+ORDER BY "createdAt" DESC, id DESC
 LIMIT $2;

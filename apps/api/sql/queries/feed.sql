@@ -90,7 +90,7 @@ WHERE p."isDraft" = false
   AND can_view_profile(@viewer_id, u.id)
   AND NOT is_muted_by(@viewer_id, p."authorId")
   AND NOT contains_muted_word(@viewer_id, p.content)
-ORDER BY (p."likeCount" + p."repostCount" + p."replyCount") DESC, p."createdAt" DESC
+ORDER BY (p."likeCount" + p."repostCount" + p."replyCount") DESC, p."createdAt" DESC, p.id DESC
 LIMIT @take_count OFFSET @skip_count;
 
 -- name: FindPostsByAuthor :many

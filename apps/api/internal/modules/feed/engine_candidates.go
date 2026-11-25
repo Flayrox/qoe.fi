@@ -671,7 +671,7 @@ func (s *Service) fetchEngineArticles(ctx context.Context, vec *pgvector.Vector,
 		penArgs, penSQL := penalizedArray(penalized, ai, "\"semanticTags\"", cfg.milieuFactor)
 		args = append(args, penArgs...)
 		ai += len(penArgs)
-		q += fmt.Sprintf(` ORDER BY ((%.2f*(1 - (a."embedding" <=> $1::vector)) + %.2f*EXP(-EXTRACT(EPOCH FROM (NOW() - a."createdAt"))/172800) + %.2f*(0.70 + 0.30*a."completionRate"))%s) DESC LIMIT $%d OFFSET $%d`,
+		q += fmt.Sprintf(` ORDER BY ((%.2f*(1 - (a."embedding" <=> $1::vector)) + %.2f*EXP(-EXTRACT(EPOCH FROM (NOW() - a."createdAt"))/172800) + %.2f*(0.70 + 0.30*a."completionRate"))%s) DESC, a.id DESC LIMIT $%d OFFSET $%d`,
 			cfg.poolSim, cfg.poolFresh, cfg.poolCompletion, penSQL, ai, ai+1)
 		args = append(args, limit, offset)
 		rows, err = s.pool.Query(ctx, q, args...)
@@ -694,7 +694,7 @@ func (s *Service) fetchEngineArticles(ctx context.Context, vec *pgvector.Vector,
 		              WHERE p.id = a."publisherId" LIMIT 1), 'PUBLIC') = 'PUBLIC'
 		    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId"=$3 AND f."publisherId"=a."publisherId")
 		  )
-		ORDER BY (0.50*EXP(-EXTRACT(EPOCH FROM (NOW() - a."createdAt"))/172800) + 0.50*(0.70 + 0.30*a."completionRate")) DESC
+		ORDER BY (0.50*EXP(-EXTRACT(EPOCH FROM (NOW() - a."createdAt"))/172800) + 0.50*(0.70 + 0.30*a."completionRate")) DESC, a.id DESC
 		LIMIT $1 OFFSET $2`, cfg.coldStartSim)
 		rows, err = s.pool.Query(ctx, q, limit, offset, toUUID(userID))
 	}
@@ -756,7 +756,7 @@ func (s *Service) fetchEngineThoughts(ctx context.Context, vec *pgvector.Vector,
 		penArgs, penSQL := penalizedArray(penalized, ai, "tags", cfg.milieuFactor)
 		args = append(args, penArgs...)
 		ai += len(penArgs)
-		q += fmt.Sprintf(` ORDER BY ((%.2f*(1 - (p."embedding" <=> $1::vector)) + %.2f*EXP(-EXTRACT(EPOCH FROM (NOW() - p."createdAt"))/86400) + %.2f*LEAST(1.0,(p."likeCount" + p."replyCount"*2 + p."repostCount"*2)/30.0))%s) DESC LIMIT $%d OFFSET $%d`,
+		q += fmt.Sprintf(` ORDER BY ((%.2f*(1 - (p."embedding" <=> $1::vector)) + %.2f*EXP(-EXTRACT(EPOCH FROM (NOW() - p."createdAt"))/86400) + %.2f*LEAST(1.0,(p."likeCount" + p."replyCount"*2 + p."repostCount"*2)/30.0))%s) DESC, p.id DESC LIMIT $%d OFFSET $%d`,
 			cfg.poolSim, cfg.poolFresh, cfg.poolCompletion, penSQL, ai, ai+1)
 		args = append(args, limit, offset)
 		rows, err = s.pool.Query(ctx, q, args...)
@@ -778,7 +778,7 @@ func (s *Service) fetchEngineThoughts(ctx context.Context, vec *pgvector.Vector,
 		    COALESCE((SELECT us."profileVisibility" FROM "UserSettings" us WHERE us."userId" = u.id), 'PUBLIC') = 'PUBLIC'
 		    OR EXISTS (SELECT 1 FROM "Follows" f WHERE f."readerId"=$3 AND f."publisherId"=u."publisherId")
 		  )
-		ORDER BY (0.50*EXP(-EXTRACT(EPOCH FROM (NOW() - p."createdAt"))/86400) + 0.50*LEAST(1.0,(p."likeCount" + p."replyCount"*2 + p."repostCount"*2)/30.0)) DESC
+		ORDER BY (0.50*EXP(-EXTRACT(EPOCH FROM (NOW() - p."createdAt"))/86400) + 0.50*LEAST(1.0,(p."likeCount" + p."replyCount"*2 + p."repostCount"*2)/30.0)) DESC, p.id DESC
 		LIMIT $1 OFFSET $2`, cfg.coldStartSim)
 		rows, err = s.pool.Query(ctx, q, limit, offset, toUUID(userID))
 	}
@@ -869,7 +869,7 @@ func (s *Service) injectDiscovery(ctx context.Context, userID string, items []En
 		  AND u."isShadowbanned" = false AND u."isSuspended" = false
 		  AND NOT is_blocked_bidirectional($3::uuid, a."authorId")
 		  AND NOT is_muted_by($3::uuid, a."authorId")
-		ORDER BY a."createdAt" DESC LIMIT $4`, cfg.explorationMinQuality, followed, userID, slots)
+		ORDER BY a."createdAt" DESC, a.id DESC LIMIT $4`, cfg.explorationMinQuality, followed, userID, slots)
 	if err != nil {
 		return items
 	}

@@ -20,7 +20,7 @@ SELECT id, "clientId", "clientSecretHash", name, description, "logoUrl",
        "publisherId", "ownerUserId", "createdAt", "updatedAt"
 FROM "OAuthClient"
 WHERE "ownerUserId" = $1
-ORDER BY "createdAt" DESC;
+ORDER BY "createdAt" DESC, id DESC;
 
 -- name: ListOAuthClientsByPublisher :many
 SELECT id, "clientId", "clientSecretHash", name, description, "logoUrl",
@@ -28,7 +28,7 @@ SELECT id, "clientId", "clientSecretHash", name, description, "logoUrl",
        "publisherId", "ownerUserId", "createdAt", "updatedAt"
 FROM "OAuthClient"
 WHERE "publisherId" = $1
-ORDER BY "createdAt" DESC;
+ORDER BY "createdAt" DESC, id DESC;
 
 -- name: CountOAuthClientsByOwner :one
 SELECT COUNT(*) AS count FROM "OAuthClient" WHERE "ownerUserId" = $1;

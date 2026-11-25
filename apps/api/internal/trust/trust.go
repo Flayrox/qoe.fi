@@ -419,7 +419,7 @@ SELECT
 		  AND rd."subjectId" = u.id::text
 		  AND rd."result" IN ('suspend', 'pause_sending', 'limit_distribution', 'challenge')
 		  AND (rd."expiresAt" IS NULL OR rd."expiresAt" > now())
-		ORDER BY rd."createdAt" DESC
+		ORDER BY rd."seq" DESC
 		LIMIT 1
 	), '')
 FROM "User" u

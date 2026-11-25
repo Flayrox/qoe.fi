@@ -268,7 +268,7 @@ WHERE a."publisherId" = sqlc.arg('publisherId')
         AND (parent_cat.slug = sqlc.narg('categorySlug') OR parent_cat.id = sqlc.narg('categorySlug'))
     )
   )
-ORDER BY a."createdAt" DESC
+ORDER BY a."createdAt" DESC, a.id DESC
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
 -- name: CountCreatorArticles :one
@@ -321,7 +321,7 @@ WHERE (a."publisherId" = $1
      )
    )))
    AND NOT (a."isAuthorSovereignCopy" = true AND a."isClaimed" = false)
-ORDER BY a."createdAt" DESC
+ORDER BY a."createdAt" DESC, a.id DESC
 LIMIT $2 OFFSET $3;
 
 -- name: GetArticleIdByPublisherAndSlug :one
@@ -508,7 +508,7 @@ RETURNING id;
 SELECT l.id, l."articleId", l."position", l."createdAt"
 FROM "ListenLater" l
 WHERE l."userId" = sqlc.arg('user_id')::uuid
-ORDER BY l."position", l."createdAt";
+ORDER BY l."position", l."createdAt", l.id;
 
 -- name: RemoveListenLater :execrows
 DELETE FROM "ListenLater" WHERE "userId" = sqlc.arg('user_id')::uuid AND "articleId" = sqlc.arg('article_id');
@@ -529,7 +529,7 @@ SELECT r.id, r."articleId", r."publisherId", r."reviewerId", r.action, r.comment
 FROM "ArticleReviewLog" r
 JOIN "User" u ON u.id = r."reviewerId"
 WHERE r."articleId" = $1
-ORDER BY r."createdAt" DESC
+ORDER BY r."createdAt" DESC, r.id DESC
 LIMIT 1;
 
 -- name: GetSovereignCopyByOriginAndAuthor :one
@@ -574,14 +574,14 @@ RETURNING *;
 SELECT id, reason, "contentHash", "createdAt"
 FROM "ArticleSnapshot"
 WHERE "articleId" = $1
-ORDER BY "createdAt" DESC
+ORDER BY "createdAt" DESC, id DESC
 LIMIT 1;
 
 -- name: GetLatestArticleSnapshotByReason :one
 SELECT id, "contentHash", "createdAt"
 FROM "ArticleSnapshot"
 WHERE "articleId" = $1 AND reason = $2
-ORDER BY "createdAt" DESC
+ORDER BY "createdAt" DESC, id DESC
 LIMIT 1;
 
 -- name: PruneOldArticleSnapshots :exec
@@ -592,7 +592,7 @@ WHERE a."articleId" = $1
       SELECT s.id FROM "ArticleSnapshot" AS s
       WHERE s."articleId" = $1
         AND s.reason NOT IN ('INITIAL', 'PUBLISHED', 'BEFORE_REVOCATION')
-      ORDER BY s."createdAt" DESC
+      ORDER BY s."createdAt" DESC, s.id DESC
       LIMIT $2
   );
 
@@ -602,7 +602,7 @@ SELECT s.id, s."articleId", s."actorId", s.title, s.content, s."wordCount", s.re
 FROM "ArticleSnapshot" s
 LEFT JOIN "User" u ON u.id = s."actorId"
 WHERE s."articleId" = $1
-ORDER BY s."createdAt" DESC;
+ORDER BY s."createdAt" DESC, s.id DESC;
 
 -- name: GetArticleSnapshotByID :one
 SELECT s.id, s."articleId", s."actorId", s.title, s.content, s."wordCount", s.reason, s."createdAt",
@@ -614,13 +614,13 @@ WHERE s.id = $1 LIMIT 1;
 -- name: GetLatestArticleSnapshotByArticle :one
 SELECT * FROM "ArticleSnapshot"
 WHERE "articleId" = $1
-ORDER BY "createdAt" DESC
+ORDER BY "createdAt" DESC, id DESC, id DESC
 LIMIT 1;
 
 -- name: GetLatestArticleSnapshotByArticleAndActor :one
 SELECT * FROM "ArticleSnapshot"
 WHERE "articleId" = $1 AND "actorId" = $2
-ORDER BY "createdAt" DESC
+ORDER BY "createdAt" DESC, id DESC
 LIMIT 1;
 
 -- name: ClaimSovereignCopy :exec

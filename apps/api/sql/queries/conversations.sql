@@ -63,7 +63,7 @@ LEFT JOIN LATERAL (
     LIMIT 1
 ) lm ON true
 WHERE m."userId" = $1
-ORDER BY COALESCE(lm."createdAt", c."createdAt") DESC
+ORDER BY COALESCE(lm."createdAt", c."createdAt") DESC, COALESCE(lm.id, c.id) DESC
 LIMIT $2;
 
 -- name: GetConversationForUser :one

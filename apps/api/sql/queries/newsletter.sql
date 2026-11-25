@@ -15,7 +15,7 @@ RETURNING *;
 SELECT *
 FROM "NewsletterIssue"
 WHERE "publisherId" = $1
-ORDER BY "createdAt" DESC, id DESC
+ORDER BY "createdAt" DESC, id DESC, id DESC
 LIMIT $2;
 
 -- name: GetNewsletterIssue :one
@@ -99,7 +99,7 @@ SELECT id, email, status, error
 FROM "NewsletterDelivery"
 WHERE "issueId" = $1
   AND status = 'QUEUED'
-ORDER BY "createdAt" ASC
+ORDER BY "createdAt" ASC, id ASC
 LIMIT $2;
 
 -- name: MarkNewsletterDelivery :exec
@@ -195,7 +195,7 @@ SELECT id, email, status, error
 FROM "ArticleReleaseDelivery"
 WHERE "articleId" = $1
   AND status = 'QUEUED'
-ORDER BY "createdAt" ASC
+ORDER BY "createdAt" ASC, id ASC
 LIMIT $2;
 
 -- name: MarkArticleReleaseDelivery :exec
@@ -344,7 +344,7 @@ RETURNING id, email, status, "isActive", "isPremium", "receiveArticles",
 SELECT id, email, status, "isActive", "isPremium", "receiveArticles", "createdAt", "updatedAt"
 FROM "Subscriber"
 WHERE "publisherId" = $1
-ORDER BY "createdAt" DESC
+ORDER BY "createdAt" DESC, id DESC
 LIMIT $2 OFFSET $3;
 
 -- name: CountSubscribersByPublisher :one
@@ -561,5 +561,5 @@ WHERE a."publisherId" = $1
   AND a.status = 'PUBLISHED'
   AND a."isHiddenByModerator" = false
   AND a."createdAt" >= $2
-ORDER BY a."createdAt" DESC
+ORDER BY a."createdAt" DESC, a.id DESC
 LIMIT $3;

@@ -269,7 +269,7 @@ func (s *Service) ExportUserDSAR(ctx context.Context, staffID, userID, reason st
 		SELECT "featureKey", "status", "source", "consentAt", "createdAt"
 		FROM "FeatureInterest"
 		WHERE "userId" = $1::uuid
-		ORDER BY "createdAt" ASC`, userID)
+		ORDER BY "createdAt" ASC, "featureKey" ASC`, userID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("export des intérêts: %w", err)
 	}
@@ -283,7 +283,7 @@ func (s *Service) ExportUserDSAR(ctx context.Context, staffID, userID, reason st
 		       s."status", s."isActive", s."receiveArticles", s."createdAt"
 		FROM "Subscriber" s
 		WHERE s."userId" = $1
-		ORDER BY s."createdAt" DESC`, toDSARUUID(userID))
+		ORDER BY s."createdAt" DESC, s."id" DESC`, toDSARUUID(userID))
 	if err != nil {
 		return nil, nil, fmt.Errorf("export des abonnements: %w", err)
 	}

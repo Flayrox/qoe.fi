@@ -602,7 +602,7 @@ FROM "ApiKey" ak
 JOIN "Media" m ON m."publisherId" = ak."publisherId"
 LEFT JOIN "User" u ON u.id = ak."createdByUserId"
 WHERE m.id = $1
-ORDER BY ak."createdAt" DESC
+ORDER BY ak."createdAt" DESC, ak.id DESC
 `
 
 type ListMediaApiKeysRow struct {
@@ -670,7 +670,7 @@ WHERE l."mediaId" = $1
     OR COALESCE(u.username, '') ILIKE '%' || $3 || '%'
     OR COALESCE(l.metadata::text, '') ILIKE '%' || $3 || '%'
   )
-ORDER BY l."createdAt" DESC
+ORDER BY l."createdAt" DESC, l.id DESC
 LIMIT $5 OFFSET $4
 `
 

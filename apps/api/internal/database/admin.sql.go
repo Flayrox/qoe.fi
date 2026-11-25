@@ -325,7 +325,7 @@ SELECT a.id, a.title, a.slug, a.published, a."isEditorPick", a."createdAt",
        u.name AS author_name, u.email AS author_email
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
-ORDER BY a."createdAt" DESC
+ORDER BY a."createdAt" DESC, a.id DESC
 `
 
 type ListAdminArticlesRow struct {
@@ -374,7 +374,7 @@ SELECT l.id, l."actorId", l.action, l."targetType", l."targetId", l.metadata, l.
        u.name AS actor_name, u.email AS actor_email
 FROM "AdminAuditLog" l
 JOIN "User" u ON u.id = l."actorId"
-ORDER BY l."createdAt" DESC
+ORDER BY l."createdAt" DESC, l.id DESC
 LIMIT $1
 `
 
@@ -427,7 +427,7 @@ SELECT c.id, c."clientId", c.name, c.description, c."logoUrl", c."homepageUrl",
        u.name AS owner_name, u.email AS owner_email, u.username AS owner_username
 FROM "OAuthClient" c
 JOIN "User" u ON u.id = c."ownerUserId"
-ORDER BY c."createdAt" DESC
+ORDER BY c."createdAt" DESC, c.id DESC
 `
 
 type ListAdminOAuthClientsRow struct {
@@ -486,7 +486,7 @@ func (q *Queries) ListAdminOAuthClients(ctx context.Context) ([]ListAdminOAuthCl
 const listAdminPromos = `-- name: ListAdminPromos :many
 SELECT id, title, description, "ctaText", "ctaUrl", "imageUrl", "isActive", "createdAt", "updatedAt"
 FROM "PartnerPromo"
-ORDER BY "createdAt" DESC
+ORDER BY "createdAt" DESC, id DESC
 `
 
 func (q *Queries) ListAdminPromos(ctx context.Context) ([]PartnerPromo, error) {
@@ -522,7 +522,7 @@ func (q *Queries) ListAdminPromos(ctx context.Context) ([]PartnerPromo, error) {
 const listAdminTrends = `-- name: ListAdminTrends :many
 SELECT id, hashtag, count, "createdAt", "updatedAt"
 FROM "Trend"
-ORDER BY count DESC
+ORDER BY count DESC, id ASC
 `
 
 func (q *Queries) ListAdminTrends(ctx context.Context) ([]Trend, error) {
@@ -557,7 +557,7 @@ SELECT u.id, u.name, u.email, u.username, u.role, u."isCertified", u."isShadowba
        p."subdomain" AS publisher_subdomain
 FROM "User" u
 LEFT JOIN "Publisher" p ON p.id = u."publisherId"
-ORDER BY u."createdAt" DESC
+ORDER BY u."createdAt" DESC, u.id DESC
 `
 
 type ListAdminUsersRow struct {
@@ -614,7 +614,7 @@ SELECT d.id, d.recipient, d.status, d.channel, d.attempts, d.provider, d."lastEr
 FROM "NotificationDelivery" d
 JOIN "Notification" n ON n.id = d."notificationId"
 LEFT JOIN "Article" a ON a.id = n."articleId"
-ORDER BY d."createdAt" DESC
+ORDER BY d."createdAt" DESC, d.id DESC
 LIMIT 50
 `
 

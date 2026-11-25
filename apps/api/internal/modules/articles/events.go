@@ -121,7 +121,7 @@ func (s *Service) ListEvents(ctx context.Context, articleID, userID string, limi
 		FROM "ArticleEvent" e
 		LEFT JOIN "User" u ON u.id = e."actorId"
 		WHERE e."articleId" = $1
-		ORDER BY e."createdAt" DESC
+		ORDER BY e."createdAt" DESC, e."id" DESC
 		LIMIT $2`, articleID, limit)
 	if err != nil {
 		return nil, err

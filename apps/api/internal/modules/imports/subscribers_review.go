@@ -317,7 +317,7 @@ func (s *Service) listDecisions(ctx context.Context, batchID string, redactInter
 		       "limits", "fileVersion", "expiresAt", "createdAt"
 		FROM "SubscriberImportDecision"
 		WHERE "batchId" = $1
-		ORDER BY "createdAt" ASC`, batchID)
+		ORDER BY "createdAt" ASC, "id" ASC`, batchID)
 	if err != nil {
 		return nil, err
 	}
@@ -350,7 +350,7 @@ func (s *Service) listEvents(ctx context.Context, batchID string) ([]SubscriberI
 		SELECT "type", "actorKind", "detail", "createdAt"
 		FROM "SubscriberImportEvent"
 		WHERE "batchId" = $1
-		ORDER BY "createdAt" ASC`, batchID)
+		ORDER BY "createdAt" ASC, "id" ASC`, batchID)
 	if err != nil {
 		return nil, err
 	}
@@ -595,7 +595,7 @@ func (s *Service) lastApproval(ctx context.Context, batchID string) (string, err
 	err := s.pool.QueryRow(ctx, `
 		SELECT "decision" FROM "SubscriberImportDecision"
 		WHERE "batchId" = $1 AND "decision" IN ('approved_reconfirm', 'approved_direct')
-		ORDER BY "createdAt" DESC LIMIT 1`, batchID).Scan(&decision)
+		ORDER BY "createdAt" DESC, "id" DESC LIMIT 1`, batchID).Scan(&decision)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", nil
 	}

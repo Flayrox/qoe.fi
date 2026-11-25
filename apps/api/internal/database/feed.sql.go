@@ -307,7 +307,7 @@ WHERE p."isDraft" = false
   AND can_view_profile($1, u.id)
   AND NOT is_muted_by($1, p."authorId")
   AND NOT contains_muted_word($1, p.content)
-ORDER BY (p."likeCount" + p."repostCount" + p."replyCount") DESC, p."createdAt" DESC
+ORDER BY (p."likeCount" + p."repostCount" + p."replyCount") DESC, p."createdAt" DESC, p.id DESC
 LIMIT $3 OFFSET $2
 `
 

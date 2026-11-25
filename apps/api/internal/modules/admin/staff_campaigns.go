@@ -529,7 +529,7 @@ func (s *Service) ListCampaigns(ctx context.Context, limit int) ([]StaffCampaign
 		limit = 50
 	}
 	rows, err := s.pool.Query(ctx, `
-		SELECT "id" FROM "StaffCampaign" ORDER BY "createdAt" DESC LIMIT $1`, limit)
+		SELECT "id" FROM "StaffCampaign" ORDER BY "createdAt" DESC, "id" DESC LIMIT $1`, limit)
 	if err != nil {
 		return nil, err
 	}

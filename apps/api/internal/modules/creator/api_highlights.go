@@ -100,7 +100,7 @@ func (h *Handler) apiHighlightsPage(
 		args = append(args, true)
 	}
 	query += `
-		ORDER BY h."createdAt" DESC
+		ORDER BY h."createdAt" DESC, h.id DESC
 		LIMIT $` + strconv.Itoa(len(args)+1) + ` OFFSET $` + strconv.Itoa(len(args)+2)
 	args = append(args, limit+1, offset)
 
@@ -218,7 +218,7 @@ func (h *Handler) highlightComments(ctx context.Context, publisherID, userID, hi
 		JOIN "Highlight" h ON h.id = c."highlightId"
 		JOIN "Article" a ON a.id = h."articleId"
 		WHERE c."highlightId" = $1
-		ORDER BY c."createdAt" ASC`, highlightID)
+		ORDER BY c."createdAt" ASC, c."id" ASC`, highlightID)
 	if err != nil {
 		return out, err
 	}

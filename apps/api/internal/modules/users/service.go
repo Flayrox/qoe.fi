@@ -730,7 +730,7 @@ func (s *Service) Billing(ctx context.Context, userID string) (*BillingData, err
 	rows, err := s.pool.Query(ctx,
 		`SELECT id, type, "amountCents", "createdAt"
 		 FROM "WalletTransaction" WHERE "userId" = $1
-		 ORDER BY "createdAt" DESC LIMIT 10`, toUUID(userID))
+		 ORDER BY "createdAt" DESC, id DESC LIMIT 10`, toUUID(userID))
 	if err != nil {
 		return nil, err
 	}
@@ -754,7 +754,7 @@ func (s *Service) Billing(ctx context.Context, userID string) (*BillingData, err
 		FROM "Subscriber" s
 		JOIN "Publisher" p ON p.id = s."publisherId"
 		WHERE s.email = $1 AND s."isPremium" = true AND s."isActive" = true
-		ORDER BY s."createdAt" DESC`, email)
+		ORDER BY s."createdAt" DESC, s.id DESC`, email)
 	if err != nil {
 		return nil, err
 	}
@@ -1107,14 +1107,14 @@ func (s *Service) DataExport(ctx context.Context, userID string) (map[string]any
 		{"notificationPreferences", `SELECT * FROM "NotificationPreference" WHERE "userId" = $1`, []any{toUUID(userID)}, false},
 		{"featureInterests", `SELECT "featureKey", "status", "source", "consentVersion", "consentAt",
 		       "unsubscribedAt", "lastNotifiedAt", "createdAt"
-		FROM "FeatureInterest" WHERE "userId" = $1::uuid ORDER BY "createdAt" ASC`, []any{userID}, true},
-		{"thoughts", `SELECT * FROM "Post" WHERE "authorId" = $1 ORDER BY "createdAt" ASC`, []any{toUUID(userID)}, true},
-		{"articles", `SELECT id, title, slug, content, published, "createdAt", "updatedAt" FROM "Article" WHERE "authorId" = $1 ORDER BY "createdAt" ASC`, []any{toUUID(userID)}, true},
-		{"highlights", `SELECT * FROM "Highlight" WHERE "readerId" = $1 ORDER BY "createdAt" ASC`, []any{toUUID(userID)}, true},
-		{"bookmarks", `SELECT * FROM "Bookmark" WHERE "readerId" = $1 ORDER BY "createdAt" ASC`, []any{toUUID(userID)}, true},
-		{"follows", `SELECT "publisherId", "createdAt" FROM "Follows" WHERE "readerId" = $1 ORDER BY "createdAt" ASC`, []any{toUUID(userID)}, true},
+		FROM "FeatureInterest" WHERE "userId" = $1::uuid ORDER BY "createdAt" ASC, "featureKey" ASC`, []any{userID}, true},
+		{"thoughts", `SELECT * FROM "Post" WHERE "authorId" = $1 ORDER BY "createdAt" ASC, id ASC`, []any{toUUID(userID)}, true},
+		{"articles", `SELECT id, title, slug, content, published, "createdAt", "updatedAt" FROM "Article" WHERE "authorId" = $1 ORDER BY "createdAt" ASC, id ASC`, []any{toUUID(userID)}, true},
+		{"highlights", `SELECT * FROM "Highlight" WHERE "readerId" = $1 ORDER BY "createdAt" ASC, id ASC`, []any{toUUID(userID)}, true},
+		{"bookmarks", `SELECT * FROM "Bookmark" WHERE "readerId" = $1 ORDER BY "createdAt" ASC, "articleId" ASC`, []any{toUUID(userID)}, true},
+		{"follows", `SELECT "publisherId", "createdAt" FROM "Follows" WHERE "readerId" = $1 ORDER BY "createdAt" ASC, "publisherId" ASC`, []any{toUUID(userID)}, true},
 		{"securityEvents", `SELECT "eventType", "ipSubnet", "userAgent", metadata, "createdAt"
-		FROM "SecurityEvent" WHERE "userId" = $1 ORDER BY "createdAt" ASC`, []any{toUUID(userID)}, true},
+		FROM "SecurityEvent" WHERE "userId" = $1 ORDER BY "createdAt" ASC, id ASC`, []any{toUUID(userID)}, true},
 	}
 	for _, section := range sections {
 		if section.many {

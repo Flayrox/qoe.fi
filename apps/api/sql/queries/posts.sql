@@ -187,7 +187,7 @@ WHERE l."targetType" = 'POST'
   AND l."targetId" = sqlc.arg(postId)
   AND l.kind = 'LIKE'
   AND COALESCE(privacy."likeVisibility", 'PUBLIC') = 'PUBLIC'
-ORDER BY l."createdAt" DESC
+ORDER BY l."createdAt" DESC, l.id DESC
 LIMIT sqlc.arg(rowLimit) OFFSET sqlc.arg(rowOffset);
 
 -- name: ListRepostsForPost :many
@@ -202,7 +202,7 @@ JOIN "User" u ON u.id = r."userId"
 WHERE r."targetType" = 'POST'
   AND r."targetId" = sqlc.arg(postId)
   AND r.kind = 'REPOST'
-ORDER BY r."createdAt" DESC
+ORDER BY r."createdAt" DESC, r.id DESC
 LIMIT sqlc.arg(rowLimit) OFFSET sqlc.arg(rowOffset);
 
 -- name: ListQuotePostIDs :many
@@ -212,7 +212,7 @@ WHERE r."repostId" = $1
   AND r."deletedAt" IS NULL
   AND r."isDraft" = false
   AND (r.content <> '' AND r.content <> ' ')
-ORDER BY r."createdAt" DESC
+ORDER BY r."createdAt" DESC, r.id DESC
 LIMIT $2 OFFSET $3;
 
 -- name: GetExistingBlock :one

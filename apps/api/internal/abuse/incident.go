@@ -198,7 +198,7 @@ func ListIncidents(ctx context.Context, pool SignalDB, status string, limit, off
 		SELECT `+incidentColumns+`, COUNT(*) OVER () AS total
 		FROM "AntiAbuseIncident" `+where+`
 		ORDER BY CASE "status" WHEN 'open' THEN 0 WHEN 'reopened' THEN 1 WHEN 'contained' THEN 2 ELSE 3 END,
-		         "createdAt" DESC
+		         "createdAt" DESC, "id" DESC
 		LIMIT $1 OFFSET $2`, args...)
 	if err != nil {
 		return nil, 0, err

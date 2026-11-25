@@ -122,7 +122,7 @@ func (h *Handler) annotationRows(ctx context.Context, articleID string) ([]annot
 		JOIN "User" u ON u.id = h."readerId"
 		WHERE h."articleId" = $1
 		  AND (h."isPublic" = true OR h."isOfficial" = true)
-		ORDER BY h."canonicalStart" ASC NULLS LAST, h."createdAt" ASC`, articleID)
+		ORDER BY h."canonicalStart" ASC NULLS LAST, h."createdAt" ASC, h.id ASC`, articleID)
 	if err != nil {
 		return nil, err
 	}

@@ -69,7 +69,7 @@ func drainNotificationEmailOutboxOnce(ctx context.Context, pool *pgxpool.Pool, p
 WITH candidates AS (
 	SELECT id FROM "NotificationDelivery"
 	WHERE channel = 'EMAIL' AND status = 'QUEUED' AND "availableAt" <= now()
-	ORDER BY "createdAt" ASC
+	ORDER BY "createdAt" ASC, id ASC
 	FOR UPDATE SKIP LOCKED
 	LIMIT $1
 )

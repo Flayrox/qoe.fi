@@ -856,7 +856,7 @@ WHERE a."publisherId" = $1
   AND a.status = 'PUBLISHED'
   AND a."isHiddenByModerator" = false
   AND a."createdAt" >= $2
-ORDER BY a."createdAt" DESC
+ORDER BY a."createdAt" DESC, a.id DESC
 LIMIT $3
 `
 
@@ -920,7 +920,7 @@ SELECT id, email, status, error
 FROM "NewsletterDelivery"
 WHERE "issueId" = $1
   AND status = 'QUEUED'
-ORDER BY "createdAt" ASC
+ORDER BY "createdAt" ASC, id ASC
 LIMIT $2
 `
 
@@ -965,7 +965,7 @@ const listNewsletterIssuesByPublisher = `-- name: ListNewsletterIssuesByPublishe
 SELECT id, "publisherId", subject, "previewText", html, status, "totalRecipients", "sentCount", "failedCount", "createdAt", "updatedAt", "sentAt"
 FROM "NewsletterIssue"
 WHERE "publisherId" = $1
-ORDER BY "createdAt" DESC, id DESC
+ORDER BY "createdAt" DESC, id DESC, id DESC
 LIMIT $2
 `
 
@@ -1016,7 +1016,7 @@ SELECT id, email, status, error
 FROM "ArticleReleaseDelivery"
 WHERE "articleId" = $1
   AND status = 'QUEUED'
-ORDER BY "createdAt" ASC
+ORDER BY "createdAt" ASC, id ASC
 LIMIT $2
 `
 
@@ -1061,7 +1061,7 @@ const listSubscribersByPublisher = `-- name: ListSubscribersByPublisher :many
 SELECT id, email, status, "isActive", "isPremium", "receiveArticles", "createdAt", "updatedAt"
 FROM "Subscriber"
 WHERE "publisherId" = $1
-ORDER BY "createdAt" DESC
+ORDER BY "createdAt" DESC, id DESC
 LIMIT $2 OFFSET $3
 `
 

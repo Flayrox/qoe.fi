@@ -147,7 +147,7 @@ func (s *Service) List(ctx context.Context, userID string, limit, offset int) ([
 		SELECT "id", "title", "author", "language", "chapterCount",
 		       ("cover" IS NOT NULL), "progressChapter", "progressPct", "progressParagraph", "createdAt"
 		FROM "Ebook" WHERE "ownerId" = $1::uuid
-		ORDER BY "createdAt" DESC LIMIT $2 OFFSET $3`, userID, limit, offset)
+		ORDER BY "createdAt" DESC, "id" DESC LIMIT $2 OFFSET $3`, userID, limit, offset)
 	if err != nil {
 		return nil, err
 	}

@@ -66,7 +66,7 @@ const auditEntriesQuery = `
 	   AND ($6::text = '' OR COALESCE(l."targetId", '') ILIKE $7)
 	   AND ($8::timestamp IS NULL OR l."createdAt" >= $8::timestamp)
 	   AND ($9::timestamp IS NULL OR l."createdAt" <= $9::timestamp)
-	 ORDER BY l."createdAt" DESC
+	 ORDER BY l."createdAt" DESC, l."id" DESC
 	 LIMIT $10`
 
 const auditDecisionSummaryQuery = `
@@ -87,7 +87,7 @@ const auditDecisionsQuery = `
 	   AND (NOT $2::boolean OR d."allowed" = false)
 	   AND ($3::text = '' OR d."userId"::text = $3)
 	   AND ($4::timestamp IS NULL OR d."createdAt" >= $4::timestamp)
-	 ORDER BY d."createdAt" DESC
+	 ORDER BY d."createdAt" DESC, d."id" DESC
 	 LIMIT $5`
 
 // AdminAuditEntry est une ligne du journal, enrichie des colonnes de 00057.

@@ -40,7 +40,7 @@ SELECT p.id,
 FROM "Post" p
 JOIN "User" u ON u.id = p."authorId"
 WHERE p."createdAt" >= now() - interval '30 days'
-ORDER BY p."createdAt" DESC
+ORDER BY p."createdAt" DESC, p.id DESC
 LIMIT sqlc.arg('take_count')::int;
 
 -- name: GetReactionFacts :one

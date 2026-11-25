@@ -97,7 +97,7 @@ WHERE i."targetType" = $1
   AND i."targetId" = $2
   AND i.kind = $3
   AND COALESCE(privacy."likeVisibility", 'PUBLIC') = 'PUBLIC'
-ORDER BY i."createdAt" DESC
+ORDER BY i."createdAt" DESC, i.id DESC
 LIMIT $4 OFFSET $5
 `
 

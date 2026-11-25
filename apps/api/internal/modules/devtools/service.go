@@ -136,7 +136,7 @@ func (s *Service) Data(ctx context.Context, userID string) (*struct {
 		       u."createdAt"
 		FROM "User" u
 		LEFT JOIN "Publisher" p ON p.id = u."publisherId"
-		ORDER BY u."createdAt" DESC`)
+		ORDER BY u."createdAt" DESC, u.id DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("users: %w", err)
 	}

@@ -308,7 +308,7 @@ func (s *Service) ListInviteLinks(ctx context.Context, userID, mediaID string) (
 		SELECT id, "mediaId", token, role, "expiresAt", "maxUses", "usedCount", "isRevoked", "createdAt"
 		FROM "MediaInviteLink"
 		WHERE "mediaId" = $1
-		ORDER BY "createdAt" DESC
+		ORDER BY "createdAt" DESC, id DESC
 		LIMIT 200
 	`, mediaID)
 	if err != nil {

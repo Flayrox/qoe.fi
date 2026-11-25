@@ -521,7 +521,7 @@ SELECT id, "clientId", "clientSecretHash", name, description, "logoUrl",
        "publisherId", "ownerUserId", "createdAt", "updatedAt"
 FROM "OAuthClient"
 WHERE "ownerUserId" = $1
-ORDER BY "createdAt" DESC
+ORDER BY "createdAt" DESC, id DESC
 `
 
 type ListOAuthClientsByOwnerRow struct {
@@ -584,7 +584,7 @@ SELECT id, "clientId", "clientSecretHash", name, description, "logoUrl",
        "publisherId", "ownerUserId", "createdAt", "updatedAt"
 FROM "OAuthClient"
 WHERE "publisherId" = $1
-ORDER BY "createdAt" DESC
+ORDER BY "createdAt" DESC, id DESC
 `
 
 type ListOAuthClientsByPublisherRow struct {

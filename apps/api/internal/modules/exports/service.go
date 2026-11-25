@@ -77,7 +77,7 @@ func (s *Service) Articles(ctx context.Context, publisherID string) ([]ArticleRo
 		SELECT "id", "title", "slug", "content", "status", "createdAt", "updatedAt"
 		FROM "Article"
 		WHERE "publisherId" = $1
-		ORDER BY "createdAt" DESC`, publisherID)
+		ORDER BY "createdAt" DESC, "id" DESC`, publisherID)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func (s *Service) Subscribers(ctx context.Context, publisherID string) ([]Subscr
 		SELECT "email", "status"::text, "isActive", "isPremium", "ltvCents", "createdAt"
 		FROM "Subscriber"
 		WHERE "publisherId" = $1
-		ORDER BY "createdAt" DESC`, publisherID)
+		ORDER BY "createdAt" DESC, "email" ASC`, publisherID)
 	if err != nil {
 		return nil, err
 	}

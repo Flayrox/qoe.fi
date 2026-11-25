@@ -82,7 +82,7 @@ const getRecentArticlesForAnalytics = `-- name: GetRecentArticlesForAnalytics :m
 SELECT id, title, "createdAt"
 FROM "Article"
 WHERE "publisherId" = $1 AND published = true
-ORDER BY "createdAt" DESC
+ORDER BY "createdAt" DESC, id DESC
 LIMIT $2
 `
 
@@ -121,7 +121,7 @@ const getRecentThoughtsForAnalytics = `-- name: GetRecentThoughtsForAnalytics :m
 SELECT id, content, "createdAt", "likeCount", "repostCount"
 FROM "Post"
 WHERE "authorId" = $1 AND "isDraft" = false AND "deletedAt" IS NULL
-ORDER BY "createdAt" DESC
+ORDER BY "createdAt" DESC, id DESC
 LIMIT $2
 `
 
@@ -168,7 +168,7 @@ const listSubscribers = `-- name: ListSubscribers :many
 SELECT id, email, "isActive", "isPremium", "ltvCents", "createdAt"
 FROM "Subscriber"
 WHERE "publisherId" = $1
-ORDER BY "createdAt" DESC
+ORDER BY "createdAt" DESC, id DESC
 `
 
 type ListSubscribersRow struct {

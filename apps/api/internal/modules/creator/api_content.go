@@ -630,7 +630,7 @@ func (h *Handler) apiSearch(w http.ResponseWriter, r *http.Request) {
 		       cat.id::text, cat.slug, cat.name,
 		       (a.title ILIKE '%' || $4 || '%') AS title_hit
 		` + where + `
-		ORDER BY title_hit DESC, a."createdAt" DESC
+		ORDER BY title_hit DESC, a."createdAt" DESC, a.id DESC
 		LIMIT $` + strconv.Itoa(len(args)+1) + ` OFFSET $` + strconv.Itoa(len(args)+2)
 
 	page := apiArticlesPage{Items: []apiArticleSummary{}}

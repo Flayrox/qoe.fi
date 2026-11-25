@@ -176,7 +176,7 @@ func (s *Service) GetSuggestedCreators(ctx context.Context, userID string, limit
 				COALESCE((1 - (COALESCE(u."embedding", a."embedding") <=> $1::vector))::float8, 0.5) AS sim_score,
 				a.title AS recent_title,
 				COUNT(DISTINCT s.id)::int AS subs_count,
-				ROW_NUMBER() OVER(PARTITION BY u.id ORDER BY a."createdAt" DESC) as rn
+				ROW_NUMBER() OVER(PARTITION BY u.id ORDER BY a."createdAt" DESC, a.title DESC) as rn
 			FROM "User" u
 			LEFT JOIN "Article" a ON a."authorId" = u.id AND a.published = true
 			LEFT JOIN "Publisher" p ON p.id = a."publisherId"
@@ -222,7 +222,7 @@ func (s *Service) GetSuggestedCreators(ctx context.Context, userID string, limit
 				0.0::float8 AS sim_score,
 				a.title AS recent_title,
 				COUNT(DISTINCT s.id)::int AS subs_count,
-				ROW_NUMBER() OVER(PARTITION BY u.id ORDER BY a."createdAt" DESC) as rn
+				ROW_NUMBER() OVER(PARTITION BY u.id ORDER BY a."createdAt" DESC, a.title DESC) as rn
 			FROM "User" u
 			LEFT JOIN "Article" a ON a."authorId" = u.id AND a.published = true
 			LEFT JOIN "Publisher" p ON p.id = a."publisherId"

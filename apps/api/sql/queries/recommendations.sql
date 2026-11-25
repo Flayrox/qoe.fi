@@ -10,7 +10,7 @@ SELECT r.id, r."description", r."createdAt",
 FROM "Recommendation" r
 JOIN "Publisher" p ON p.id = r."recommendedId"
 WHERE r."recommenderId" = $1
-ORDER BY r."createdAt" DESC;
+ORDER BY r."createdAt" DESC, r.id DESC;
 
 -- name: AddRecommendation :one
 INSERT INTO "Recommendation" (id, "recommenderId", "recommendedId", "description", "createdAt")

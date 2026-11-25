@@ -141,7 +141,7 @@ func AuditRecentFollowRings(ctx context.Context, pool *pgxpool.Pool, now time.Ti
 		  AND NOT COALESCE(u."isSuspended", false)
 		  AND NOT COALESCE(r."isShadowbanned", false)
 		  AND NOT COALESCE(r."isSuspended", false)
-		ORDER BY f."createdAt" DESC
+		ORDER BY f."createdAt" DESC, f."readerId", f."publisherId"
 		LIMIT 5000`, since)
 	if err != nil {
 		return 0, err

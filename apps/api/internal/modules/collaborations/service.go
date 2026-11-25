@@ -553,7 +553,7 @@ func (s *Service) ListInviteLinks(ctx context.Context, userID, articleID string)
 		SELECT id, "articleId", token, role, "expiresAt", "maxUses", "usedCount", "isRevoked", "createdAt"
 		FROM "CollaborationInviteLink"
 		WHERE "articleId" = $1
-		ORDER BY "createdAt" DESC
+		ORDER BY "createdAt" DESC, id DESC
 	`, articleID)
 	if err != nil {
 		return nil, err

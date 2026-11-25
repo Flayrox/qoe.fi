@@ -142,7 +142,7 @@ func (s *Service) StartReconfirmWave(ctx context.Context, staffID, batchID strin
 		SELECT "id", "expiresAt", "limits"
 		FROM "SubscriberImportDecision"
 		WHERE "batchId" = $1 AND "decision" = 'approved_reconfirm'
-		ORDER BY "createdAt" DESC LIMIT 1`,
+		ORDER BY "createdAt" DESC, "id" DESC LIMIT 1`,
 		batchID).Scan(&decisionID, &decisionExpires, &limitsRaw)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ReconfirmWaveDTO{}, errReconfirmNotApproved
@@ -363,7 +363,7 @@ func (s *Service) activeReconfirmWave(ctx context.Context, batchID string) (Reco
 	err := s.pool.QueryRow(ctx, `
 		SELECT "id" FROM "SubscriberImportReconfirmWave"
 		WHERE "batchId" = $1 AND "status" IN ('queued', 'sending', 'paused')
-		ORDER BY "createdAt" DESC LIMIT 1`, batchID).Scan(&id)
+		ORDER BY "createdAt" DESC, "id" DESC LIMIT 1`, batchID).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ReconfirmWaveDTO{}, nil
 	}
@@ -409,7 +409,7 @@ func (s *Service) ListReconfirmWaves(ctx context.Context, batchID string) ([]Rec
 		       "expiresAt", "completedAt", "createdAt", "updatedAt"
 		FROM "SubscriberImportReconfirmWave"
 		WHERE "batchId" = $1
-		ORDER BY "createdAt" DESC`, batchID)
+		ORDER BY "createdAt" DESC, "id" DESC`, batchID)
 	if err != nil {
 		return nil, err
 	}

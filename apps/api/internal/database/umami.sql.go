@@ -32,7 +32,7 @@ SELECT p.id,
        COALESCE(p.subdomain, p.slug) AS tenant_domain
 FROM "Publisher" p
 WHERE (p."umamiWebsiteId" IS NULL OR p."umamiWebsiteId" = '')
-ORDER BY p."createdAt" ASC
+ORDER BY p."createdAt" ASC, p.id ASC
 LIMIT $1
 `
 

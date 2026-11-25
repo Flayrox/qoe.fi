@@ -194,7 +194,7 @@ func (s *Service) ExportSignedAudit(
 			argIdx++
 		}
 
-		query += fmt.Sprintf(` ORDER BY a."createdAt" DESC LIMIT $%d`, argIdx)
+		query += fmt.Sprintf(` ORDER BY a."createdAt" DESC, a."id" DESC LIMIT $%d`, argIdx)
 		args = append(args, limit)
 
 		rows, err := s.pool.Query(ctx, query, args...)
@@ -360,7 +360,7 @@ func (s *Service) ExportSignedSubscribers(
 			argIdx++
 		}
 
-		query += fmt.Sprintf(` ORDER BY s."createdAt" DESC LIMIT $%d`, argIdx)
+		query += fmt.Sprintf(` ORDER BY s."createdAt" DESC, s."id" DESC LIMIT $%d`, argIdx)
 		args = append(args, limit)
 
 		rows, err := s.pool.Query(ctx, query, args...)

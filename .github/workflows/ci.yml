@@ -94,6 +94,9 @@ jobs:
       - name: Install sqlc (version épinglée)
         run: go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1
 
+      - name: Guard order-total (tri createdAt = ordre total)
+        run: pnpm guard:order-total
+
       - name: Guard sqlc (code généré à jour)
         run: pnpm guard:sqlc
 

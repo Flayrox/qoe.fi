@@ -653,7 +653,7 @@ WHERE l."targetType" = 'POST'
   AND l."targetId" = $1
   AND l.kind = 'LIKE'
   AND COALESCE(privacy."likeVisibility", 'PUBLIC') = 'PUBLIC'
-ORDER BY l."createdAt" DESC
+ORDER BY l."createdAt" DESC, l.id DESC
 LIMIT $3 OFFSET $2
 `
 
@@ -706,7 +706,7 @@ WHERE r."repostId" = $1
   AND r."deletedAt" IS NULL
   AND r."isDraft" = false
   AND (r.content <> '' AND r.content <> ' ')
-ORDER BY r."createdAt" DESC
+ORDER BY r."createdAt" DESC, r.id DESC
 LIMIT $2 OFFSET $3
 `
 
@@ -748,7 +748,7 @@ JOIN "User" u ON u.id = r."userId"
 WHERE r."targetType" = 'POST'
   AND r."targetId" = $1
   AND r.kind = 'REPOST'
-ORDER BY r."createdAt" DESC
+ORDER BY r."createdAt" DESC, r.id DESC
 LIMIT $3 OFFSET $2
 `
 

@@ -64,7 +64,7 @@ VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $5);
 SELECT id, name, "keyPrefix", scopes, "createdAt", "lastUsedAt"
 FROM "ApiKey"
 WHERE "userId" = $1
-ORDER BY "createdAt" DESC;
+ORDER BY "createdAt" DESC, id DESC;
 
 -- name: DeleteApiKey :exec
 DELETE FROM "ApiKey" WHERE id = $1 AND "userId" = $2;
@@ -125,7 +125,7 @@ SELECT id, title, slug, content, published, "isPremium", "categoryId", "seoTitle
        "seoDescription", "createdAt"
 FROM "Article"
 WHERE "publisherId" = $1
-ORDER BY "createdAt" DESC;
+ORDER BY "createdAt" DESC, id DESC;
 
 -- name: ListCategoriesForPublisher :many
 SELECT id, name, slug, description, "parentId"

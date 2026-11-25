@@ -29,7 +29,7 @@ SELECT mr.id,
 FROM "ModerationReport" mr
 JOIN "User" u ON u.id = mr."reporterId"
 WHERE ($1::text = '' OR mr.status = $1)
-ORDER BY (mr.status = 'pending') DESC, mr."createdAt" ASC
+ORDER BY (mr.status = 'pending') DESC, mr."createdAt" ASC, mr.id ASC
 LIMIT $2 OFFSET $3;
 
 -- name: CountModerationReportsByStatus :many

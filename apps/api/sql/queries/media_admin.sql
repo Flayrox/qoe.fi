@@ -106,7 +106,7 @@ WHERE l."mediaId" = $1
     OR COALESCE(u.username, '') ILIKE '%' || sqlc.arg('query') || '%'
     OR COALESCE(l.metadata::text, '') ILIKE '%' || sqlc.arg('query') || '%'
   )
-ORDER BY l."createdAt" DESC
+ORDER BY l."createdAt" DESC, l.id DESC
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
 -- name: CountMediaAuditLogs :one
@@ -189,7 +189,7 @@ FROM "ApiKey" ak
 JOIN "Media" m ON m."publisherId" = ak."publisherId"
 LEFT JOIN "User" u ON u.id = ak."createdByUserId"
 WHERE m.id = $1
-ORDER BY ak."createdAt" DESC;
+ORDER BY ak."createdAt" DESC, ak.id DESC;
 
 -- name: CountMediaApiKeys :one
 SELECT COUNT(*)::int

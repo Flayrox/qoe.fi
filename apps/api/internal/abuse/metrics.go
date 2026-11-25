@@ -126,7 +126,7 @@ func ComputeMetrics(ctx context.Context, pool SignalDB, days int, now time.Time)
 		WITH latest AS (
 			SELECT DISTINCT ON ("subjectType", "subjectId") "result", "expiresAt"
 			FROM "RiskDecision"
-			ORDER BY "subjectType", "subjectId", "createdAt" DESC, "decidedBy" DESC, "id" DESC
+			ORDER BY "subjectType", "subjectId", "seq" DESC
 		)
 		SELECT COUNT(*) FROM latest
 		WHERE "result" <> 'allow' AND ("expiresAt" IS NULL OR "expiresAt" > $1)`, now).Scan(&open); err != nil {
@@ -139,7 +139,7 @@ func ComputeMetrics(ctx context.Context, pool SignalDB, days int, now time.Time)
 		SELECT s."subjectType", s."subjectId", COUNT(*),
 		       (SELECT d."result" FROM "RiskDecision" d
 		         WHERE d."subjectType" = s."subjectType" AND d."subjectId" = s."subjectId"
-		         ORDER BY d."createdAt" DESC, d."decidedBy" DESC, d."id" DESC LIMIT 1)
+		         ORDER BY d."seq" DESC LIMIT 1)
 		FROM "AbuseSignal" s WHERE s."observedAt" >= $1
 		GROUP BY s."subjectType", s."subjectId"
 		ORDER BY COUNT(*) DESC LIMIT 10`, since)

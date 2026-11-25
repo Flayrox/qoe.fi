@@ -85,7 +85,7 @@ SELECT u.id, u.name, u.email, u.username, u.role, u."createdAt",
        p."subdomain", p."customDomain", p."accentColor", p."layoutStyle"
 FROM "User" u
 LEFT JOIN "Publisher" p ON p.id = u."publisherId"
-ORDER BY u."createdAt" DESC
+ORDER BY u."createdAt" DESC, u.id DESC
 `
 
 type ListDevtoolsUsersRow struct {

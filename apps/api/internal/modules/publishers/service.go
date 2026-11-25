@@ -630,7 +630,7 @@ func (s *Service) publishedArticles(ctx context.Context, pubID, viewerID string)
 		        )
 		    )
 		  )
-		ORDER BY a."createdAt" DESC`, pubID, viewerUUID(viewerID))
+		ORDER BY a."createdAt" DESC, a.id DESC`, pubID, viewerUUID(viewerID))
 	if err != nil {
 		return nil, err
 	}
@@ -911,7 +911,7 @@ func (s *Service) Recommendations(ctx context.Context, domain string) ([]Recomme
 		FROM "Recommendation" r
 		JOIN "Publisher" p ON p.id = r."recommendedId"
 		WHERE r."recommenderId" = $1
-		ORDER BY r."createdAt" DESC
+		ORDER BY r."createdAt" DESC, r.id DESC
 		LIMIT $2
 	`, pub.ID, maxRecommendations)
 	if err != nil {

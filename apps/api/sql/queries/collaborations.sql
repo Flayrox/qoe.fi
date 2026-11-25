@@ -77,7 +77,7 @@ FROM "CollaborationRequest" cr
 JOIN "Article" a ON a.id = cr."articleId"
 JOIN "User" u ON u.id = cr."inviterId"
 WHERE cr."inviteeId" = $1
-ORDER BY cr."createdAt" DESC;
+ORDER BY cr."createdAt" DESC, cr.id DESC;
 
 -- name: ListSentCollaborationRequests :many
 SELECT cr.id, cr."articleId", cr.status, cr."requestedRole", cr."requestedOrder",
@@ -88,4 +88,4 @@ FROM "CollaborationRequest" cr
 JOIN "Article" a ON a.id = cr."articleId"
 JOIN "User" u ON u.id = cr."inviteeId"
 WHERE cr."inviterId" = $1
-ORDER BY cr."createdAt" DESC;
+ORDER BY cr."createdAt" DESC, cr.id DESC;

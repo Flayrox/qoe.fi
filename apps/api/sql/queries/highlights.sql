@@ -160,7 +160,7 @@ WHERE ac."highlightId" = $1
     WHERE (b."readerId" = sqlc.arg('viewerId') AND b."creatorId" = h."readerId")
        OR (b."creatorId" = sqlc.arg('viewerId') AND b."readerId" = h."readerId")
   )
-ORDER BY ac."createdAt" ASC;
+ORDER BY ac."createdAt" ASC, ac.id ASC;
 
 -- name: CreateAnnotationComment :one
 INSERT INTO "AnnotationComment" (id, content, "highlightId", "authorId")

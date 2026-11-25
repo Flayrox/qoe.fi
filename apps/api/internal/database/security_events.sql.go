@@ -77,7 +77,7 @@ const listUserSecurityEvents = `-- name: ListUserSecurityEvents :many
 SELECT id, "userId", "publisherId", "apiKeyId", "eventType", "ipSubnet", "userAgent", metadata, "createdAt"
 FROM "SecurityEvent"
 WHERE "userId" = $1
-ORDER BY "createdAt" DESC
+ORDER BY "createdAt" DESC, id DESC
 LIMIT 50
 `
 

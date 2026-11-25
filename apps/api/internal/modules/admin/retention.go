@@ -240,7 +240,7 @@ func (s *Service) ListRetentionPolicies(ctx context.Context) ([]RetentionPolicyD
 			// Récupère la date de dernière purge depuis l'audit
 			var lastPurge time.Time
 			err := s.pool.QueryRow(ctx,
-				`SELECT "createdAt" FROM "AdminAuditLog" WHERE "action" = 'retention.purge' AND "targetId" = $1 ORDER BY "createdAt" DESC LIMIT 1`,
+				`SELECT "createdAt" FROM "AdminAuditLog" WHERE "action" = 'retention.purge' AND "targetId" = $1 ORDER BY "createdAt" DESC, "id" DESC LIMIT 1`,
 				p.Table,
 			).Scan(&lastPurge)
 			if err == nil {
@@ -365,7 +365,7 @@ func (s *Service) GetRetentionJournal(ctx context.Context, limit int) ([]Retenti
 		FROM "AdminAuditLog" a
 		LEFT JOIN "User" u ON u."id" = a."actorId"
 		WHERE a."action" = 'retention.purge'
-		ORDER BY a."createdAt" DESC
+		ORDER BY a."createdAt" DESC, a."id" DESC
 		LIMIT $1
 	`
 

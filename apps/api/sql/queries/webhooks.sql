@@ -26,7 +26,7 @@ LIMIT $2 OFFSET $3;
 SELECT id, name, url, events, active, "createdAt", "updatedAt"
 FROM "Webhook"
 WHERE "publisherId" = $1
-ORDER BY "createdAt" DESC;
+ORDER BY "createdAt" DESC, id DESC;
 
 -- name: ListRecentDeliveriesByPublisher :many
 -- Toutes les livraisons récentes des webhooks d'une publication, bornées à
@@ -43,13 +43,13 @@ WHERE w."publisherId" = $1
         AND (d2."createdAt" > d."createdAt"
              OR (d2."createdAt" = d."createdAt" AND d2.id > d.id))
   ) < $2::int
-ORDER BY d."webhookId" ASC, d."createdAt" DESC;
+ORDER BY d."webhookId" ASC, d."createdAt" DESC, d.id DESC;
 
 -- name: ListWebhookDeliveries :many
 SELECT d.id, d.event, d.status, d."httpStatus", d."responseBody", d.attempts, d."createdAt"
 FROM "WebhookDelivery" d
 WHERE d."webhookId" = $1
-ORDER BY d."createdAt" DESC
+ORDER BY d."createdAt" DESC, d.id DESC
 LIMIT $2;
 
 -- name: CreateWebhook :one

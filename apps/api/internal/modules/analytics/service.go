@@ -1357,7 +1357,7 @@ func (s *Service) DashboardOverview(ctx context.Context, userID, publisherID, wo
 			(SELECT COUNT(*)::int FROM "Letter" l WHERE l."articleId" = a.id)
 		FROM "Article" a LEFT JOIN "Category" c ON c.id = a."categoryId"
 		WHERE `+recentWhere+` AND a.published = true
-		ORDER BY a."createdAt" DESC LIMIT 1`, scopeOnlyArgs...).Scan(
+		ORDER BY a."createdAt" DESC, a.id DESC LIMIT 1`, scopeOnlyArgs...).Scan(
 		&latest.ID, &latest.Title, &latest.ReadingTime, &cat, &bookmarks, &highlights, &letters)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return out, fmt.Errorf("analytics: dernier article publié: %w", err)
@@ -1435,7 +1435,7 @@ func (s *Service) ProductMetrics(ctx context.Context, userID, publisherID string
 		              WHERE aa."articleId" = a.id AND aa."userId" = $2
 		                AND aa."consentStatus" = 'ACCEPTED' AND aa."isVisible" = true)
 		)
-		ORDER BY a."createdAt" DESC`, publisherID, toUUID(userID))
+		ORDER BY a."createdAt" DESC, a.id DESC`, publisherID, toUUID(userID))
 	if err != nil {
 		return ProductMetrics{}, err
 	}

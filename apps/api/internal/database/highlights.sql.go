@@ -270,7 +270,7 @@ WHERE ac."highlightId" = $1
     WHERE (b."readerId" = $2 AND b."creatorId" = h."readerId")
        OR (b."creatorId" = $2 AND b."readerId" = h."readerId")
   )
-ORDER BY ac."createdAt" ASC
+ORDER BY ac."createdAt" ASC, ac.id ASC
 `
 
 type ListAnnotationCommentsParams struct {

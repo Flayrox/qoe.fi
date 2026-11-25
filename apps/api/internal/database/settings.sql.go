@@ -466,7 +466,7 @@ const listApiKeys = `-- name: ListApiKeys :many
 SELECT id, name, "keyPrefix", scopes, "createdAt", "lastUsedAt"
 FROM "ApiKey"
 WHERE "userId" = $1
-ORDER BY "createdAt" DESC
+ORDER BY "createdAt" DESC, id DESC
 `
 
 type ListApiKeysRow struct {
@@ -510,7 +510,7 @@ SELECT id, title, slug, content, published, "isPremium", "categoryId", "seoTitle
        "seoDescription", "createdAt"
 FROM "Article"
 WHERE "publisherId" = $1
-ORDER BY "createdAt" DESC
+ORDER BY "createdAt" DESC, id DESC
 `
 
 type ListArticlesForSettingsRow struct {

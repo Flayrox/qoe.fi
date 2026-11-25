@@ -414,7 +414,7 @@ func ListUserTickets(ctx context.Context, pool DB, userID string, limit, offset 
 	rows, err := pool.Query(ctx, `
 		SELECT `+ticketColumns+`, COUNT(*) OVER () AS total
 		FROM "SupportTicket" WHERE "openedBy" = $1
-		ORDER BY "createdAt" DESC LIMIT $2 OFFSET $3`, userID, limit, offset)
+		ORDER BY "createdAt" DESC, "id" DESC LIMIT $2 OFFSET $3`, userID, limit, offset)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -445,7 +445,7 @@ func ListAllTickets(ctx context.Context, pool DB, status string, limit, offset i
 		SELECT `+ticketColumns+`, COUNT(*) OVER () AS total
 		FROM "SupportTicket" `+where+`
 		ORDER BY CASE "status" WHEN 'open' THEN 0 WHEN 'under_review' THEN 1 ELSE 2 END,
-		         "createdAt" DESC LIMIT $1 OFFSET $2`, args...)
+		         "createdAt" DESC, "id" DESC LIMIT $1 OFFSET $2`, args...)
 	if err != nil {
 		return nil, 0, err
 	}

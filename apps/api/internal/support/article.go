@@ -181,7 +181,7 @@ func ListPublishedArticles(ctx context.Context, pool DB) ([]Article, error) {
 	rows, err := pool.Query(ctx, `
 		SELECT `+articleColumns+` FROM "SupportArticle"
 		WHERE "published" = true
-		ORDER BY "position", "createdAt" DESC`)
+		ORDER BY "position", "createdAt" DESC, id`)
 	if err != nil {
 		return nil, err
 	}
@@ -217,7 +217,7 @@ func ListAllArticles(ctx context.Context, pool DB, limit, offset int) ([]Article
 	}
 	rows, err := pool.Query(ctx, `
 		SELECT `+articleColumns+`, COUNT(*) OVER () AS total FROM "SupportArticle"
-		ORDER BY "createdAt" DESC LIMIT $1 OFFSET $2`, limit, offset)
+		ORDER BY "createdAt" DESC, id DESC LIMIT $1 OFFSET $2`, limit, offset)
 	if err != nil {
 		return nil, 0, err
 	}

@@ -37,5 +37,5 @@ SELECT id, "userId"::text, "publisherId", status, total, imported, duplicates,
        errors, "createdAt", "updatedAt"
 FROM "ArticleImportJob"
 WHERE "userId" = $1
-ORDER BY "createdAt" DESC
+ORDER BY "createdAt" DESC, id DESC
 LIMIT $2;

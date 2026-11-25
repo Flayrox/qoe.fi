@@ -155,7 +155,7 @@ func (s *Service) Notes(ctx context.Context, userID, ebookID string) ([]Note, er
 	rows, err := s.pool.Query(ctx, `
 		SELECT "id", "chapterIndex", "chapterTitle", "excerpt", "note", "createdAt", "updatedAt"
 		FROM "EbookNote" WHERE "ebookId" = $1 AND "ownerId" = $2::uuid
-		ORDER BY "chapterIndex" ASC, "createdAt" ASC`, ebookID, userID)
+		ORDER BY "chapterIndex" ASC, "createdAt" ASC, "id" ASC`, ebookID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -270,7 +270,7 @@ func (s *Service) AllNotes(ctx context.Context, userID, q string) ([]NoteRef, bo
 		       n."ebookId", e."title", e."author"
 		FROM "EbookNote" n JOIN "Ebook" e ON e."id" = n."ebookId"
 		WHERE n."ownerId" = $1::uuid
-		ORDER BY n."createdAt" DESC
+		ORDER BY n."createdAt" DESC, n."id" DESC
 		LIMIT $2`, userID, MaxNotesScan)
 	if err != nil {
 		return nil, false, err

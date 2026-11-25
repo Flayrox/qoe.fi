@@ -28,7 +28,7 @@ var ErrSessionNotFound = errors.New("session introuvable")
 const maxSessions = 100
 
 func (s *Service) Sessions(ctx context.Context, userID, currentToken string) ([]Session, error) {
-	rows, err := s.pool.Query(ctx, `SELECT t.id, c."clientId", t.scopes, t."createdAt", t."accessTokenExpiresAt", t."lastUsedAt", t."accessTokenHash" FROM "OAuthToken" t JOIN "OAuthClient" c ON c.id=t."clientId" WHERE t."userId"=$1 AND t."revokedAt" IS NULL ORDER BY t."createdAt" DESC LIMIT $2`, userID, maxSessions)
+	rows, err := s.pool.Query(ctx, `SELECT t.id, c."clientId", t.scopes, t."createdAt", t."accessTokenExpiresAt", t."lastUsedAt", t."accessTokenHash" FROM "OAuthToken" t JOIN "OAuthClient" c ON c.id=t."clientId" WHERE t."userId"=$1 AND t."revokedAt" IS NULL ORDER BY t."createdAt" DESC, t.id DESC LIMIT $2`, userID, maxSessions)
 	if err != nil {
 		return nil, err
 	}

@@ -165,7 +165,7 @@ FROM "CollaborationRequest" cr
 JOIN "Article" a ON a.id = cr."articleId"
 JOIN "User" u ON u.id = cr."inviterId"
 WHERE cr."inviteeId" = $1
-ORDER BY cr."createdAt" DESC
+ORDER BY cr."createdAt" DESC, cr.id DESC
 `
 
 type ListReceivedCollaborationRequestsRow struct {
@@ -227,7 +227,7 @@ FROM "CollaborationRequest" cr
 JOIN "Article" a ON a.id = cr."articleId"
 JOIN "User" u ON u.id = cr."inviteeId"
 WHERE cr."inviterId" = $1
-ORDER BY cr."createdAt" DESC
+ORDER BY cr."createdAt" DESC, cr.id DESC
 `
 
 type ListSentCollaborationRequestsRow struct {

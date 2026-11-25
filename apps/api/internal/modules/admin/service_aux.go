@@ -329,7 +329,7 @@ func (s *Service) ListAllowlist(ctx context.Context, userID string) ([]Allowlist
 	}
 	rows, err := s.pool.Query(ctx,
 		`SELECT email, note, "invitedBy", "usedAt"::text, "usedBy", "createdAt"::text
-		 FROM "RegistrationAllowlist" ORDER BY "createdAt" DESC LIMIT 500`)
+		 FROM "RegistrationAllowlist" ORDER BY "createdAt" DESC, "email" ASC LIMIT 500`)
 	if err != nil {
 		return nil, err
 	}

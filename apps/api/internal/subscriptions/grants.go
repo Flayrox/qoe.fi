@@ -281,7 +281,7 @@ func EnsurePlanGrant(ctx context.Context, pool DB, subjectType, subjectID, plan 
 		SELECT `+grantColumns+` FROM "SubscriptionGrant"
 		WHERE "subjectType" = $1 AND "subjectId" = $2 AND "plan" = $3
 		  AND "grantedBy" = $4 AND "note" = $5
-		ORDER BY "createdAt" DESC
+		ORDER BY "createdAt" DESC, "id" DESC
 		LIMIT 1`,
 		subjectType, strings.TrimSpace(subjectID), plan, grantedBy, note), now)
 }
@@ -323,7 +323,7 @@ func ExtendPlanGrant(ctx context.Context, pool DB, subjectType, subjectID, plan 
 			  AND "grantedBy" = $5 AND "note" = $6
 			  AND "startsAt" <= $7::timestamp
 			  AND ("endsAt" IS NULL OR "endsAt" > $7::timestamp)
-			ORDER BY "createdAt" DESC
+			ORDER BY "createdAt" DESC, "id" DESC
 			LIMIT 1
 		)
 		RETURNING `+grantColumns,
@@ -400,12 +400,12 @@ func ListGrants(ctx context.Context, pool DB, subjectType, subjectID string, eff
 			SELECT `+grantColumns+` FROM "SubscriptionGrant"
 			WHERE "subjectType" = $1 AND "subjectId" = $2
 			  AND "startsAt" <= $3 AND ("endsAt" IS NULL OR "endsAt" > $3)
-			ORDER BY "createdAt" DESC LIMIT $4`, subjectType, subjectID, now, limit)
+			ORDER BY "createdAt" DESC, "id" DESC LIMIT $4`, subjectType, subjectID, now, limit)
 	} else {
 		rows, err = pool.Query(ctx, `
 			SELECT `+grantColumns+` FROM "SubscriptionGrant"
 			WHERE "subjectType" = $1 AND "subjectId" = $2
-			ORDER BY "createdAt" DESC LIMIT $3`, subjectType, subjectID, limit)
+			ORDER BY "createdAt" DESC, "id" DESC LIMIT $3`, subjectType, subjectID, limit)
 	}
 	if err != nil {
 		return nil, err
@@ -441,7 +441,7 @@ func ListRecentGrants(ctx context.Context, pool DB, plan string, effectiveOnly b
 	}
 	now = now.UTC()
 	base := `SELECT ` + grantColumns + `, COUNT(*) OVER () AS total FROM "SubscriptionGrant"`
-	order := ` ORDER BY "createdAt" DESC LIMIT $%d OFFSET $%d`
+	order := ` ORDER BY "createdAt" DESC, "id" DESC LIMIT $%d OFFSET $%d`
 	var rows pgx.Rows
 	var err error
 	switch {

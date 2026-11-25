@@ -852,7 +852,7 @@ SELECT r.id, r."articleId", r."publisherId", r."reviewerId", r.action, r.comment
 FROM "ArticleReviewLog" r
 JOIN "User" u ON u.id = r."reviewerId"
 WHERE r."articleId" = $1
-ORDER BY r."createdAt" DESC
+ORDER BY r."createdAt" DESC, r.id DESC
 LIMIT 1
 `
 
@@ -890,7 +890,7 @@ func (q *Queries) GetLatestArticleReviewFeedback(ctx context.Context, articleid 
 const getLatestArticleSnapshotByArticle = `-- name: GetLatestArticleSnapshotByArticle :one
 SELECT id, "articleId", "actorId", title, content, "wordCount", reason, "contentHash", "createdAt" FROM "ArticleSnapshot"
 WHERE "articleId" = $1
-ORDER BY "createdAt" DESC
+ORDER BY "createdAt" DESC, id DESC, id DESC
 LIMIT 1
 `
 
@@ -914,7 +914,7 @@ func (q *Queries) GetLatestArticleSnapshotByArticle(ctx context.Context, article
 const getLatestArticleSnapshotByArticleAndActor = `-- name: GetLatestArticleSnapshotByArticleAndActor :one
 SELECT id, "articleId", "actorId", title, content, "wordCount", reason, "contentHash", "createdAt" FROM "ArticleSnapshot"
 WHERE "articleId" = $1 AND "actorId" = $2
-ORDER BY "createdAt" DESC
+ORDER BY "createdAt" DESC, id DESC
 LIMIT 1
 `
 
@@ -944,7 +944,7 @@ const getLatestArticleSnapshotByReason = `-- name: GetLatestArticleSnapshotByRea
 SELECT id, "contentHash", "createdAt"
 FROM "ArticleSnapshot"
 WHERE "articleId" = $1 AND reason = $2
-ORDER BY "createdAt" DESC
+ORDER BY "createdAt" DESC, id DESC
 LIMIT 1
 `
 
@@ -970,7 +970,7 @@ const getLatestArticleSnapshotMeta = `-- name: GetLatestArticleSnapshotMeta :one
 SELECT id, reason, "contentHash", "createdAt"
 FROM "ArticleSnapshot"
 WHERE "articleId" = $1
-ORDER BY "createdAt" DESC
+ORDER BY "createdAt" DESC, id DESC
 LIMIT 1
 `
 
@@ -1161,7 +1161,7 @@ SELECT s.id, s."articleId", s."actorId", s.title, s.content, s."wordCount", s.re
 FROM "ArticleSnapshot" s
 LEFT JOIN "User" u ON u.id = s."actorId"
 WHERE s."articleId" = $1
-ORDER BY s."createdAt" DESC
+ORDER BY s."createdAt" DESC, s.id DESC
 `
 
 type ListArticleSnapshotsRow struct {
@@ -1242,7 +1242,7 @@ WHERE (a."publisherId" = $1
      )
    )))
    AND NOT (a."isAuthorSovereignCopy" = true AND a."isClaimed" = false)
-ORDER BY a."createdAt" DESC
+ORDER BY a."createdAt" DESC, a.id DESC
 LIMIT $2 OFFSET $3
 `
 
@@ -1369,7 +1369,7 @@ WHERE a."publisherId" = $1
         AND (parent_cat.slug = $3 OR parent_cat.id = $3)
     )
   )
-ORDER BY a."createdAt" DESC
+ORDER BY a."createdAt" DESC, a.id DESC
 LIMIT $5 OFFSET $4
 `
 
@@ -1451,7 +1451,7 @@ const listListenLater = `-- name: ListListenLater :many
 SELECT l.id, l."articleId", l."position", l."createdAt"
 FROM "ListenLater" l
 WHERE l."userId" = $1::uuid
-ORDER BY l."position", l."createdAt"
+ORDER BY l."position", l."createdAt", l.id
 `
 
 type ListListenLaterRow struct {
@@ -1851,7 +1851,7 @@ WHERE a."articleId" = $1
       SELECT s.id FROM "ArticleSnapshot" AS s
       WHERE s."articleId" = $1
         AND s.reason NOT IN ('INITIAL', 'PUBLISHED', 'BEFORE_REVOCATION')
-      ORDER BY s."createdAt" DESC
+      ORDER BY s."createdAt" DESC, s.id DESC
       LIMIT $2
   )
 `

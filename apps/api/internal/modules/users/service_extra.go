@@ -503,7 +503,7 @@ func (s *Service) ToggleMuteWord(ctx context.Context, userID, rawWord string) (b
 // plus récent au plus ancien (parité feed.fetchMutedWordsAll).
 func (s *Service) ListMutedWords(ctx context.Context, userID string) ([]string, error) {
 	rows, err := s.pool.Query(ctx,
-		`SELECT word FROM "MutedWord" WHERE "userId" = $1 ORDER BY "createdAt" DESC`,
+		`SELECT word FROM "MutedWord" WHERE "userId" = $1 ORDER BY "createdAt" DESC, word DESC`,
 		toUUID(userID))
 	if err != nil {
 		return nil, err

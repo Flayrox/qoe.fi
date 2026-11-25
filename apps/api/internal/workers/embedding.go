@@ -307,7 +307,7 @@ func (s *EmbeddingWorker) HandleUserEmbedding(ctx context.Context, t *asynq.Task
 		FROM "Post"
 		WHERE "authorId" = $1 AND "deletedAt" IS NULL
 		  AND "isDraft" = false AND "isHiddenByAuthor" = false
-		ORDER BY "createdAt" DESC
+		ORDER BY "createdAt" DESC, "id" DESC
 		LIMIT 50`, p.UserID)
 	if err != nil {
 		return err

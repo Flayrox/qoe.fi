@@ -151,7 +151,7 @@ func (s *Service) RequestApproval(ctx context.Context, actorID string, act authz
 		SELECT `+approvalColumns+` FROM "AdminApproval"
 		 WHERE "requestedBy" = $1::uuid AND "act" = $2 AND "target" = $3
 		   AND "status" = 'pending' AND "expiresAt" > CURRENT_TIMESTAMP
-		 ORDER BY "createdAt" DESC LIMIT 1`, actorID, string(act), target)
+		 ORDER BY "createdAt" DESC, "id" DESC LIMIT 1`, actorID, string(act), target)
 	if got, err := scanApproval(row); err == nil {
 		return got, nil
 	}
@@ -262,7 +262,7 @@ func (s *Service) PendingApprovals(ctx context.Context, actorID string, limit in
 	rows, err := s.pool.Query(ctx, `
 		SELECT `+approvalColumns+` FROM "AdminApproval"
 		 ORDER BY ("status" = 'pending' AND "expiresAt" > CURRENT_TIMESTAMP) DESC,
-		          "createdAt" DESC
+		          "createdAt" DESC, "id" DESC
 		 LIMIT $1`, limit)
 	if err != nil {
 		return nil, err

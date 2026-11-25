@@ -208,7 +208,7 @@ func ReanchorArticle(ctx context.Context, pool Pool, articleID string) {
 		FROM "Highlight"
 		WHERE "articleId" = $1
 		  AND ("contentSha" IS DISTINCT FROM $2 OR "canonicalStart" IS NULL)
-		ORDER BY "createdAt" ASC`, articleID, doc.Sha)
+		ORDER BY "createdAt" ASC, id ASC`, articleID, doc.Sha)
 	if err != nil {
 		log.Printf("[anchors] select: %v", err)
 		return

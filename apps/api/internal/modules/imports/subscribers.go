@@ -766,11 +766,11 @@ func (s *Service) ListSubscriberImports(ctx context.Context, userID string) ([]S
 		    SELECT "decision", "publicReason"
 		    FROM "SubscriberImportDecision" dd
 		    WHERE dd."batchId" = b."id"
-		    ORDER BY dd."createdAt" DESC
+		    ORDER BY dd."createdAt" DESC, dd."id" DESC
 		    LIMIT 1
 		) d ON true
 		WHERE b."requesterId" = $1
-		ORDER BY b."createdAt" DESC
+		ORDER BY b."createdAt" DESC, b."id" DESC
 		LIMIT 20`, toUUID(userID))
 	if err != nil {
 		return nil, err
@@ -812,7 +812,7 @@ const batchSelect = `
 	    SELECT "decision", "publicReason"
 	    FROM "SubscriberImportDecision" dd
 	    WHERE dd."batchId" = b."id"
-	    ORDER BY dd."createdAt" DESC
+	    ORDER BY dd."createdAt" DESC, dd."id" DESC
 	    LIMIT 1
 	) d ON true`
 

@@ -145,7 +145,7 @@ func (s *Service) ListSiteVersions(ctx context.Context, userID, publisherID stri
 	rows, err := s.pool.Query(ctx, `
 		SELECT "id", "publisherId", "layout", "label", "createdBy", "createdAt"
 		FROM "SiteVersion" WHERE "publisherId" = $1
-		ORDER BY "createdAt" DESC LIMIT 20`,
+		ORDER BY "createdAt" DESC, "id" DESC LIMIT 20`,
 		publisherID,
 	)
 	if err != nil {
