@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { t } from '@lingui/core/macro';
 import { createClient } from '@qoe/supabase/server';
 
 function sanitizeNextPath(target: string | null): string {
@@ -55,7 +56,7 @@ export async function GET(request: Request) {
             // 🚪 Inscriptions fermées / email non invité : pas de ligne User.
             // Session coupée (anti compte orphelin), retour avec message clair.
             await supabase.auth.signOut();
-            let msg = 'Inscriptions fermées pour le moment. Demandez une invitation.';
+            let msg = t`Inscriptions fermées pour le moment. Demandez une invitation.`;
             try {
               const body = (await res.json()) as { error?: string };
               if (body.error) msg = body.error;

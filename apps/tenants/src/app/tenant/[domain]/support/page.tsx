@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 import type { Metadata } from 'next';
+import { t } from '@lingui/core/macro';
 import { Heart } from 'lucide-react';
 import { fetchTenantPublisher } from '@/lib/tenant-data';
 import { TenantPageShell } from '@/components/TenantPageShell';
@@ -38,10 +39,10 @@ export default async function TenantSupportPage({ params }: PageProps) {
         <span className="rounded-lg bg-muted p-2.5">
           <Heart className="h-5 w-5" />
         </span>
-        <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Soutenir</h1>
+        <h1 className="text-3xl font-bold tracking-tight md:text-4xl">{t`Soutenir`}</h1>
       </div>
       <p className="mt-4 leading-relaxed text-muted-foreground">
-        Votre soutien finance directement le travail de {publisher.name || decodedDomain}.
+        {t`Votre soutien finance directement le travail de ${publisher.name || decodedDomain}.`}
       </p>
 
       <div className="mt-8">
@@ -52,15 +53,15 @@ export default async function TenantSupportPage({ params }: PageProps) {
             rel="noopener noreferrer"
             className="inline-flex rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground"
           >
-            Soutenir
+            {t`Soutenir`}
           </a>
         ) : (
           <p className="rounded-lg bg-muted/40 p-4 text-sm text-muted-foreground">
-            Aucun moyen de soutien n&apos;est configuré pour le moment.
+            {t`Aucun moyen de soutien n'est configuré pour le moment.`}
           </p>
         )}
         {publisher.stripeAccountId && (
-          <p className="mt-4 text-xs text-muted-foreground">Paiements sécurisés par Stripe.</p>
+          <p className="mt-4 text-xs text-muted-foreground">{t`Paiements sécurisés par Stripe.`}</p>
         )}
       </div>
     </TenantPageShell>

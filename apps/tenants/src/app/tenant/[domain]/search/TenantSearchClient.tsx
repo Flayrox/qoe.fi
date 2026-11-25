@@ -12,6 +12,7 @@ import React, { useEffect, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Search, X, Clock, Calendar, ArrowRight, Sparkles, Loader2 } from 'lucide-react';
+import { plural, t } from '@lingui/core/macro';
 import { Badge } from '@qoe/ui/badge';
 import { Button } from '@qoe/ui/button';
 import { Input, InputGroup } from '@qoe/ui/input';
@@ -89,7 +90,9 @@ export function TenantSearchClient({
   }, [query, selectedCategory, initialQuery, initialCategory, pathname, router]);
 
   const results = articles;
-  const hasSearch = query.trim().length > 0;
+  const count = results.length;
+  const searchTerm = query.trim();
+  const hasSearch = searchTerm.length > 0;
   const hasFilters = hasSearch || selectedCategory !== 'all';
 
   const reset = () => {
@@ -111,8 +114,8 @@ export function TenantSearchClient({
                 size="xs"
                 shape="icon"
                 onClick={() => setQuery('')}
-                title="Effacer"
-                aria-label="Effacer la recherche"
+                title={t`Effacer`}
+                aria-label={t`Effacer la recherche`}
               >
                 <X />
               </Button>
@@ -126,9 +129,9 @@ export function TenantSearchClient({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Rechercher par titre, mot-clé, sujet..."
+            placeholder={t`Rechercher par titre, mot-clé, sujet...`}
             autoFocus
-            aria-label="Rechercher dans la publication"
+            aria-label={t`Rechercher dans la publication`}
           />
         </InputGroup>
       </div>
@@ -143,7 +146,7 @@ export function TenantSearchClient({
             onClick={() => setSelectedCategory('all')}
             className="rounded-full shrink-0"
           >
-            Tous les articles
+            {t`Tous les articles`}
           </Button>
           {categories.map((cat) => (
             <Button
@@ -164,8 +167,8 @@ export function TenantSearchClient({
       <div className="flex items-center justify-between text-xs text-muted-foreground mb-4 px-1">
         <span aria-live="polite">
           {hasSearch
-            ? `${results.length} résultat${results.length > 1 ? 's' : ''} trouvé${results.length > 1 ? 's' : ''}`
-            : `${results.length} publication${results.length > 1 ? 's' : ''} disponible${results.length > 1 ? 's' : ''}`}
+            ? t`${plural(count, { one: '# résultat trouvé', other: '# résultats trouvés' })}`
+            : t`${plural(count, { one: '# publication disponible', other: '# publications disponibles' })}`}
         </span>
         {hasFilters && (
           <Button
@@ -174,7 +177,7 @@ export function TenantSearchClient({
             onClick={reset}
             className="h-auto px-1 py-0 text-xs underline underline-offset-4"
           >
-            Réinitialiser
+            {t`Réinitialiser`}
           </Button>
         )}
       </div>
@@ -218,7 +221,7 @@ export function TenantSearchClient({
                     )}
                     <span>·</span>
                     <span className="uppercase font-semibold tracking-wider text-[10px]">
-                      {art.isPremium ? 'PAYANT' : 'GRATUIT'}
+                      {art.isPremium ? t`Payant` : t`Gratuit`}
                     </span>
                   </div>
 
@@ -254,14 +257,14 @@ export function TenantSearchClient({
           <Sparkles className="w-8 h-8 text-muted-foreground/60 mx-auto mb-3" />
           <h4 className="text-base font-bold text-foreground mb-1">
             {hasSearch
-              ? `Aucun article ne correspond à « ${query.trim()} »`
-              : 'Aucun article dans cette rubrique'}
+              ? t`Aucun article ne correspond à « ${searchTerm} »`
+              : t`Aucun article dans cette rubrique`}
           </h4>
           <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mx-auto mb-4">
-            Essayez avec d&apos;autres mots-clés ou consultez l&apos;ensemble de nos publications.
+            {t`Essayez avec d'autres mots-clés ou consultez l'ensemble de nos publications.`}
           </p>
           <Button variant="solid" tone="brand" size="sm" onClick={reset}>
-            <span>Afficher tous les articles</span>
+            <span>{t`Afficher tous les articles`}</span>
             <ArrowRight />
           </Button>
         </div>

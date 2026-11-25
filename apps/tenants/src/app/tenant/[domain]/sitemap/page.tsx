@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { buildCategoryPath } from '@qoe/utils';
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import { plural, t } from '@lingui/core/macro';
 import { fetchTenantPublisher } from '@/lib/tenant-data';
 import { TenantPageShell } from '@/components/TenantPageShell';
 import { normalizeTenantDomain } from '@/lib/tenant-domain';
@@ -30,6 +31,8 @@ export default async function TenantSitemapPage({ params }: PageProps) {
   const publisher = await fetchTenantPublisher(decodedDomain);
   if (!publisher) notFound();
 
+  const name = publisher.name || decodedDomain;
+
   const headersList = await headers();
   const host = headersList.get('x-forwarded-host') || headersList.get('host') || decodedDomain;
 
@@ -50,10 +53,10 @@ export default async function TenantSitemapPage({ params }: PageProps) {
       <div className="mx-auto w-full max-w-[624px] space-y-8 py-4">
         <div className="space-y-2 border-b border-border/40 pb-4">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-            Plan du site — {publisher.name || decodedDomain}
+            {t`Plan du site — ${name}`}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Index complet des archives, rubriques et pages de la publication.
+            {t`Index complet des archives, rubriques et pages de la publication.`}
           </p>
         </div>
 
@@ -61,26 +64,28 @@ export default async function TenantSitemapPage({ params }: PageProps) {
         <div className="space-y-6">
           <div className="space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Articles par année
+              {t`Articles par année`}
             </h2>
             <div className="space-y-2">
               {sortedYears.length > 0 ? (
-                sortedYears.map((year) => (
-                  <div
-                    key={year}
-                    className="flex items-center justify-between p-3 rounded-[6px] border border-border/40 hover:bg-muted/40 transition-colors"
-                  >
-                    <span className="font-medium text-sm text-foreground">
-                      Parutions de l'année {year}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {articlesByYear.get(year)?.length || 0} article
-                      {(articlesByYear.get(year)?.length || 0) > 1 ? 's' : ''}
-                    </span>
-                  </div>
-                ))
+                sortedYears.map((year) => {
+                  const count = articlesByYear.get(year)?.length || 0;
+                  return (
+                    <div
+                      key={year}
+                      className="flex items-center justify-between p-3 rounded-[6px] border border-border/40 hover:bg-muted/40 transition-colors"
+                    >
+                      <span className="font-medium text-sm text-foreground">
+                        {t`Parutions de l'année ${year}`}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {t`${plural(count, { one: '# article', other: '# articles' })}`}
+                      </span>
+                    </div>
+                  );
+                })
               ) : (
-                <p className="text-sm text-muted-foreground">Aucun article archivé.</p>
+                <p className="text-sm text-muted-foreground">{t`Aucun article archivé.`}</p>
               )}
             </div>
           </div>
@@ -89,7 +94,7 @@ export default async function TenantSitemapPage({ params }: PageProps) {
           {publisher.categories && publisher.categories.length > 0 && (
             <div className="space-y-3 pt-4 border-t border-border/30">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                Rubriques
+                {t`Rubriques`}
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {publisher.categories
@@ -101,7 +106,7 @@ export default async function TenantSitemapPage({ params }: PageProps) {
                       className="p-3 rounded-[6px] border border-border/40 hover:bg-muted/40 text-sm font-medium text-foreground transition-colors flex items-center justify-between"
                     >
                       <span>{cat.name}</span>
-                      <span className="text-xs text-muted-foreground">Rubrique</span>
+                      <span className="text-xs text-muted-foreground">{t`Rubrique`}</span>
                     </Link>
                   ))}
               </div>
@@ -111,26 +116,26 @@ export default async function TenantSitemapPage({ params }: PageProps) {
           {/* Pages clés */}
           <div className="space-y-3 pt-4 border-t border-border/30">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Pages éditoriales
+              {t`Pages éditoriales`}
             </h2>
             <div className="flex flex-wrap gap-2 text-sm">
               <Link
                 href="/about"
                 className="px-3 py-1.5 rounded-[6px] border border-border/40 hover:bg-muted/40 transition-colors"
               >
-                À propos
+                {t`À propos`}
               </Link>
               <Link
                 href="/team"
                 className="px-3 py-1.5 rounded-[6px] border border-border/40 hover:bg-muted/40 transition-colors"
               >
-                Équipe & Contributeurs
+                {t`Équipe & Contributeurs`}
               </Link>
               <Link
                 href="/thoughts"
                 className="px-3 py-1.5 rounded-[6px] border border-border/40 hover:bg-muted/40 transition-colors"
               >
-                Notes
+                {t`Notes`}
               </Link>
             </div>
           </div>

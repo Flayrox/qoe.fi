@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 import type { Metadata } from 'next';
+import { t } from '@lingui/core/macro';
 import { fetchTenantPublisher } from '@/lib/tenant-data';
 import { TenantPageShell } from '@/components/TenantPageShell';
 import { decodeUrlSegment } from '@qoe/config/article-url';
@@ -52,7 +53,7 @@ export default async function TenantAuthorPage({ params }: PageProps) {
   return (
     <TenantPageShell publisher={publisher} domain={decodedDomain} host={host}>
       <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-        Auteur
+        {t`Auteur`}
       </p>
       <h1 className="mt-1 text-3xl font-bold tracking-tight md:text-4xl">@{decodedUsername}</h1>
 

@@ -1,4 +1,5 @@
 import { headers } from 'next/headers';
+import { t } from '@lingui/core/macro';
 import { getLanguage } from '@qoe/i18n/server';
 import { fetchLegalDocuments } from '@qoe/sdk/actions/legal';
 import { getLegalDocumentUrl } from '@qoe/config';
@@ -46,7 +47,7 @@ export async function LegalFooterLinks({ className }: { className?: string }) {
         </a>
       ))}
       <CookiePreferencesButton
-        label="Gérer mes cookies"
+        label={t`Gérer mes cookies`}
         className="text-sm text-muted-foreground underline transition-colors hover:text-[var(--tenant-accent)]"
       />
     </nav>

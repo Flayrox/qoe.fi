@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import { t } from '@lingui/core/macro';
 import { ArrowLeft } from 'lucide-react';
 import { fetchTenantPublisher } from '@/lib/tenant-data';
 import { TenantPageShell } from '@/components/TenantPageShell';
@@ -43,20 +44,20 @@ export default async function TenantTeamPage({ params }: PageProps) {
             className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Retour à la présentation</span>
+            <span>{t`Retour à la présentation`}</span>
           </Link>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-            Équipe & Contributeurs
+            {t`Équipe & Contributeurs`}
           </h1>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Les voix, plumes et créateurs derrière {publisher.name || decodedDomain}.
+            {t`Les voix, plumes et créateurs derrière ${publisher.name || decodedDomain}.`}
           </p>
         </div>
 
         <PeopleSection
           publisher={publisher}
           members={publisher.team}
-          title="Membres de la rédaction"
+          title={t`Membres de la rédaction`}
         />
       </div>
     </TenantPageShell>

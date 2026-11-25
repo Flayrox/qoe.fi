@@ -1,5 +1,6 @@
 import { buildArticlePath } from '@qoe/utils';
 import Link from 'next/link';
+import { t } from '@lingui/core/macro';
 import { fetchTenantPublisher } from '@/lib/tenant-data';
 
 interface RelatedArticlesProps {
@@ -30,7 +31,7 @@ export async function RelatedArticles({
   return (
     <section className="mt-14 border-t border-border/40 pt-8">
       <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-        {sameCategory.length > 0 && categoryName ? `Dans la même rubrique` : `À lire aussi`}
+        {sameCategory.length > 0 && categoryName ? t`Dans la même rubrique` : t`À lire aussi`}
       </h2>
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
         {picks.map((art) => (

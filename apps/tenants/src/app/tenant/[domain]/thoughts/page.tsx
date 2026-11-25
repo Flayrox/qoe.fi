@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 import type { Metadata } from 'next';
+import { plural, t } from '@lingui/core/macro';
 import { fetchTenantPublisher, fetchTenantThoughts } from '@/lib/tenant-data';
 import { TenantPageShell } from '@/components/TenantPageShell';
 import { ThoughtCard, type ThoughtData } from '@qoe/ui';
@@ -33,12 +34,13 @@ export default async function TenantThoughtsPage({ params }: PageProps) {
   const headersList = await headers();
   const host = headersList.get('x-forwarded-host') || headersList.get('host') || decodedDomain;
 
-  const authorName = publisher.name || 'L’Auteur';
+  const authorName = publisher.name || t`L’Auteur`;
   const authorUsername =
     publisher.user?.username || publisher.slug || publisher.subdomain || decodedDomain;
 
   // Récupération des VRAIES pensées de la publication / auteur
   const { items } = await fetchTenantThoughts(authorUsername, 30, 0);
+  const count = items.length;
 
   const thoughts: ThoughtData[] = items.map((item) => ({
     id: item.id,
@@ -74,14 +76,14 @@ export default async function TenantThoughtsPage({ params }: PageProps) {
         <div className="border-b border-border/40 pb-4 space-y-1">
           <div className="flex items-center gap-2">
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-              Pensées
+              {t`Pensées`}
             </h1>
             <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-muted text-muted-foreground">
-              {thoughts.length} {thoughts.length > 1 ? 'pensées' : 'pensée'}
+              {t`${plural(count, { one: '# pensée', other: '# pensées' })}`}
             </span>
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-            Les réflexions, citations et partages en direct de {authorName}.
+            {t`Les réflexions, citations et partages en direct de ${authorName}.`}
           </p>
         </div>
 
@@ -97,10 +99,9 @@ export default async function TenantThoughtsPage({ params }: PageProps) {
             <div className="w-10 h-10 rounded-full bg-muted/60 text-muted-foreground flex items-center justify-center mx-auto">
               <MessageSquareText className="w-5 h-5 stroke-[1.5]" />
             </div>
-            <h3 className="text-sm font-semibold text-foreground">Aucune pensée pour le moment</h3>
+            <h3 className="text-sm font-semibold text-foreground">{t`Aucune pensée pour le moment`}</h3>
             <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-              {authorName} n'a pas encore partagé de pensée publique. Revenez bientôt ou
-              abonnez-vous pour être prévenu.
+              {t`${authorName} n'a pas encore partagé de pensée publique. Revenez bientôt ou abonnez-vous pour être prévenu.`}
             </p>
           </div>
         )}

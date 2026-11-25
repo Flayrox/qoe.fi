@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+import { t } from '@lingui/core/macro';
 import { MinimalCraftShell, FooterBlock, type TemplatePublisherContext } from '@qoe/ui/templates';
 import { buildCreatorVars, ThemeStyle } from '@qoe/theme';
 import type { TenantPublisher } from '@/lib/tenant-data';
@@ -25,6 +26,7 @@ export function TenantPageShell({
   children,
 }: TenantPageShellProps) {
   const { name, accentColor, fontFamily, themeMode, navigation = [], socialLinks = [] } = publisher;
+  const backTarget = name || domain;
 
   const siteOpts = (publisher.siteOptions ??
     (publisher as unknown as { site_options?: Record<string, unknown> | null }).site_options ??
@@ -91,7 +93,7 @@ export function TenantPageShell({
             href="/"
             className="mb-8 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
           >
-            <ArrowLeft className="h-3.5 w-3.5" /> {backLabel || `Retour à ${name || domain}`}
+            <ArrowLeft className="h-3.5 w-3.5" /> {backLabel || t`Retour à ${backTarget}`}
           </Link>
           {children}
         </div>

@@ -143,7 +143,7 @@ export async function TenantArticleRenderer({
   }> =
     rawAuthors && rawAuthors.length > 0
       ? rawAuthors.map((a) => ({
-          name: a.name || a.username || 'Auteur',
+          name: a.name || a.username || t`Auteur`,
           logoUrl: a.logoUrl || null,
           type: a.type,
         }))
@@ -559,7 +559,7 @@ export async function TenantArticleRenderer({
 
         {/* Pied de page sobre : pages de la publication + documents de la plateforme */}
         <footer className="mt-12 border-t border-border/60 pt-6 pb-2 text-[11px] text-muted-foreground">
-          <nav aria-label="Liens de la publication" className="flex flex-wrap gap-x-5 gap-y-2">
+          <nav aria-label={t`Liens de la publication`} className="flex flex-wrap gap-x-5 gap-y-2">
             <Link href="/about" className="hover:text-foreground transition-colors">
               {t`À propos`}
             </Link>
@@ -647,7 +647,7 @@ export async function TenantArticleRenderer({
           article.author
             ? {
                 id: article.author.id,
-                name: article.author.name || article.author.username || 'Auteur',
+                name: article.author.name || article.author.username || t`Auteur`,
                 username: article.author.username,
               }
             : null
