@@ -181,6 +181,19 @@ const templateSources = walk(join(ROOT, 'packages/ui/src/templates')).map((file)
   return { path: relative(ROOT, file), code, imports: importsOf(code) };
 });
 
+/**
+ * Sources internes de `packages/ui` (hors tests et barrels, cf. `SKIP_FILE`).
+ *
+ * Une primitive composée par le design system lui-même est **utilisée** :
+ * `TextParser` est monté par `social/ThoughtBody.tsx`, `hover-card` par
+ * `social/ProfileHoverCard.tsx`, `time-picker-utils` par `time-picker-input`.
+ * Les ignorer faisait passer des briques centrales pour des fichiers morts.
+ */
+const internalSources = walk(join(ROOT, 'packages/ui/src')).map((file) => {
+  const code = read(file);
+  return { path: relative(ROOT, file), code, imports: importsOf(code) };
+});
+
 /** Résout un import relatif (`'../../../ui/button'`) vers un fichier du dépôt. */
 function resolveRelativeSpec(spec, fromFile) {
   if (!spec.startsWith('.')) return null;
@@ -229,19 +242,36 @@ export function countUsages(moduleFile) {
   // Une façade de ré-export compte comme sa cible : deux chemins, un module.
   const rel = reexportTarget(moduleFile) ?? relative(ROOT, moduleFile);
   const names = exportedNames(moduleFile);
+  const self = relative(ROOT, moduleFile);
 
-  return [...appSources, ...templateSources].filter((source) =>
-    source.imports.some(({ spec, names: imported }) => {
-      const target = resolveSpec(spec) ?? resolveRelativeSpec(spec, source.path);
-      // Import ciblé (`@qoe/ui/input`, `@qoe/ui/ui/input`) : c'est le fichier
-      // réellement chargé qui marque l'usage.
-      if (target && target !== BARREL) return target === rel;
-      // Import par le barrel (`import { X } from '@qoe/ui'`) : on retombe sur
-      // les noms exportés, faute de pouvoir attribuer autrement.
-      if (target === BARREL || spec === '@qoe/ui') return imported.some((name) => names.has(name));
-      return false;
-    })
-  ).length;
+  /** Une façade `export … from '<spec>'` charge le module : c'est un usage. */
+  const reexports = (code) =>
+    [...code.matchAll(/export\s+(?:\*(?:\s+as\s+\w+)?|\{[^}]*\})\s*from\s*'([^']+)'/gs)].map(
+      (match) => match[1]
+    );
+
+  const importsIt = (source, spec) => {
+    const target = resolveSpec(spec) ?? resolveRelativeSpec(spec, source.path);
+    // Import ciblé (`@qoe/ui/input`, `@qoe/ui/ui/input`) : c'est le fichier
+    // réellement chargé qui marque l'usage.
+    if (target && target !== BARREL) return target === rel;
+    return false;
+  };
+
+  return [...appSources, ...templateSources, ...internalSources]
+    .filter((source) => source.path !== self)
+    .filter((source) => {
+      if (reexports(source.code).some((spec) => importsIt(source, spec))) return true;
+      return source.imports.some(({ spec, names: imported }) => {
+        if (importsIt(source, spec)) return true;
+        // Import par le barrel (`import { X } from '@qoe/ui'`) : on retombe sur
+        // les noms exportés, faute de pouvoir attribuer autrement.
+        const target = resolveSpec(spec) ?? resolveRelativeSpec(spec, source.path);
+        if (target === BARREL || spec === '@qoe/ui')
+          return imported.some((name) => names.has(name));
+        return false;
+      });
+    }).length;
 }
 
 // ─── Mesures de dette ────────────────────────────────────────────────
@@ -275,15 +305,26 @@ const PRIMITIVE_FAMILY = {
   Popover: 'popover',
 };
 
+// ⚠️ Nom **exact** : `ComposerModal`, `ThoughtCard` ou `GlobalCommandMenu` sont
+// des composants métier, pas des copies de primitive. Le suffixe seul les
+// comptait comme dette alors qu'ils importent le contrat (`Dialog`, `CmdK*`).
 const LOCAL_PRIMITIVE =
-  /export (?:default )?function \w*(Button|Card|Modal|Select|Input|Menu|Dialog|Popover)\b/g;
+  /export (?:default )?function (Button|Card|Modal|Select|Input|Menu|Dialog|Popover)\s*[(<]/g;
+
+/** Le contrat est-il importé, par n'importe laquelle de ses portes ? */
+function importsFamily(code, family, symbol) {
+  if (new RegExp(`from '@qoe/ui/(?:ui/)?${family}'`).test(code)) return true;
+  // Barrel : `import { Card, Dialog } from '@qoe/ui'` charge la primitive.
+  return new RegExp(`import\\s*\\{[^}]*\\b${symbol}\\b[^}]*\\}\\s*from\\s*'@qoe/ui'`, 's').test(
+    code
+  );
+}
 
 function countLocalPrimitives(sources) {
   return sources.filter((source) =>
-    [...source.code.matchAll(LOCAL_PRIMITIVE)].some((match) => {
-      const family = PRIMITIVE_FAMILY[match[1]];
-      return !new RegExp(`from '@qoe/ui/(?:ui/)?${family}'`).test(source.code);
-    })
+    [...source.code.matchAll(LOCAL_PRIMITIVE)].some(
+      (match) => !importsFamily(source.code, PRIMITIVE_FAMILY[match[1]], match[1])
+    )
   ).length;
 }
 
@@ -327,8 +368,9 @@ export function measureEngine() {
 }
 
 /**
- * Primitives réellement mortes : fichiers de `src/ui/` qu'aucune app ne
- * charge. Doit décroître vague après vague, jamais croître.
+ * Primitives réellement mortes : fichiers de `src/ui/` que **personne** ne
+ * charge — ni une app, ni un template, ni le paquet lui-même. Doit décroître
+ * vague après vague, jamais croître.
  */
 export function unusedPrimitives() {
   const files = walk(join(ROOT, 'packages/ui/src/ui'));

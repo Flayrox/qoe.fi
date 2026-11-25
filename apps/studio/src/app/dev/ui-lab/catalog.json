@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-11-25T18:41:29.055Z",
+  "generatedAt": "2026-11-25T20:01:38.836Z",
   "total": 455,
   "signals": {
-    "primitivesNeverImported": 5,
+    "primitivesNeverImported": 1,
     "primitivesTotal": 28,
     "rawButtons": 0,
     "rawButtonFiles": 0,
@@ -34,21 +34,21 @@
           "path": "packages/ui/src/primitives/avatar/avatar.tsx",
           "lines": 177,
           "source": "primitives",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "badge",
           "path": "packages/ui/src/primitives/badge/badge.tsx",
           "lines": 111,
           "source": "primitives",
-          "usages": 44
+          "usages": 46
         },
         {
           "name": "bevel-button",
           "path": "packages/ui/src/primitives/bevel-button/bevel-button.tsx",
           "lines": 109,
           "source": "primitives",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "breadcrumbs",
@@ -69,7 +69,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 205,
           "source": "primitives",
-          "usages": 180
+          "usages": 214
         },
         {
           "name": "callout",
@@ -90,7 +90,7 @@
           "path": "packages/ui/src/primitives/checkbox/checkbox.tsx",
           "lines": 288,
           "source": "primitives",
-          "usages": 20
+          "usages": 21
         },
         {
           "name": "color",
@@ -111,7 +111,7 @@
           "path": "packages/ui/src/primitives/combobox/combobox.tsx",
           "lines": 337,
           "source": "primitives",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "confirm-dialog",
@@ -125,14 +125,14 @@
           "path": "packages/ui/src/primitives/copy-button/copy-button.tsx",
           "lines": 170,
           "source": "primitives",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "calendar",
           "path": "packages/ui/src/primitives/date/calendar.tsx",
           "lines": 206,
           "source": "primitives",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "date-picker",
@@ -153,14 +153,14 @@
           "path": "packages/ui/src/primitives/dialog/dialog.tsx",
           "lines": 361,
           "source": "primitives",
-          "usages": 36
+          "usages": 48
         },
         {
           "name": "drawer",
           "path": "packages/ui/src/primitives/drawer/drawer.tsx",
           "lines": 289,
           "source": "primitives",
-          "usages": 11
+          "usages": 12
         },
         {
           "name": "dropdown",
@@ -181,7 +181,7 @@
           "path": "packages/ui/src/primitives/field/field-error.tsx",
           "lines": 38,
           "source": "primitives",
-          "usages": 1
+          "usages": 2
         },
         {
           "name": "hold-to-delete-button",
@@ -195,14 +195,14 @@
           "path": "packages/ui/src/primitives/icon-button/icon-button.tsx",
           "lines": 56,
           "source": "primitives",
-          "usages": 5
+          "usages": 6
         },
         {
           "name": "input",
           "path": "packages/ui/src/primitives/input/input.tsx",
           "lines": 192,
           "source": "primitives",
-          "usages": 101
+          "usages": 107
         },
         {
           "name": "kbd",
@@ -258,7 +258,7 @@
           "path": "packages/ui/src/primitives/select/select.tsx",
           "lines": 210,
           "source": "primitives",
-          "usages": 34
+          "usages": 36
         },
         {
           "name": "separator",
@@ -293,7 +293,7 @@
           "path": "packages/ui/src/primitives/status-dot/status-dot.tsx",
           "lines": 78,
           "source": "primitives",
-          "usages": 3
+          "usages": 4
         },
         {
           "name": "stepper",
@@ -314,21 +314,21 @@
           "path": "packages/ui/src/primitives/switch/switch.tsx",
           "lines": 120,
           "source": "primitives",
-          "usages": 9
+          "usages": 13
         },
         {
           "name": "selection",
           "path": "packages/ui/src/primitives/table/selection.ts",
           "lines": 29,
           "source": "primitives",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "sort",
           "path": "packages/ui/src/primitives/table/sort.ts",
           "lines": 172,
           "source": "primitives",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "table",
@@ -363,14 +363,14 @@
           "path": "packages/ui/src/primitives/toast/toast.tsx",
           "lines": 169,
           "source": "primitives",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "toggle-button",
           "path": "packages/ui/src/primitives/toggle/toggle-button.tsx",
           "lines": 95,
           "source": "primitives",
-          "usages": 2
+          "usages": 7
         },
         {
           "name": "toolbar",
@@ -384,7 +384,7 @@
           "path": "packages/ui/src/primitives/tooltip/tooltip.tsx",
           "lines": 90,
           "source": "primitives",
-          "usages": 0
+          "usages": 4
         }
       ]
     },
@@ -397,14 +397,14 @@
           "path": "packages/ui/src/ui/AuthorAvatar.tsx",
           "lines": 6,
           "source": "ui",
-          "usages": 5
+          "usages": 7
         },
         {
           "name": "BentoPlateau",
           "path": "packages/ui/src/ui/BentoPlateau.tsx",
           "lines": 93,
           "source": "ui",
-          "usages": 1
+          "usages": 2
         },
         {
           "name": "calendar",
@@ -418,7 +418,7 @@
           "path": "packages/ui/src/ui/CertifiedBadge.tsx",
           "lines": 23,
           "source": "ui",
-          "usages": 6
+          "usages": 11
         },
         {
           "name": "color-picker",
@@ -432,35 +432,35 @@
           "path": "packages/ui/src/ui/craft-sidebar-drawer.tsx",
           "lines": 456,
           "source": "ui",
-          "usages": 2
+          "usages": 4
         },
         {
           "name": "dropdown-menu",
           "path": "packages/ui/src/ui/dropdown-menu.tsx",
           "lines": 396,
           "source": "ui",
-          "usages": 3
+          "usages": 4
         },
         {
           "name": "exit-interstitial",
           "path": "packages/ui/src/ui/exit-interstitial.tsx",
           "lines": 383,
           "source": "ui",
-          "usages": 4
+          "usages": 5
         },
         {
           "name": "feature-catalog",
           "path": "packages/ui/src/ui/feature-catalog.ts",
           "lines": 443,
           "source": "ui",
-          "usages": 4
+          "usages": 6
         },
         {
           "name": "feature-interstitial",
           "path": "packages/ui/src/ui/feature-interstitial.tsx",
           "lines": 393,
           "source": "ui",
-          "usages": 6
+          "usages": 8
         },
         {
           "name": "feature-teaser",
@@ -474,14 +474,14 @@
           "path": "packages/ui/src/ui/hover-card.tsx",
           "lines": 428,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "ImageEditorDialog",
           "path": "packages/ui/src/ui/ImageEditorDialog.tsx",
           "lines": 714,
           "source": "ui",
-          "usages": 8
+          "usages": 9
         },
         {
           "name": "ImageUploader",
@@ -495,28 +495,28 @@
           "path": "packages/ui/src/ui/input.tsx",
           "lines": 10,
           "source": "ui",
-          "usages": 101
+          "usages": 106
         },
         {
           "name": "popover",
           "path": "packages/ui/src/ui/popover.tsx",
           "lines": 188,
           "source": "ui",
-          "usages": 3
+          "usages": 8
         },
         {
           "name": "PreviewableUserAvatar",
           "path": "packages/ui/src/ui/PreviewableUserAvatar.tsx",
           "lines": 56,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "progressive-blur",
           "path": "packages/ui/src/ui/progressive-blur.tsx",
           "lines": 96,
           "source": "ui",
-          "usages": 3
+          "usages": 4
         },
         {
           "name": "select",
@@ -544,14 +544,14 @@
           "path": "packages/ui/src/ui/TextParser.tsx",
           "lines": 71,
           "source": "ui",
-          "usages": 0
+          "usages": 2
         },
         {
           "name": "ThemeToggle",
           "path": "packages/ui/src/ui/ThemeToggle.tsx",
           "lines": 41,
           "source": "ui",
-          "usages": 1
+          "usages": 2
         },
         {
           "name": "time-picker-input",
@@ -565,28 +565,28 @@
           "path": "packages/ui/src/ui/time-picker-utils.ts",
           "lines": 192,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "toast",
           "path": "packages/ui/src/ui/toast.tsx",
           "lines": 77,
           "source": "ui",
-          "usages": 73
+          "usages": 80
         },
         {
           "name": "tooltip",
           "path": "packages/ui/src/ui/tooltip.tsx",
           "lines": 128,
           "source": "ui",
-          "usages": 4
+          "usages": 5
         },
         {
           "name": "UserAvatar",
           "path": "packages/ui/src/ui/UserAvatar.tsx",
           "lines": 90,
           "source": "ui",
-          "usages": 2
+          "usages": 4
         }
       ]
     },
@@ -606,7 +606,7 @@
           "path": "packages/ui/src/auth/AuthModalContext.tsx",
           "lines": 142,
           "source": "ui",
-          "usages": 7
+          "usages": 11
         },
         {
           "name": "GlobalAuthModalProvider",
@@ -648,7 +648,7 @@
           "path": "packages/ui/src/GuestFloatingBar.tsx",
           "lines": 88,
           "source": "ui",
-          "usages": 1
+          "usages": 3
         },
         {
           "name": "use-mobile",
@@ -676,21 +676,21 @@
           "path": "packages/ui/src/image-utils.ts",
           "lines": 37,
           "source": "ui",
-          "usages": 0
+          "usages": 2
         },
         {
           "name": "AnalyticsNotice",
           "path": "packages/ui/src/legal/AnalyticsNotice.tsx",
           "lines": 175,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "cookie-consent-storage",
           "path": "packages/ui/src/legal/cookie-consent-storage.ts",
           "lines": 104,
           "source": "ui",
-          "usages": 0
+          "usages": 3
         },
         {
           "name": "CookieConsentBanner",
@@ -725,28 +725,28 @@
           "path": "packages/ui/src/lib/motion-profiles.ts",
           "lines": 54,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "LoginFormBento",
           "path": "packages/ui/src/LoginFormBento.tsx",
           "lines": 949,
           "source": "ui",
-          "usages": 1
+          "usages": 2
         },
         {
           "name": "LoginModal",
           "path": "packages/ui/src/LoginModal.tsx",
           "lines": 98,
           "source": "ui",
-          "usages": 0
+          "usages": 2
         },
         {
           "name": "Logo",
           "path": "packages/ui/src/Logo.tsx",
           "lines": 9,
           "source": "ui",
-          "usages": 5
+          "usages": 7
         },
         {
           "name": "NotFoundView",
@@ -767,7 +767,7 @@
           "path": "packages/ui/src/notifications/NotificationItem.tsx",
           "lines": 482,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "NotificationList",
@@ -788,14 +788,14 @@
           "path": "packages/ui/src/notifications/useRealtimeNotificationSync.ts",
           "lines": 128,
           "source": "ui",
-          "usages": 0
+          "usages": 2
         },
         {
           "name": "OnboardingFlow",
           "path": "packages/ui/src/onboarding/OnboardingFlow.tsx",
           "lines": 691,
           "source": "ui",
-          "usages": 1
+          "usages": 2
         },
         {
           "name": "OnboardingModal",
@@ -823,21 +823,21 @@
           "path": "packages/ui/src/primitives/avatar/avatar.tsx",
           "lines": 177,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "badge",
           "path": "packages/ui/src/primitives/badge/badge.tsx",
           "lines": 111,
           "source": "ui",
-          "usages": 44
+          "usages": 46
         },
         {
           "name": "bevel-button",
           "path": "packages/ui/src/primitives/bevel-button/bevel-button.tsx",
           "lines": 109,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "breadcrumbs",
@@ -858,7 +858,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 205,
           "source": "ui",
-          "usages": 180
+          "usages": 214
         },
         {
           "name": "callout",
@@ -879,7 +879,7 @@
           "path": "packages/ui/src/primitives/checkbox/checkbox.tsx",
           "lines": 288,
           "source": "ui",
-          "usages": 20
+          "usages": 21
         },
         {
           "name": "color",
@@ -900,7 +900,7 @@
           "path": "packages/ui/src/primitives/combobox/combobox.tsx",
           "lines": 337,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "confirm-dialog",
@@ -914,14 +914,14 @@
           "path": "packages/ui/src/primitives/copy-button/copy-button.tsx",
           "lines": 170,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "calendar",
           "path": "packages/ui/src/primitives/date/calendar.tsx",
           "lines": 206,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "date-picker",
@@ -942,14 +942,14 @@
           "path": "packages/ui/src/primitives/dialog/dialog.tsx",
           "lines": 361,
           "source": "ui",
-          "usages": 36
+          "usages": 48
         },
         {
           "name": "drawer",
           "path": "packages/ui/src/primitives/drawer/drawer.tsx",
           "lines": 289,
           "source": "ui",
-          "usages": 11
+          "usages": 12
         },
         {
           "name": "dropdown",
@@ -970,7 +970,7 @@
           "path": "packages/ui/src/primitives/field/field-error.tsx",
           "lines": 38,
           "source": "ui",
-          "usages": 1
+          "usages": 2
         },
         {
           "name": "hold-to-delete-button",
@@ -984,14 +984,14 @@
           "path": "packages/ui/src/primitives/icon-button/icon-button.tsx",
           "lines": 56,
           "source": "ui",
-          "usages": 5
+          "usages": 6
         },
         {
           "name": "input",
           "path": "packages/ui/src/primitives/input/input.tsx",
           "lines": 192,
           "source": "ui",
-          "usages": 101
+          "usages": 107
         },
         {
           "name": "kbd",
@@ -1047,7 +1047,7 @@
           "path": "packages/ui/src/primitives/select/select.tsx",
           "lines": 210,
           "source": "ui",
-          "usages": 34
+          "usages": 36
         },
         {
           "name": "separator",
@@ -1082,7 +1082,7 @@
           "path": "packages/ui/src/primitives/status-dot/status-dot.tsx",
           "lines": 78,
           "source": "ui",
-          "usages": 3
+          "usages": 4
         },
         {
           "name": "stepper",
@@ -1103,21 +1103,21 @@
           "path": "packages/ui/src/primitives/switch/switch.tsx",
           "lines": 120,
           "source": "ui",
-          "usages": 9
+          "usages": 13
         },
         {
           "name": "selection",
           "path": "packages/ui/src/primitives/table/selection.ts",
           "lines": 29,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "sort",
           "path": "packages/ui/src/primitives/table/sort.ts",
           "lines": 172,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "table",
@@ -1152,14 +1152,14 @@
           "path": "packages/ui/src/primitives/toast/toast.tsx",
           "lines": 169,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "toggle-button",
           "path": "packages/ui/src/primitives/toggle/toggle-button.tsx",
           "lines": 95,
           "source": "ui",
-          "usages": 2
+          "usages": 7
         },
         {
           "name": "toolbar",
@@ -1173,7 +1173,7 @@
           "path": "packages/ui/src/primitives/tooltip/tooltip.tsx",
           "lines": 90,
           "source": "ui",
-          "usages": 0
+          "usages": 4
         },
         {
           "name": "locale",
@@ -1187,28 +1187,28 @@
           "path": "packages/ui/src/RecommendationModal.tsx",
           "lines": 277,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "SafeAvatar",
           "path": "packages/ui/src/SafeAvatar.tsx",
           "lines": 161,
           "source": "ui",
-          "usages": 20
+          "usages": 36
         },
         {
           "name": "SafeImage",
           "path": "packages/ui/src/SafeImage.tsx",
           "lines": 93,
           "source": "ui",
-          "usages": 17
+          "usages": 39
         },
         {
           "name": "article-html",
           "path": "packages/ui/src/security/article-html.ts",
           "lines": 130,
           "source": "ui",
-          "usages": 2
+          "usages": 4
         },
         {
           "name": "inline-svg",
@@ -1264,7 +1264,7 @@
           "path": "packages/ui/src/social/EntityActionMenu.tsx",
           "lines": 269,
           "source": "ui",
-          "usages": 0
+          "usages": 2
         },
         {
           "name": "HiddenParentNotice",
@@ -1278,14 +1278,14 @@
           "path": "packages/ui/src/social/KnownLikers.tsx",
           "lines": 145,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "LinkPreview",
           "path": "packages/ui/src/social/LinkPreview.tsx",
           "lines": 200,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "MediaLightbox",
@@ -1299,21 +1299,21 @@
           "path": "packages/ui/src/social/ProfileHoverCard.tsx",
           "lines": 523,
           "source": "ui",
-          "usages": 4
+          "usages": 15
         },
         {
           "name": "QuotedArticleCard",
           "path": "packages/ui/src/social/QuotedArticleCard.tsx",
           "lines": 330,
           "source": "ui",
-          "usages": 0
+          "usages": 4
         },
         {
           "name": "QuotedThoughtCard",
           "path": "packages/ui/src/social/QuotedThoughtCard.tsx",
           "lines": 286,
           "source": "ui",
-          "usages": 0
+          "usages": 2
         },
         {
           "name": "ReportModal",
@@ -1327,42 +1327,42 @@
           "path": "packages/ui/src/social/RepostPopover.tsx",
           "lines": 111,
           "source": "ui",
-          "usages": 0
+          "usages": 2
         },
         {
           "name": "ShareMenu",
           "path": "packages/ui/src/social/ShareMenu.tsx",
           "lines": 207,
           "source": "ui",
-          "usages": 1
+          "usages": 2
         },
         {
           "name": "ThoughtActions",
           "path": "packages/ui/src/social/ThoughtActions.tsx",
           "lines": 187,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "ThoughtBody",
           "path": "packages/ui/src/social/ThoughtBody.tsx",
           "lines": 191,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "ThoughtCard",
           "path": "packages/ui/src/social/ThoughtCard.tsx",
           "lines": 632,
           "source": "ui",
-          "usages": 2
+          "usages": 3
         },
         {
           "name": "ThoughtHeader",
           "path": "packages/ui/src/social/ThoughtHeader.tsx",
           "lines": 153,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "ZoomableLightbox",
@@ -1376,14 +1376,14 @@
           "path": "packages/ui/src/SocialIcon.tsx",
           "lines": 7,
           "source": "ui",
-          "usages": 3
+          "usages": 7
         },
         {
           "name": "SubscribeForm",
           "path": "packages/ui/src/SubscribeForm.tsx",
           "lines": 462,
           "source": "ui",
-          "usages": 5
+          "usages": 8
         },
         {
           "name": "TenantHeader",
@@ -1431,28 +1431,28 @@
           "path": "packages/ui/src/annotations/annotation-kind.ts",
           "lines": 43,
           "source": "ui",
-          "usages": 0
+          "usages": 2
         },
         {
           "name": "annotation-list",
           "path": "packages/ui/src/annotations/annotation-list.ts",
           "lines": 53,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "AnnotationFilterPill",
           "path": "packages/ui/src/annotations/AnnotationFilterPill.tsx",
           "lines": 146,
           "source": "ui",
-          "usages": 0
+          "usages": 2
         },
         {
           "name": "AnnotationSideDrawer",
           "path": "packages/ui/src/annotations/AnnotationSideDrawer.tsx",
           "lines": 799,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "callbacks",
@@ -1466,84 +1466,84 @@
           "path": "packages/ui/src/annotations/canonical-document.ts",
           "lines": 224,
           "source": "ui",
-          "usages": 1
+          "usages": 3
         },
         {
           "name": "CanonicalArticleBody",
           "path": "packages/ui/src/annotations/CanonicalArticleBody.tsx",
           "lines": 533,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "citation",
           "path": "packages/ui/src/annotations/citation.ts",
           "lines": 109,
           "source": "ui",
-          "usages": 0
+          "usages": 6
         },
         {
           "name": "AnnotationDrawerActions",
           "path": "packages/ui/src/annotations/drawer/AnnotationDrawerActions.tsx",
           "lines": 193,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "AnnotationDrawerDiscussion",
           "path": "packages/ui/src/annotations/drawer/AnnotationDrawerDiscussion.tsx",
           "lines": 120,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "AnnotationDrawerFooter",
           "path": "packages/ui/src/annotations/drawer/AnnotationDrawerFooter.tsx",
           "lines": 67,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "AnnotationDrawerHeader",
           "path": "packages/ui/src/annotations/drawer/AnnotationDrawerHeader.tsx",
           "lines": 100,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "AnnotationDrawerIdentity",
           "path": "packages/ui/src/annotations/drawer/AnnotationDrawerIdentity.tsx",
           "lines": 177,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "AnnotationDrawerNote",
           "path": "packages/ui/src/annotations/drawer/AnnotationDrawerNote.tsx",
           "lines": 111,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "AnnotationDrawerQuote",
           "path": "packages/ui/src/annotations/drawer/AnnotationDrawerQuote.tsx",
           "lines": 24,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "mark-skin",
           "path": "packages/ui/src/annotations/mark-skin.ts",
           "lines": 107,
           "source": "ui",
-          "usages": 2
+          "usages": 5
         },
         {
           "name": "quote-anchor",
           "path": "packages/ui/src/annotations/quote-anchor.ts",
           "lines": 66,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "TextHighlighter",
@@ -1557,14 +1557,14 @@
           "path": "packages/ui/src/annotations/TextSelectionPopover.tsx",
           "lines": 340,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "types",
           "path": "packages/ui/src/annotations/types.ts",
           "lines": 296,
           "source": "ui",
-          "usages": 0
+          "usages": 11
         },
         {
           "name": "ArticleReaderShell",
@@ -1578,35 +1578,35 @@
           "path": "packages/ui/src/reader/bionic.ts",
           "lines": 112,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "FloatingAudioPlayer",
           "path": "packages/ui/src/reader/FloatingAudioPlayer.tsx",
           "lines": 253,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "ReadingPreferencesContext",
           "path": "packages/ui/src/reader/ReadingPreferencesContext.tsx",
           "lines": 322,
           "source": "ui",
-          "usages": 0
+          "usages": 5
         },
         {
           "name": "ReadingProgressBar",
           "path": "packages/ui/src/reader/ReadingProgressBar.tsx",
           "lines": 65,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "ReadingRuler",
           "path": "packages/ui/src/reader/ReadingRuler.tsx",
           "lines": 51,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "ReadingSettingsSheet",
@@ -1620,7 +1620,7 @@
           "path": "packages/ui/src/reader/TextToSpeechContext.tsx",
           "lines": 614,
           "source": "ui",
-          "usages": 0
+          "usages": 4
         },
         {
           "name": "TextToSpeechPlayer",
@@ -1634,14 +1634,14 @@
           "path": "packages/ui/src/reader/types.ts",
           "lines": 54,
           "source": "ui",
-          "usages": 0
+          "usages": 2
         },
         {
           "name": "useBionicReading",
           "path": "packages/ui/src/reader/useBionicReading.ts",
           "lines": 31,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         }
       ]
     },
@@ -1661,7 +1661,7 @@
           "path": "packages/ui/src/templates/archetypes/minimal/MinimalDock.tsx",
           "lines": 208,
           "source": "ui",
-          "usages": 1
+          "usages": 2
         },
         {
           "name": "MinimalSidebarDrawer",
@@ -1682,147 +1682,147 @@
           "path": "packages/ui/src/templates/blocks/ArticleCard.tsx",
           "lines": 308,
           "source": "ui",
-          "usages": 1
+          "usages": 2
         },
         {
           "name": "ArticleContentBlock",
           "path": "packages/ui/src/templates/blocks/ArticleContentBlock.tsx",
           "lines": 252,
           "source": "ui",
-          "usages": 1
+          "usages": 2
         },
         {
           "name": "ArticleEngagementBar",
           "path": "packages/ui/src/templates/blocks/ArticleEngagementBar.tsx",
           "lines": 641,
           "source": "ui",
-          "usages": 2
+          "usages": 4
         },
         {
           "name": "ArticleStreamBlock",
           "path": "packages/ui/src/templates/blocks/ArticleStreamBlock.tsx",
           "lines": 738,
           "source": "ui",
-          "usages": 1
+          "usages": 2
         },
         {
           "name": "BentoGridBlock",
           "path": "packages/ui/src/templates/blocks/BentoGridBlock.tsx",
           "lines": 249,
           "source": "ui",
-          "usages": 1
+          "usages": 2
         },
         {
           "name": "BlockWrapper",
           "path": "packages/ui/src/templates/blocks/BlockWrapper.tsx",
           "lines": 226,
           "source": "ui",
-          "usages": 9
+          "usages": 18
         },
         {
           "name": "CategorySpotlightBlock",
           "path": "packages/ui/src/templates/blocks/CategorySpotlightBlock.tsx",
           "lines": 169,
           "source": "ui",
-          "usages": 1
+          "usages": 2
         },
         {
           "name": "EditableText",
           "path": "packages/ui/src/templates/blocks/EditableText.tsx",
           "lines": 68,
           "source": "ui",
-          "usages": 6
+          "usages": 12
         },
         {
           "name": "FooterBlock",
           "path": "packages/ui/src/templates/blocks/FooterBlock.tsx",
           "lines": 209,
           "source": "ui",
-          "usages": 1
+          "usages": 2
         },
         {
           "name": "HeroBlock",
           "path": "packages/ui/src/templates/blocks/HeroBlock.tsx",
           "lines": 244,
           "source": "ui",
-          "usages": 1
+          "usages": 2
         },
         {
           "name": "LeadStoryBlock",
           "path": "packages/ui/src/templates/blocks/LeadStoryBlock.tsx",
           "lines": 230,
           "source": "ui",
-          "usages": 1
+          "usages": 2
         },
         {
           "name": "NavbarBlock",
           "path": "packages/ui/src/templates/blocks/NavbarBlock.tsx",
           "lines": 266,
           "source": "ui",
-          "usages": 1
+          "usages": 2
         },
         {
           "name": "NewsletterWallBlock",
           "path": "packages/ui/src/templates/blocks/NewsletterWallBlock.tsx",
           "lines": 174,
           "source": "ui",
-          "usages": 1
+          "usages": 2
         },
         {
           "name": "NodeRenderer",
           "path": "packages/ui/src/templates/blocks/NodeRenderer.tsx",
           "lines": 173,
           "source": "ui",
-          "usages": 9
+          "usages": 18
         },
         {
           "name": "PeopleSection",
           "path": "packages/ui/src/templates/blocks/PeopleSection.tsx",
           "lines": 90,
           "source": "ui",
-          "usages": 2
+          "usages": 3
         },
         {
           "name": "PersonCard",
           "path": "packages/ui/src/templates/blocks/PersonCard.tsx",
           "lines": 260,
           "source": "ui",
-          "usages": 1
+          "usages": 2
         },
         {
           "name": "PublisherSidebar",
           "path": "packages/ui/src/templates/blocks/PublisherSidebar.tsx",
           "lines": 312,
           "source": "ui",
-          "usages": 1
+          "usages": 2
         },
         {
           "name": "defaults",
           "path": "packages/ui/src/templates/defaults.ts",
           "lines": 903,
           "source": "ui",
-          "usages": 1
+          "usages": 2
         },
         {
           "name": "minimal",
           "path": "packages/ui/src/templates/defaults/minimal.ts",
           "lines": 136,
           "source": "ui",
-          "usages": 1
+          "usages": 2
         },
         {
           "name": "demo",
           "path": "packages/ui/src/templates/demo.ts",
           "lines": 44,
           "source": "ui",
-          "usages": 1
+          "usages": 2
         },
         {
           "name": "navigation",
           "path": "packages/ui/src/templates/navigation.ts",
           "lines": 506,
           "source": "ui",
-          "usages": 4
+          "usages": 9
         },
         {
           "name": "parser",
@@ -1836,7 +1836,7 @@
           "path": "packages/ui/src/templates/placeholders.ts",
           "lines": 16,
           "source": "ui",
-          "usages": 5
+          "usages": 10
         },
         {
           "name": "types",
@@ -1850,14 +1850,14 @@
           "path": "packages/ui/src/templates/schema.ts",
           "lines": 452,
           "source": "ui",
-          "usages": 25
+          "usages": 51
         },
         {
           "name": "style",
           "path": "packages/ui/src/templates/style.ts",
           "lines": 145,
           "source": "ui",
-          "usages": 2
+          "usages": 4
         },
         {
           "name": "TemplateRenderer",

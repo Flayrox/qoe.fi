@@ -10,10 +10,10 @@
     "rawTables": 0,
     "rawTableFiles": 0,
     "handRolledOverlays": 3,
-    "localPrimitives": 4,
-    "unusedPrimitives": 5,
+    "localPrimitives": 0,
+    "unusedPrimitives": 1,
     "baseUiImports": 0,
     "herouiImportsOutsideUi": 0
   },
-  "updatedAt": "2026-11-25T17:28:37.255Z"
+  "updatedAt": "2026-11-25T20:01:15.300Z"
 }
