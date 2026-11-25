@@ -24,6 +24,8 @@ import { Download, Loader2 } from 'lucide-react';
 import { toast } from '@qoe/ui/toast';
 import { Select } from '@qoe/ui/select';
 import { attemptWithStepUp, readMessage } from '@/lib/authz-feedback';
+import { Button } from '@qoe/ui/button';
+import { Input } from '@qoe/ui/input';
 
 interface ExportOutcome {
   ok: boolean;
@@ -106,20 +108,20 @@ export function ExportForm({ documents }: { documents: { slug: string; title?: s
     >
       <label className="text-[11px] font-semibold text-muted-foreground">
         Destinataire / contexte
-        <input
+        <Input
           name="subject"
           maxLength={200}
           placeholder="CNIL — contrôle du 12/09"
-          className="mt-1 w-full rounded-lg border border-border bg-background px-2 py-1.5 text-xs font-normal text-foreground"
+          className="mt-1 w-full! rounded-lg border border-border bg-background px-2 py-1.5 text-xs! font-normal! text-foreground leading-[16px]! h-auto! whitespace-normal! justify-normal inline-block "
         />
       </label>
       <label className="text-[11px] font-semibold text-muted-foreground">
         Motif
-        <input
+        <Input
           name="reason"
           maxLength={500}
           placeholder="Demande de pièces"
-          className="mt-1 w-full rounded-lg border border-border bg-background px-2 py-1.5 text-xs font-normal text-foreground"
+          className="mt-1 w-full! rounded-lg border border-border bg-background px-2 py-1.5 text-xs! font-normal! text-foreground leading-[16px]! h-auto! whitespace-normal! justify-normal inline-block "
         />
       </label>
       <div className="text-[11px] font-semibold text-muted-foreground">
@@ -139,26 +141,28 @@ export function ExportForm({ documents }: { documents: { slug: string; title?: s
       </div>
       <label className="text-[11px] font-semibold text-muted-foreground">
         Depuis (optionnel)
-        <input
+        <Input
           type="date"
           name="from"
-          className="mt-1 w-full rounded-lg border border-border bg-background px-2 py-1.5 text-xs font-normal text-foreground"
+          className="mt-1 w-full! rounded-lg border border-border bg-background px-2 py-1.5 text-xs! font-normal! text-foreground leading-[16px]! h-auto! whitespace-normal! justify-normal inline-block "
         />
       </label>
       <div className="sm:col-span-2 lg:col-span-4">
-        <button
+        <Button
           type="submit"
-          disabled={sending}
+          variant="solid"
+          size="sm"
+          loading={sending}
           data-testid="compliance-export-submit"
-          className="inline-flex items-center gap-1.5 rounded-xl bg-foreground px-4 py-2 text-xs font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-50 cursor-pointer"
+          className="items-center gap-1.5 rounded-xl bg-foreground px-4 py-2 text-xs! font-semibold! text-background leading-[16px]! h-auto! whitespace-normal! justify-normal "
         >
           {sending ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <Loader2 className="h-3.5! w-3.5! animate-spin" />
           ) : (
-            <Download className="h-3.5 w-3.5" />
+            <Download className="h-3.5! w-3.5!" />
           )}
           Produire et télécharger l’export signé
-        </button>
+        </Button>
         <span className="ml-3 text-[11px] text-muted-foreground">
           Authentification forte récente requise : la pièce contient des données personnelles —
           signée, tracée, et à ne pas diffuser plus largement que nécessaire.

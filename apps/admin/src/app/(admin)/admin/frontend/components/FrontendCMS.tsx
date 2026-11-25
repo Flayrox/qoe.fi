@@ -18,6 +18,9 @@ import { readMessage } from '@/lib/authz-feedback';
 import { ALL_LANGUAGES, DEFAULT_LANGUAGE, type Language } from '@qoe/i18n';
 import { t } from '@lingui/core/macro';
 import { Select } from '@qoe/ui/select';
+import { Button } from '@qoe/ui/button';
+import { Input, Textarea } from '@qoe/ui/input';
+import { CheckboxInput } from '@qoe/ui/checkbox';
 
 // Default presets for fallback and reset buttons
 const PRESETS = {
@@ -290,13 +293,15 @@ function ReaderSimulationBuilder({
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {t`Structure de la timeline de lecture`}
         </span>
-        <button
+        <Button
+          variant="outline"
+          size="xs"
           type="button"
           onClick={handleReset}
-          className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground border border-border px-2.5 py-1 rounded-md bg-muted hover:bg-secondary transition-colors"
+          className="inline-flex items-center gap-1 text-[11px]! text-muted-foreground hover:text-foreground border border-border px-2.5 py-1 rounded-md bg-muted hover:bg-secondary transition-colors h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal "
         >
-          <RefreshCw className="w-3 h-3" /> {t`Restaurer le modèle`}
-        </button>
+          <RefreshCw className="w-3! h-3!" /> {t`Restaurer le modèle`}
+        </Button>
       </div>
 
       <div className="border border-border/60 rounded-xl divide-y divide-border overflow-hidden bg-muted/30">
@@ -330,11 +335,11 @@ function ReaderSimulationBuilder({
 
               {/* Text Input (hidden if divider) */}
               {item.type !== 'divider' ? (
-                <textarea
+                <Textarea
                   value={item.text || ''}
                   onChange={(e) => updateItemField(idx, 'text', e.target.value)}
                   placeholder={t`Saisissez le texte...`}
-                  className="flex-1 min-w-0 bg-transparent border-none p-0 text-sm font-medium text-foreground focus:ring-0 focus:outline-none resize-none"
+                  className="flex-1 min-w-0 bg-transparent border-none p-0 text-sm! font-medium! text-foreground focus:ring-0 focus:outline-none resize-none leading-[20px]! h-auto! whitespace-normal! justify-normal inline-block "
                   rows={item.text?.length > 100 ? 2 : 1}
                 />
               ) : (
@@ -343,42 +348,47 @@ function ReaderSimulationBuilder({
 
               {/* Action buttons (arrows, delete) */}
               <div className="flex items-center gap-1.5 shrink-0">
-                <button
+                <Button
+                  variant="ghost"
                   type="button"
                   onClick={() => moveItem(idx, -1)}
                   disabled={idx === 0}
-                  className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground"
+                  className="hover:bg-transparent p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                 >
-                  <ArrowUp className="w-3.5 h-3.5" />
-                </button>
-                <button
+                  <ArrowUp className="w-3.5! h-3.5!" />
+                </Button>
+                <Button
+                  variant="ghost"
                   type="button"
                   onClick={() => moveItem(idx, 1)}
                   disabled={idx === items.length - 1}
-                  className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground"
+                  className="hover:bg-transparent p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                 >
-                  <ArrowDown className="w-3.5 h-3.5" />
-                </button>
-                <button
+                  <ArrowDown className="w-3.5! h-3.5!" />
+                </Button>
+                <Button
+                  variant="ghost"
                   type="button"
                   onClick={() => deleteItem(idx)}
-                  className="p-1 rounded text-muted-foreground hover:text-destructive-text transition-colors"
+                  className="hover:bg-transparent p-1 rounded text-muted-foreground hover:text-destructive-text transition-colors h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                  <Trash2 className="w-3.5! h-3.5!" />
+                </Button>
               </div>
             </div>
           ))
         )}
       </div>
 
-      <button
+      <Button
+        variant="outline"
+        size="sm"
         type="button"
         onClick={addItem}
-        className="w-full flex items-center justify-center gap-1.5 border border-dashed border-border hover:border-border text-muted-foreground hover:text-foreground text-xs font-semibold py-2.5 rounded-xl bg-card hover:bg-muted transition-colors shadow-sm"
+        className="w-full! flex items-center justify-center gap-1.5 border border-dashed border-border hover:border-border text-muted-foreground hover:text-foreground text-xs! font-semibold! py-2.5 rounded-xl bg-card hover:bg-muted transition-colors shadow-sm leading-[16px]! h-auto! whitespace-normal! px-0 "
       >
-        <Plus className="w-4 h-4" /> {t`Ajouter un bloc de lecture`}
-      </button>
+        <Plus className="w-4! h-4!" /> {t`Ajouter un bloc de lecture`}
+      </Button>
     </div>
   );
 }
@@ -471,27 +481,31 @@ function CreatorHubTabsBuilder({
         {/* Tab Subselector */}
         <div className="flex items-center gap-1.5">
           {tabsData.map((t, idx) => (
-            <button
+            <Button
+              variant="solid"
+              size="sm"
               key={idx}
               type="button"
               onClick={() => setActiveTabIdx(idx)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs! font-semibold! transition-all ${
                 activeTabIdx === idx
                   ? 'bg-foreground text-background shadow-sm'
                   : 'bg-muted text-muted-foreground hover:text-foreground border border-border'
-              }`}
+              } leading-[16px]! h-auto! whitespace-normal! justify-normal inline-block `}
             >
               {t.tab}
-            </button>
+            </Button>
           ))}
         </div>
-        <button
+        <Button
+          variant="outline"
+          size="xs"
           type="button"
           onClick={handleReset}
-          className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground border border-border px-2.5 py-1 rounded-md bg-muted hover:bg-secondary transition-colors"
+          className="inline-flex items-center gap-1 text-[11px]! text-muted-foreground hover:text-foreground border border-border px-2.5 py-1 rounded-md bg-muted hover:bg-secondary transition-colors h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal "
         >
-          <RefreshCw className="w-3 h-3" /> {t`Restaurer le modèle`}
-        </button>
+          <RefreshCw className="w-3! h-3!" /> {t`Restaurer le modèle`}
+        </Button>
       </div>
 
       {/* Inputs for selected tab */}
@@ -501,11 +515,11 @@ function CreatorHubTabsBuilder({
             <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
               {t`Nom de l'onglet`}
             </label>
-            <input
+            <Input
               type="text"
               value={currentTab.tab || ''}
               onChange={(e) => updateTabField(activeTabIdx, 'tab', e.target.value)}
-              className="w-full bg-card border border-border rounded-lg p-2.5 text-sm font-medium text-foreground focus:ring-1 focus:ring-primary focus:border-primary outline-none"
+              className="w-full! bg-card border border-border rounded-lg p-2.5 text-sm! font-medium! text-foreground focus:ring-1 focus:ring-primary focus:border-primary outline-none leading-[20px]! h-auto! whitespace-normal! justify-normal inline-block "
             />
           </div>
 
@@ -513,11 +527,11 @@ function CreatorHubTabsBuilder({
             <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
               {t`Surtitre / Cible`}
             </label>
-            <input
+            <Input
               type="text"
               value={currentTab.eyebrow || ''}
               onChange={(e) => updateTabField(activeTabIdx, 'eyebrow', e.target.value)}
-              className="w-full bg-card border border-border rounded-lg p-2.5 text-sm font-medium text-foreground focus:ring-1 focus:ring-primary focus:border-primary outline-none"
+              className="w-full! bg-card border border-border rounded-lg p-2.5 text-sm! font-medium! text-foreground focus:ring-1 focus:ring-primary focus:border-primary outline-none leading-[20px]! h-auto! whitespace-normal! justify-normal inline-block "
             />
           </div>
         </div>
@@ -526,11 +540,11 @@ function CreatorHubTabsBuilder({
           <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
             {t`Accroche / Titre`}
           </label>
-          <input
+          <Input
             type="text"
             value={currentTab.headline || ''}
             onChange={(e) => updateTabField(activeTabIdx, 'headline', e.target.value)}
-            className="w-full bg-card border border-border rounded-lg p-2.5 text-sm font-medium text-foreground focus:ring-1 focus:ring-primary focus:border-primary outline-none"
+            className="w-full! bg-card border border-border rounded-lg p-2.5 text-sm! font-medium! text-foreground focus:ring-1 focus:ring-primary focus:border-primary outline-none leading-[20px]! h-auto! whitespace-normal! justify-normal inline-block "
           />
         </div>
 
@@ -538,10 +552,10 @@ function CreatorHubTabsBuilder({
           <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
             {t`Description`}
           </label>
-          <textarea
+          <Textarea
             value={currentTab.body || ''}
             onChange={(e) => updateTabField(activeTabIdx, 'body', e.target.value)}
-            className="w-full bg-card border border-border rounded-lg p-2.5 text-sm font-medium text-foreground focus:ring-1 focus:ring-primary focus:border-primary outline-none"
+            className="w-full! bg-card border border-border rounded-lg p-2.5 text-sm! font-medium! text-foreground focus:ring-1 focus:ring-primary focus:border-primary outline-none leading-[20px]! h-auto! whitespace-normal! justify-normal inline-block "
             rows={3}
           />
         </div>
@@ -555,29 +569,32 @@ function CreatorHubTabsBuilder({
             {currentTab.features?.map((feat, featIdx) => (
               <div key={featIdx} className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                <input
+                <Input
                   type="text"
                   value={feat}
                   onChange={(e) => updateFeature(activeTabIdx, featIdx, e.target.value)}
-                  className="flex-1 bg-card border border-border rounded-lg py-1.5 px-2.5 text-xs font-medium text-foreground focus:ring-1 focus:ring-primary/40 focus:border-primary outline-none"
+                  className="flex-1 bg-card border border-border rounded-lg py-1.5 px-2.5 text-xs! font-medium! text-foreground focus:ring-1 focus:ring-primary/40 focus:border-primary outline-none leading-[16px]! h-auto! whitespace-normal! justify-normal inline-block "
                 />
-                <button
+                <Button
+                  variant="ghost"
                   type="button"
                   onClick={() => deleteFeature(activeTabIdx, featIdx)}
-                  className="p-1.5 rounded text-muted-foreground hover:text-destructive-text transition-colors"
+                  className="hover:bg-transparent p-1.5 rounded text-muted-foreground hover:text-destructive-text transition-colors h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                  <Trash2 className="w-3.5! h-3.5!" />
+                </Button>
               </div>
             ))}
           </div>
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             type="button"
             onClick={() => addFeature(activeTabIdx)}
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors py-1.5"
+            className="hover:bg-transparent inline-flex items-center gap-1 text-xs! text-muted-foreground hover:text-foreground transition-colors py-1.5 leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal px-0 "
           >
-            <Plus className="w-3.5 h-3.5" /> {t`Ajouter une fonctionnalité`}
-          </button>
+            <Plus className="w-3.5! h-3.5!" /> {t`Ajouter une fonctionnalité`}
+          </Button>
         </div>
 
         {/* Buttons / Actions */}
@@ -586,11 +603,11 @@ function CreatorHubTabsBuilder({
             <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
               {t`Texte du CTA`}
             </label>
-            <input
+            <Input
               type="text"
               value={currentTab.cta || ''}
               onChange={(e) => updateTabField(activeTabIdx, 'cta', e.target.value)}
-              className="w-full bg-card border border-border rounded-lg p-2.5 text-xs font-semibold text-foreground focus:ring-1 focus:ring-primary focus:border-primary outline-none"
+              className="w-full! bg-card border border-border rounded-lg p-2.5 text-xs! font-semibold! text-foreground focus:ring-1 focus:ring-primary focus:border-primary outline-none leading-[16px]! h-auto! whitespace-normal! justify-normal inline-block "
             />
           </div>
 
@@ -598,11 +615,11 @@ function CreatorHubTabsBuilder({
             <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
               {t`Redirection du CTA (URL)`}
             </label>
-            <input
+            <Input
               type="text"
               value={currentTab.ctaHref || ''}
               onChange={(e) => updateTabField(activeTabIdx, 'ctaHref', e.target.value)}
-              className="w-full bg-card border border-border rounded-lg p-2.5 text-xs font-semibold text-foreground focus:ring-1 focus:ring-primary focus:border-primary outline-none"
+              className="w-full! bg-card border border-border rounded-lg p-2.5 text-xs! font-semibold! text-foreground focus:ring-1 focus:ring-primary focus:border-primary outline-none leading-[16px]! h-auto! whitespace-normal! justify-normal inline-block "
             />
           </div>
         </div>
@@ -707,13 +724,15 @@ function FooterColumnsBuilder({
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {t`Groupes de liens (Colonnes)`}
         </span>
-        <button
+        <Button
+          variant="outline"
+          size="xs"
           type="button"
           onClick={handleReset}
-          className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground border border-border px-2.5 py-1 rounded-md bg-muted hover:bg-secondary transition-colors"
+          className="inline-flex items-center gap-1 text-[11px]! text-muted-foreground hover:text-foreground border border-border px-2.5 py-1 rounded-md bg-muted hover:bg-secondary transition-colors h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal "
         >
-          <RefreshCw className="w-3 h-3" /> {t`Restaurer le modèle`}
-        </button>
+          <RefreshCw className="w-3! h-3!" /> {t`Restaurer le modèle`}
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -724,20 +743,21 @@ function FooterColumnsBuilder({
           >
             {/* Column Header */}
             <div className="flex items-center justify-between border-b border-border pb-2">
-              <input
+              <Input
                 type="text"
                 value={col.title}
                 onChange={(e) => updateColumnTitle(colIdx, e.target.value)}
                 placeholder={t`Titre du groupe`}
-                className="bg-transparent border-none p-0 text-sm font-bold text-foreground focus:ring-0 outline-none w-3/4"
+                className="bg-transparent border-none p-0 text-sm! font-bold! text-foreground focus:ring-0 outline-none w-3/4! leading-[20px]! h-auto! whitespace-normal! justify-normal inline-block "
               />
-              <button
+              <Button
+                variant="ghost"
                 type="button"
                 onClick={() => deleteColumn(colIdx)}
-                className="p-1 rounded text-muted-foreground hover:text-destructive-text opacity-0 group-hover/column:opacity-100 transition-opacity"
+                className="hover:bg-transparent p-1 rounded text-muted-foreground hover:text-destructive-text opacity-0 group-hover/column:opacity-100 transition-opacity h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+                <Trash2 className="w-3.5! h-3.5!" />
+              </Button>
             </div>
 
             {/* Links rows */}
@@ -748,71 +768,78 @@ function FooterColumnsBuilder({
                   className="space-y-2 border-b border-border/50 pb-2.5 last:border-0 last:pb-0"
                 >
                   <div className="flex items-center gap-2">
-                    <input
+                    <Input
                       type="text"
                       value={link.label}
                       onChange={(e) => updateLinkField(colIdx, linkIdx, 'label', e.target.value)}
                       placeholder={t`Libellé du lien`}
-                      className="flex-1 bg-card border border-border rounded-lg py-1.5 px-2.5 text-xs font-semibold text-foreground focus:ring-1 focus:ring-primary/40 focus:border-primary outline-none"
+                      className="flex-1 bg-card border border-border rounded-lg py-1.5 px-2.5 text-xs! font-semibold! text-foreground focus:ring-1 focus:ring-primary/40 focus:border-primary outline-none leading-[16px]! h-auto! whitespace-normal! justify-normal inline-block "
                     />
 
                     {/* External link indicator toggle */}
-                    <button
+                    <Button
+                      variant="outline"
+                      size="sm"
                       type="button"
                       title={link.isExternal ? t`Lien externe` : t`Lien interne`}
                       onClick={() =>
                         updateLinkField(colIdx, linkIdx, 'isExternal', !link.isExternal)
                       }
-                      className={`p-1.5 rounded-lg border text-xs flex items-center justify-center shrink-0 ${
+                      className={`p-1.5 rounded-lg border text-xs! flex items-center justify-center shrink-0 ${
                         link.isExternal
                           ? 'bg-primary/10 border-primary/20 text-primary'
                           : 'bg-card border-border text-muted-foreground hover:text-muted-foreground'
-                      }`}
+                      } leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! `}
                     >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </button>
+                      <ExternalLink className="w-3.5! h-3.5!" />
+                    </Button>
 
-                    <button
+                    <Button
+                      variant="ghost"
                       type="button"
                       onClick={() => deleteLinkFromCol(colIdx, linkIdx)}
-                      className="p-1.5 rounded text-muted-foreground hover:text-destructive-text transition-colors shrink-0"
+                      className="hover:bg-transparent p-1.5 rounded text-muted-foreground hover:text-destructive-text transition-colors shrink-0 h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                      <Trash2 className="w-3.5! h-3.5!" />
+                    </Button>
                   </div>
 
                   <div className="flex items-center gap-1.5 pl-2.5 text-muted-foreground">
                     <LinkIcon className="w-3.5 h-3.5 shrink-0" />
-                    <input
+                    <Input
                       type="text"
                       value={link.href}
                       onChange={(e) => updateLinkField(colIdx, linkIdx, 'href', e.target.value)}
                       placeholder={t`URL (ex: /login, https://...)`}
-                      className="w-full bg-transparent border-none p-0 text-[11px] font-medium text-muted-foreground focus:ring-0 focus:outline-none"
+                      className="w-full! bg-transparent border-none p-0 text-[11px]! font-medium! text-muted-foreground focus:ring-0 focus:outline-none h-auto! leading-[inherit]! whitespace-normal! justify-normal inline-block "
                     />
                   </div>
                 </div>
               ))}
             </div>
 
-            <button
+            <Button
+              variant="outline"
+              size="xs"
               type="button"
               onClick={() => addLinkToCol(colIdx)}
-              className="w-full flex items-center justify-center gap-1 border border-dashed border-border hover:border-border text-[11px] font-semibold text-muted-foreground hover:text-muted-foreground py-1.5 rounded-lg bg-card/40 hover:bg-card transition-colors"
+              className="w-full! flex items-center justify-center gap-1 border border-dashed border-border hover:border-border text-[11px]! font-semibold! text-muted-foreground hover:text-muted-foreground py-1.5 rounded-lg bg-card/40 hover:bg-card transition-colors h-auto! leading-[inherit]! whitespace-normal! px-0 "
             >
-              <Plus className="w-3 h-3" /> {t`Ajouter un lien`}
-            </button>
+              <Plus className="w-3! h-3!" /> {t`Ajouter un lien`}
+            </Button>
           </div>
         ))}
       </div>
 
-      <button
+      <Button
+        variant="outline"
+        size="sm"
         type="button"
         onClick={addColumn}
-        className="w-full flex items-center justify-center gap-1.5 border border-dashed border-border hover:border-border text-muted-foreground hover:text-foreground text-xs font-semibold py-2.5 rounded-xl bg-card hover:bg-muted transition-colors shadow-sm"
+        className="w-full! flex items-center justify-center gap-1.5 border border-dashed border-border hover:border-border text-muted-foreground hover:text-foreground text-xs! font-semibold! py-2.5 rounded-xl bg-card hover:bg-muted transition-colors shadow-sm leading-[16px]! h-auto! whitespace-normal! px-0 "
       >
-        <Plus className="w-4 h-4" /> {t`Ajouter un groupe de liens`}
-      </button>
+        <Plus className="w-4! h-4!" /> {t`Ajouter un groupe de liens`}
+      </Button>
     </div>
   );
 }
@@ -865,7 +892,7 @@ function OnboardingInterestsBuilder({
       </div>
 
       <div className="flex gap-2">
-        <input
+        <Input
           type="text"
           value={newInterest}
           onChange={(e) => setNewInterest(e.target.value)}
@@ -876,15 +903,17 @@ function OnboardingInterestsBuilder({
             }
           }}
           placeholder={t`Ajouter un centre d'intérêt (ex: Technologie, Économie...)`}
-          className="flex-1 bg-card border border-border rounded-lg p-2 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none"
+          className="flex-1 bg-card border border-border rounded-lg p-2 text-sm! focus:ring-1 focus:ring-primary focus:border-primary outline-none leading-[20px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
         />
-        <button
+        <Button
+          variant="solid"
+          size="sm"
           type="button"
           onClick={handleAdd}
-          className="bg-foreground text-background hover:bg-secondary px-4 py-2 rounded-lg text-sm font-semibold transition-colors shrink-0"
+          className="bg-foreground text-background hover:bg-secondary px-4 py-2 rounded-lg text-sm! font-semibold! transition-colors shrink-0 leading-[20px]! h-auto! whitespace-normal! justify-normal inline-block "
         >
           {t`Ajouter`}
-        </button>
+        </Button>
       </div>
 
       {interests.length === 0 ? (
@@ -899,13 +928,14 @@ function OnboardingInterestsBuilder({
               className="flex items-center gap-1.5 px-3 py-1.5 bg-card border border-border rounded-full text-xs font-semibold text-foreground shadow-sm transition-all hover:border-primary/40 group"
             >
               <span>{interest}</span>
-              <button
+              <Button
+                variant="ghost"
                 type="button"
                 onClick={() => handleDelete(idx)}
-                className="text-muted-foreground hover:text-destructive-text transition-colors"
+                className="hover:bg-transparent text-muted-foreground hover:text-destructive-text transition-colors h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+                <Trash2 className="w-3.5! h-3.5!" />
+              </Button>
             </div>
           ))}
         </div>
@@ -1053,24 +1083,26 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
         {tabs.map((tab) => {
           const isActive = activeTab === tab.key;
           return (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               key={tab.key}
               type="button"
               onClick={() => {
                 setActiveTab(tab.key);
                 setSaveStatus('idle');
               }}
-              className={`flex-shrink-0 text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-all relative ${
+              className={`flex-shrink-0 text-left px-4 py-2.5 rounded-lg text-sm! font-medium! transition-all relative ${
                 isActive
                   ? 'text-foreground bg-secondary/80'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-              }`}
+              } leading-[20px]! h-auto! whitespace-normal! justify-normal inline-block `}
             >
               {tab.label}
               {isActive && (
                 <div className="absolute left-0 top-1.5 bottom-1.5 w-0.5 bg-primary rounded-full hidden lg:block" />
               )}
-            </button>
+            </Button>
           );
         })}
       </aside>
@@ -1098,22 +1130,23 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                 </span>
                 <div className="flex items-center gap-1 bg-muted p-0.5 rounded-lg">
                   {ALL_LANGUAGES.map((lang) => (
-                    <button
+                    <Button
+                      variant="ghost"
                       key={lang}
                       type="button"
                       onClick={() => setActiveLang(lang)}
-                      className={`px-3 py-1.5 rounded-md font-medium transition-all ${
+                      className={`hover:bg-transparent px-3 py-1.5 rounded-md font-medium! transition-all ${
                         activeLang === lang
                           ? 'bg-card text-foreground shadow-sm'
                           : 'text-muted-foreground hover:text-foreground'
-                      }`}
+                      } h-auto! [font-size:inherit]! leading-[inherit]! whitespace-normal! justify-normal inline-block `}
                     >
                       {lang === 'fr'
                         ? 'Français'
                         : lang === 'en'
                           ? 'English'
                           : (lang as string).toUpperCase()}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               </div>
@@ -1137,8 +1170,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                         </p>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                        <input
-                          type="checkbox"
+                        <CheckboxInput
                           checked={formValues['GLOBAL_BANNER_ENABLED'] === 'true'}
                           onChange={(e) =>
                             updateValue(
@@ -1146,7 +1178,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                               e.target.checked ? 'true' : 'false'
                             )
                           }
-                          className="sr-only peer"
+                          className="sr-only peer h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                         />
                         <div className="w-11 h-6 bg-input peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-background after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-background after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                       </label>
@@ -1156,11 +1188,11 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                       <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         {t`Texte de l'annonce`}
                       </label>
-                      <textarea
+                      <Textarea
                         value={formValues['GLOBAL_BANNER_TEXT'] || ''}
                         onChange={(e) => updateValue('GLOBAL_BANNER_TEXT', e.target.value)}
                         placeholder={t`qoefi est en ligne ! Rejoignez-nous.`}
-                        className="w-full bg-transparent border-b border-border px-0 py-2 text-base font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 resize-none transition-colors outline-none"
+                        className="w-full! bg-transparent border-b border-border py-2 text-base! font-medium! text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 resize-none transition-colors outline-none leading-[24px]! h-auto! whitespace-normal! justify-normal inline-block px-0 "
                         rows={2}
                       />
                     </div>
@@ -1169,12 +1201,12 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                       <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         {t`Lien optionnel`}
                       </label>
-                      <input
+                      <Input
                         type="text"
                         value={formValues['GLOBAL_BANNER_LINK'] || ''}
                         onChange={(e) => updateValue('GLOBAL_BANNER_LINK', e.target.value)}
                         placeholder="https://qoe.fi/changelog"
-                        className="w-full bg-transparent border-b border-border px-0 py-2 text-base font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
+                        className="w-full! bg-transparent border-b border-border py-2 text-base! font-medium! text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none leading-[24px]! h-auto! whitespace-normal! justify-normal inline-block px-0 "
                       />
                     </div>
                   </div>
@@ -1187,14 +1219,14 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                       <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         {t`Titre de l'éditeur simulé (${activeLang.toUpperCase()})`}
                       </label>
-                      <input
+                      <Input
                         type="text"
                         value={formValues[`hero_editor_title_${activeLang}`] || ''}
                         onChange={(e) =>
                           updateValue(`hero_editor_title_${activeLang}`, e.target.value)
                         }
                         placeholder={t`L'architecture du silence`}
-                        className="w-full bg-transparent border-b border-border px-0 py-2 text-base font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
+                        className="w-full! bg-transparent border-b border-border py-2 text-base! font-medium! text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none leading-[24px]! h-auto! whitespace-normal! justify-normal inline-block px-0 "
                       />
                     </div>
 
@@ -1202,13 +1234,13 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                       <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         {t`Contenu rédigé de l'éditeur (${activeLang.toUpperCase()})`}
                       </label>
-                      <textarea
+                      <Textarea
                         value={formValues[`hero_editor_body_${activeLang}`] || ''}
                         onChange={(e) =>
                           updateValue(`hero_editor_body_${activeLang}`, e.target.value)
                         }
                         placeholder={t`Écrire, c'est d'abord creuser...`}
-                        className="w-full bg-transparent border-b border-border px-0 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
+                        className="w-full! bg-transparent border-b border-border py-2 text-sm! font-medium! text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none leading-[20px]! h-auto! whitespace-normal! justify-normal inline-block px-0 "
                         rows={5}
                       />
                     </div>
@@ -1231,14 +1263,14 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                       <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         {t`Titre principal (${activeLang.toUpperCase()})`}
                       </label>
-                      <input
+                      <Input
                         type="text"
                         value={formValues[`featured_title_${activeLang}`] || ''}
                         onChange={(e) =>
                           updateValue(`featured_title_${activeLang}`, e.target.value)
                         }
                         placeholder={t`Publishers récentes`}
-                        className="w-full bg-transparent border-b border-border px-0 py-2 text-base font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
+                        className="w-full! bg-transparent border-b border-border py-2 text-base! font-medium! text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none leading-[24px]! h-auto! whitespace-normal! justify-normal inline-block px-0 "
                       />
                     </div>
 
@@ -1246,14 +1278,14 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                       <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         {t`Surtitre / Tagline (${activeLang.toUpperCase()})`}
                       </label>
-                      <input
+                      <Input
                         type="text"
                         value={formValues[`featured_tagline_${activeLang}`] || ''}
                         onChange={(e) =>
                           updateValue(`featured_tagline_${activeLang}`, e.target.value)
                         }
                         placeholder={t`Écrits sélectionnés`}
-                        className="w-full bg-transparent border-b border-border px-0 py-2 text-base font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
+                        className="w-full! bg-transparent border-b border-border py-2 text-base! font-medium! text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none leading-[24px]! h-auto! whitespace-normal! justify-normal inline-block px-0 "
                       />
                     </div>
 
@@ -1264,11 +1296,11 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                       <p className="text-[11px] text-muted-foreground mb-2">
                         {t`Ces concepts défilent horizontalement en arrière-plan de la section.`}
                       </p>
-                      <textarea
+                      <Textarea
                         value={formValues['featured_background_words'] || ''}
                         onChange={(e) => updateValue('featured_background_words', e.target.value)}
                         placeholder={t`Phénoménologie, Dialectique, Épistémologie, Herméneutique, Ontologie...`}
-                        className="w-full bg-card border border-border rounded-xl p-3 text-sm text-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
+                        className="w-full! bg-card border border-border rounded-xl p-3 text-sm! text-foreground focus:border-foreground focus:ring-0 transition-colors outline-none leading-[20px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                         rows={5}
                       />
                     </div>
@@ -1283,14 +1315,14 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                         <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                           Titre principal ({activeLang.toUpperCase()})
                         </label>
-                        <input
+                        <Input
                           type="text"
                           value={formValues[`creator_hub_title_${activeLang}`] || ''}
                           onChange={(e) =>
                             updateValue(`creator_hub_title_${activeLang}`, e.target.value)
                           }
                           placeholder={t`Une infrastructure pour ceux qui pensent.`}
-                          className="w-full bg-transparent border-b border-border px-0 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
+                          className="w-full! bg-transparent border-b border-border py-2 text-sm! font-medium! text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none leading-[20px]! h-auto! whitespace-normal! justify-normal inline-block px-0 "
                         />
                       </div>
 
@@ -1298,14 +1330,14 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                         <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                           {t`Tagline / Surtitre (${activeLang.toUpperCase()})`}
                         </label>
-                        <input
+                        <Input
                           type="text"
                           value={formValues[`creator_hub_tagline_${activeLang}`] || ''}
                           onChange={(e) =>
                             updateValue(`creator_hub_tagline_${activeLang}`, e.target.value)
                           }
                           placeholder={t`Rejoignez l'écosystème`}
-                          className="w-full bg-transparent border-b border-border px-0 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
+                          className="w-full! bg-transparent border-b border-border py-2 text-sm! font-medium! text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none leading-[20px]! h-auto! whitespace-normal! justify-normal inline-block px-0 "
                         />
                       </div>
                     </div>
@@ -1315,14 +1347,14 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                         <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                           {t`Titre de conviction bas de page (${activeLang.toUpperCase()})`}
                         </label>
-                        <input
+                        <Input
                           type="text"
                           value={formValues[`creator_hub_conviction_${activeLang}`] || ''}
                           onChange={(e) =>
                             updateValue(`creator_hub_conviction_${activeLang}`, e.target.value)
                           }
                           placeholder={t`Zéro VC. Zéro GAFAM. Zéro compromis.`}
-                          className="w-full bg-transparent border-b border-border px-0 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
+                          className="w-full! bg-transparent border-b border-border py-2 text-sm! font-medium! text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none leading-[20px]! h-auto! whitespace-normal! justify-normal inline-block px-0 "
                         />
                       </div>
 
@@ -1330,14 +1362,14 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                         <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                           {t`Label du bouton manifeste (${activeLang.toUpperCase()})`}
                         </label>
-                        <input
+                        <Input
                           type="text"
                           value={formValues[`creator_hub_manifesto_${activeLang}`] || ''}
                           onChange={(e) =>
                             updateValue(`creator_hub_manifesto_${activeLang}`, e.target.value)
                           }
                           placeholder={t`Lire le manifeste`}
-                          className="w-full bg-transparent border-b border-border px-0 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
+                          className="w-full! bg-transparent border-b border-border py-2 text-sm! font-medium! text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none leading-[20px]! h-auto! whitespace-normal! justify-normal inline-block px-0 "
                         />
                       </div>
                     </div>
@@ -1346,13 +1378,13 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                       <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         {t`Texte de conviction (${activeLang.toUpperCase()})`}
                       </label>
-                      <textarea
+                      <Textarea
                         value={formValues[`creator_hub_conviction_sub_${activeLang}`] || ''}
                         onChange={(e) =>
                           updateValue(`creator_hub_conviction_sub_${activeLang}`, e.target.value)
                         }
                         placeholder={t`Bootstrapé par conviction. Hébergé en Allemagne...`}
-                        className="w-full bg-transparent border-b border-border px-0 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
+                        className="w-full! bg-transparent border-b border-border py-2 text-sm! font-medium! text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none leading-[20px]! h-auto! whitespace-normal! justify-normal inline-block px-0 "
                         rows={2}
                       />
                     </div>
@@ -1376,12 +1408,12 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                         <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                           {t`Surtitre Eyebrow (${activeLang.toUpperCase()})`}
                         </label>
-                        <input
+                        <Input
                           type="text"
                           value={formValues[`cta_eyebrow_${activeLang}`] || ''}
                           onChange={(e) => updateValue(`cta_eyebrow_${activeLang}`, e.target.value)}
                           placeholder={t`Pour ceux qui veulent se cultiver`}
-                          className="w-full bg-transparent border-b border-border px-0 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
+                          className="w-full! bg-transparent border-b border-border py-2 text-sm! font-medium! text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none leading-[20px]! h-auto! whitespace-normal! justify-normal inline-block px-0 "
                         />
                       </div>
 
@@ -1389,14 +1421,14 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                         <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                           {t`Titre H2 (${activeLang.toUpperCase()})`}
                         </label>
-                        <input
+                        <Input
                           type="text"
                           value={formValues[`cta_headline_${activeLang}`] || ''}
                           onChange={(e) =>
                             updateValue(`cta_headline_${activeLang}`, e.target.value)
                           }
                           placeholder={t`Du temps bien dépensé.`}
-                          className="w-full bg-transparent border-b border-border px-0 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
+                          className="w-full! bg-transparent border-b border-border py-2 text-sm! font-medium! text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none leading-[20px]! h-auto! whitespace-normal! justify-normal inline-block px-0 "
                         />
                       </div>
                     </div>
@@ -1405,11 +1437,11 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                       <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         {t`Description / Paragraphe (${activeLang.toUpperCase()})`}
                       </label>
-                      <textarea
+                      <Textarea
                         value={formValues[`cta_subline_${activeLang}`] || ''}
                         onChange={(e) => updateValue(`cta_subline_${activeLang}`, e.target.value)}
                         placeholder={t`Pas de scroll toxique. Pas d'algorithme marchand...`}
-                        className="w-full bg-transparent border-b border-border px-0 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
+                        className="w-full! bg-transparent border-b border-border py-2 text-sm! font-medium! text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none leading-[20px]! h-auto! whitespace-normal! justify-normal inline-block px-0 "
                         rows={3}
                       />
                     </div>
@@ -1419,14 +1451,14 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                         <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                           {t`Bouton Principal (${activeLang.toUpperCase()})`}
                         </label>
-                        <input
+                        <Input
                           type="text"
                           value={formValues[`cta_btn_primary_${activeLang}`] || ''}
                           onChange={(e) =>
                             updateValue(`cta_btn_primary_${activeLang}`, e.target.value)
                           }
                           placeholder={t`Commencer à lire`}
-                          className="w-full bg-transparent border-b border-border px-0 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
+                          className="w-full! bg-transparent border-b border-border py-2 text-sm! font-medium! text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none leading-[20px]! h-auto! whitespace-normal! justify-normal inline-block px-0 "
                         />
                       </div>
 
@@ -1434,14 +1466,14 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                         <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                           {t`Bouton Secondaire (${activeLang.toUpperCase()})`}
                         </label>
-                        <input
+                        <Input
                           type="text"
                           value={formValues[`cta_btn_secondary_${activeLang}`] || ''}
                           onChange={(e) =>
                             updateValue(`cta_btn_secondary_${activeLang}`, e.target.value)
                           }
                           placeholder={t`Se cultiver, gratuitement`}
-                          className="w-full bg-transparent border-b border-border px-0 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
+                          className="w-full! bg-transparent border-b border-border py-2 text-sm! font-medium! text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none leading-[20px]! h-auto! whitespace-normal! justify-normal inline-block px-0 "
                         />
                       </div>
                     </div>
@@ -1450,14 +1482,14 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                       <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         {t`Mentions de rassurance en bas de page (${activeLang.toUpperCase()})`}
                       </label>
-                      <input
+                      <Input
                         type="text"
                         value={formValues[`cta_social_proof_${activeLang}`] || ''}
                         onChange={(e) =>
                           updateValue(`cta_social_proof_${activeLang}`, e.target.value)
                         }
                         placeholder={t`Gratuit · Aucune carte bancaire requise · Données hébergées en Europe`}
-                        className="w-full bg-transparent border-b border-border px-0 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
+                        className="w-full! bg-transparent border-b border-border py-2 text-sm! font-medium! text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none leading-[20px]! h-auto! whitespace-normal! justify-normal inline-block px-0 "
                       />
                     </div>
                   </div>
@@ -1470,11 +1502,11 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                       <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         {t`Texte de Copyright global`}
                       </label>
-                      <textarea
+                      <Textarea
                         value={formValues['footer_copyright'] || ''}
                         onChange={(e) => updateValue('footer_copyright', e.target.value)}
                         placeholder={t`© 2024 QOEFI. Crafted for the curious minds in the European creator economy.`}
-                        className="w-full bg-transparent border-b border-border px-0 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
+                        className="w-full! bg-transparent border-b border-border py-2 text-sm! font-medium! text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none leading-[20px]! h-auto! whitespace-normal! justify-normal inline-block px-0 "
                         rows={2}
                       />
                     </div>
@@ -1521,25 +1553,27 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
               </>
             </div>
 
-            <button
+            <Button
+              variant="solid"
+              size="sm"
               type="submit"
               disabled={isSaving}
-              className={`inline-flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-xl text-background transition-all shadow-md ${
+              className={`inline-flex items-center gap-2 text-sm! font-semibold! px-5 py-2.5 rounded-xl text-background transition-all shadow-md ${
                 isSaving
                   ? 'bg-border cursor-not-allowed shadow-none'
                   : 'bg-foreground hover:bg-secondary hover:shadow-lg'
-              }`}
+              } leading-[20px]! h-auto! whitespace-normal! justify-normal `}
             >
               {isSaving ? (
                 <>
-                  <RefreshCw className="w-4 h-4 animate-spin" /> {t`Enregistrement...`}
+                  <RefreshCw className="w-4! h-4! animate-spin" /> {t`Enregistrement...`}
                 </>
               ) : (
                 <>
-                  <Save className="w-4 h-4" /> {t`Enregistrer la section`}
+                  <Save className="w-4! h-4!" /> {t`Enregistrer la section`}
                 </>
               )}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

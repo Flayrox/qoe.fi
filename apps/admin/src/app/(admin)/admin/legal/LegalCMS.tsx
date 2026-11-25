@@ -15,7 +15,7 @@ import { sanitizeArticleHtml } from '@qoe/ui/security';
 import { getLegalDocumentUrl } from '@qoe/config/legal';
 import { Badge } from '@qoe/ui/badge';
 import { Button } from '@qoe/ui/button';
-import { Checkbox } from '@qoe/ui/checkbox';
+import { Checkbox, CheckboxInput } from '@qoe/ui/checkbox';
 import {
   Dialog,
   DialogBody,
@@ -485,39 +485,47 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
       {/* Barre d'actions */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="inline-flex rounded-xl border border-border bg-card p-1">
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setTab('documents')}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+            className={`hover:bg-transparent inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs! font-semibold! transition-colors ${
               tab === 'documents' ? 'bg-muted text-foreground' : 'text-muted-foreground'
-            }`}
+            } leading-[16px]! h-auto! whitespace-normal! justify-normal `}
           >
-            <FileText className="h-3.5 w-3.5" /> Documents
-          </button>
-          <button
+            <FileText className="h-3.5! w-3.5!" /> Documents
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setTab('consents')}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+            className={`hover:bg-transparent inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs! font-semibold! transition-colors ${
               tab === 'consents' ? 'bg-muted text-foreground' : 'text-muted-foreground'
-            }`}
+            } leading-[16px]! h-auto! whitespace-normal! justify-normal `}
           >
-            <ShieldCheck className="h-3.5 w-3.5" /> Consentements
-          </button>
+            <ShieldCheck className="h-3.5! w-3.5!" /> Consentements
+          </Button>
         </div>
 
         <div className="flex items-center gap-2">
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={seed}
             disabled={isPending}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-muted disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs! font-semibold! text-foreground hover:bg-muted disabled:opacity-50 leading-[16px]! h-auto! whitespace-normal! justify-normal "
           >
-            <Sparkles className="h-3.5 w-3.5" /> Installer les manquants
-          </button>
-          <button
+            <Sparkles className="h-3.5! w-3.5!" /> Installer les manquants
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={refresh}
             disabled={isPending}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-muted disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs! font-semibold! text-foreground hover:bg-muted disabled:opacity-50 leading-[16px]! h-auto! whitespace-normal! justify-normal "
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${isPending ? 'animate-spin' : ''}`} /> Actualiser
-          </button>
+            <RefreshCw className={`h-3.5! w-3.5! ${isPending ? 'animate-spin' : ''}`} /> Actualiser
+          </Button>
         </div>
       </div>
 
@@ -531,9 +539,9 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
           }`}
         >
           <span>{feedback.text}</span>
-          <button onClick={() => setFeedback(null)} aria-label="Fermer">
+          <Button variant="ghost" h-auto onClick={() => setFeedback(null)} aria-label="Fermer">
             <X className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
       )}
 
@@ -543,11 +551,13 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
           <div className="space-y-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              <input
+              <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Rechercher un document…"
-                className={inputClass('pl-9')}
+                className={inputClass(
+                  'pl-9 h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block py-0 '
+                )}
               />
             </div>
 
@@ -556,14 +566,15 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
                 const docStats = statsBySlug.get(doc.slug);
                 const isActive = doc.id === selectedId;
                 return (
-                  <button
+                  <Button
+                    variant="outline"
                     key={doc.id}
                     onClick={() => selectDocument(doc.id)}
-                    className={`w-full rounded-lg border px-4 py-3 text-left transition-colors ${
+                    className={`w-full! rounded-lg border px-4 py-3 text-left transition-colors ${
                       isActive
                         ? 'border-primary/40 bg-primary/5'
                         : 'border-border bg-card hover:bg-muted/40'
-                    }`}
+                    } h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block `}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="truncate text-sm font-semibold text-foreground">
@@ -574,7 +585,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
                           title={`${placeholdersByDoc.get(doc.id)} jeton(s) à compléter dans le contenu`}
                           className="inline-flex shrink-0 items-center gap-1 rounded-full bg-highlight/10 px-2 py-0.5 text-[10px] font-semibold text-highlight ring-1 ring-highlight/40"
                         >
-                          <AlertTriangle className="h-3 w-3" /> à compléter
+                          <AlertTriangle className="h-3! w-3!" /> à compléter
                         </span>
                       )}
                       {doc.requiresAcceptance && (
@@ -596,22 +607,22 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
                     </div>
                     <div className="mt-2 flex items-center gap-3 text-[11px] text-muted-foreground">
                       <span className="inline-flex items-center gap-1">
-                        <Globe className="h-3 w-3" />
+                        <Globe className="h-3! w-3!" />
                         {doc.publishedVersion ? `v${doc.publishedVersion}` : 'non publié'}
                       </span>
                       <span className="inline-flex items-center gap-1">
-                        <History className="h-3 w-3" /> {doc.versionsCount}
+                        <History className="h-3! w-3!" /> {doc.versionsCount}
                       </span>
                       {doc.draftsCount > 0 && (
                         <span className="inline-flex items-center gap-1 text-foreground">
-                          <Clock className="h-3 w-3" /> {doc.draftsCount} brouillon(s)
+                          <Clock className="h-3! w-3!" /> {doc.draftsCount} brouillon(s)
                         </span>
                       )}
                       <span className="inline-flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3" /> {docStats?.acceptances ?? 0}
+                        <CheckCircle2 className="h-3! w-3!" /> {docStats?.acceptances ?? 0}
                       </span>
                     </div>
-                  </button>
+                  </Button>
                 );
               })}
 
@@ -623,12 +634,14 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
               )}
             </div>
 
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setCreatingDoc(true)}
-              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-border px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-muted"
+              className="inline-flex w-full! items-center justify-center gap-1.5 rounded-xl border border-dashed border-border px-3 py-2 text-xs! font-semibold! text-muted-foreground hover:bg-muted leading-[16px]! h-auto! whitespace-normal! "
             >
-              <Plus className="h-3.5 w-3.5" /> Nouveau document
-            </button>
+              <Plus className="h-3.5! w-3.5!" /> Nouveau document
+            </Button>
           </div>
 
           {/* Détail du document */}
@@ -688,15 +701,17 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
                       <h2 className="text-sm font-semibold text-foreground">Versions</h2>
                       {loadingVersions && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                     </div>
-                    <button
+                    <Button
+                      variant="solid"
+                      size="sm"
                       onClick={() => {
                         setDraft({ ...EMPTY_VERSION });
                         setShowPreview(false);
                       }}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-foreground px-2.5 py-1.5 text-xs font-semibold text-background hover:opacity-90"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-foreground px-2.5 py-1.5 text-xs! font-semibold! text-background hover:opacity-90 leading-[16px]! h-auto! whitespace-normal! justify-normal "
                     >
-                      <Plus className="h-3.5 w-3.5" /> Nouvelle version
-                    </button>
+                      <Plus className="h-3.5! w-3.5!" /> Nouvelle version
+                    </Button>
                   </div>
 
                   <ul className="divide-y divide-border/60">
@@ -740,30 +755,39 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
                         <div className="flex shrink-0 items-center gap-1.5">
                           {version.status === 'DRAFT' && (
                             <>
-                              <button
+                              <Button
+                                variant="outline"
+                                size="xs"
                                 onClick={() => editVersion(version)}
-                                className="rounded-lg border border-border px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted"
+                                className="rounded-lg border border-border px-2 py-1 text-[11px]! font-semibold! text-foreground hover:bg-muted h-auto! leading-[inherit]! whitespace-normal! justify-normal inline-block "
                               >
                                 Éditer
-                              </button>
-                              <button
+                              </Button>
+                              <Button
+                                variant="solid"
+                                tone="success"
+                                size="xs"
                                 onClick={() => publish(version)}
                                 disabled={isPending}
-                                className="inline-flex items-center gap-1 rounded-lg bg-success px-2 py-1 text-[11px] font-semibold text-success-foreground hover:opacity-90 disabled:opacity-50"
+                                className="inline-flex items-center gap-1 rounded-lg bg-success px-2 py-1 text-[11px]! font-semibold! text-success-foreground hover:opacity-90 disabled:opacity-50 h-auto! leading-[inherit]! whitespace-normal! justify-normal "
                               >
-                                <Rocket className="h-3 w-3" /> Publier
-                              </button>
-                              <button
+                                <Rocket className="h-3! w-3!" /> Publier
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="xs"
                                 onClick={() => requestApproval(version)}
                                 disabled={isPending}
                                 data-testid={`legal-request-approval-${version.id}`}
                                 aria-label="Demander la double validation"
                                 title="Demander la validation d’une seconde personne (obligatoire pour publier)"
-                                className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted disabled:opacity-50"
+                                className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px]! font-semibold! text-foreground hover:bg-muted disabled:opacity-50 h-auto! leading-[inherit]! whitespace-normal! justify-normal "
                               >
-                                <Handshake className="h-3 w-3" /> Valider à deux
-                              </button>
-                              <button
+                                <Handshake className="h-3! w-3!" /> Valider à deux
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="xs"
                                 onClick={() => schedule(version)}
                                 disabled={isPending}
                                 aria-label="Planifier la publication"
@@ -772,31 +796,35 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
                                     ? 'Modifier ou annuler la planification'
                                     : 'Planifier la publication automatique'
                                 }
-                                className={`rounded-lg border px-2 py-1 text-[11px] font-semibold hover:bg-muted disabled:opacity-50 ${
+                                className={`rounded-lg border px-2 py-1 text-[11px]! font-semibold! hover:bg-muted disabled:opacity-50 ${
                                   version.scheduledAt
                                     ? 'border-primary text-primary'
                                     : 'border-border text-foreground'
-                                }`}
+                                } h-auto! leading-[inherit]! whitespace-normal! justify-normal inline-block `}
                               >
-                                <Clock className="h-3 w-3" />
-                              </button>
-                              <button
+                                <Clock className="h-3! w-3!" />
+                              </Button>
+                              <Button
+                                variant="solid"
+                                tone="danger"
                                 onClick={() => removeDraft(version)}
-                                className="rounded-lg border border-border p-1 text-destructive-text hover:bg-destructive/5"
+                                className="rounded-lg border border-border p-1 text-destructive-text hover:bg-destructive/5 h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                                 aria-label="Supprimer le brouillon"
                               >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
+                                <Trash2 className="h-3.5! w-3.5!" />
+                              </Button>
                             </>
                           )}
                           {version.status === 'PUBLISHED' && (
-                            <button
+                            <Button
+                              variant="outline"
+                              size="xs"
                               onClick={() => archive(version)}
                               disabled={isPending}
-                              className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted disabled:opacity-50"
+                              className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px]! font-semibold! text-foreground hover:bg-muted disabled:opacity-50 h-auto! leading-[inherit]! whitespace-normal! justify-normal "
                             >
-                              <Archive className="h-3 w-3" /> Archiver
-                            </button>
+                              <Archive className="h-3! w-3!" /> Archiver
+                            </Button>
                           )}
                           {version.status === 'ARCHIVED' && (
                             <span className="text-[11px] text-muted-foreground">immuable</span>
@@ -991,12 +1019,15 @@ function DocumentMeta({ document, pending, onSave, onDelete }: DocumentMetaProps
           >
             <ExternalLink className="h-3 w-3" /> Voir la page
           </a>
-          <button
+          <Button
+            variant="solid"
+            tone="danger"
+            size="xs"
             onClick={onDelete}
-            className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-semibold text-destructive-text hover:bg-destructive/5"
+            className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-[11px]! font-semibold! text-destructive-text hover:bg-destructive/5 h-auto! leading-[inherit]! whitespace-normal! justify-normal "
           >
-            <Trash2 className="h-3 w-3" /> Supprimer
-          </button>
+            <Trash2 className="h-3! w-3!" /> Supprimer
+          </Button>
         </div>
       </div>
 
@@ -1005,7 +1036,7 @@ function DocumentMeta({ document, pending, onSave, onDelete }: DocumentMetaProps
           <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Slug public
           </span>
-          <input value={slug} onChange={(e) => setSlug(e.target.value)} className={inputClass()} />
+          <Input value={slug} onChange={(e) => setSlug(e.target.value)} className={inputClass()} />
           <span className="block text-[11px] text-muted-foreground">
             URL : hi.qoe.fi/legal/{slug || '…'}
           </span>
@@ -1015,7 +1046,7 @@ function DocumentMeta({ document, pending, onSave, onDelete }: DocumentMetaProps
           <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Ordre d&apos;affichage
           </span>
-          <input
+          <Input
             type="number"
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value)}
@@ -1052,11 +1083,10 @@ function DocumentMeta({ document, pending, onSave, onDelete }: DocumentMetaProps
         </div>
 
         <label className="flex items-start gap-3 rounded-xl border border-border px-4 py-3">
-          <input
-            type="checkbox"
+          <CheckboxInput
             checked={requiresAcceptance}
             onChange={(e) => setRequiresAcceptance(e.target.checked)}
-            className="mt-0.5 h-4 w-4"
+            className="mt-0.5 h-4! w-4! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
           />
           <span className="text-xs text-foreground">
             <span className="font-semibold">Consentement obligatoire</span>
@@ -1067,11 +1097,10 @@ function DocumentMeta({ document, pending, onSave, onDelete }: DocumentMetaProps
         </label>
 
         <label className="flex items-start gap-3 rounded-xl border border-border px-4 py-3">
-          <input
-            type="checkbox"
+          <CheckboxInput
             checked={isActive}
             onChange={(e) => setIsActive(e.target.checked)}
-            className="mt-0.5 h-4 w-4"
+            className="mt-0.5 h-4! w-4! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
           />
           <span className="text-xs text-foreground">
             <span className="font-semibold">Publié sur les sites</span>
@@ -1083,7 +1112,9 @@ function DocumentMeta({ document, pending, onSave, onDelete }: DocumentMetaProps
       </div>
 
       <div className="flex justify-end border-t border-border px-5 py-4">
-        <button
+        <Button
+          variant="solid"
+          size="sm"
           onClick={() =>
             onSave({
               slug,
@@ -1095,10 +1126,10 @@ function DocumentMeta({ document, pending, onSave, onDelete }: DocumentMetaProps
             })
           }
           disabled={pending}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-foreground px-3 py-2 text-xs font-semibold text-background hover:opacity-90 disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-foreground px-3 py-2 text-xs! font-semibold! text-background hover:opacity-90 disabled:opacity-50 leading-[16px]! h-auto! whitespace-normal! justify-normal "
         >
-          <Save className="h-3.5 w-3.5" /> Enregistrer
-        </button>
+          <Save className="h-3.5! w-3.5!" /> Enregistrer
+        </Button>
       </div>
     </div>
   );
@@ -1178,7 +1209,7 @@ function VersionEditorModal({
               disabled={isEdit}
               onChange={(e) => onChange({ ...draft, version: e.target.value })}
               placeholder="1.1.0"
-              className="tabular-nums"
+              className="tabular-nums h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
             />
           </label>
 
@@ -1187,6 +1218,7 @@ function VersionEditorModal({
               Titre
             </span>
             <Input
+              className=" h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               value={draft.title}
               onChange={(e) => onChange({ ...draft, title: e.target.value })}
             />
@@ -1197,6 +1229,7 @@ function VersionEditorModal({
               Résumé (meta description)
             </span>
             <Input
+              className=" h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               value={draft.summary}
               onChange={(e) => onChange({ ...draft, summary: e.target.value })}
             />
@@ -1207,6 +1240,7 @@ function VersionEditorModal({
               Entrée en vigueur
             </span>
             <Input
+              className=" h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               type="date"
               value={draft.effectiveAt}
               onChange={(e) => onChange({ ...draft, effectiveAt: e.target.value })}
@@ -1218,6 +1252,7 @@ function VersionEditorModal({
               Journal des modifications
             </span>
             <Input
+              className=" h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               value={draft.changelog}
               onChange={(e) => onChange({ ...draft, changelog: e.target.value })}
               placeholder="Ex. : ajout de l'article 9 sur les paiements"
@@ -1244,7 +1279,7 @@ function VersionEditorModal({
                 value={draft.body}
                 onChange={(e) => onChange({ ...draft, body: e.target.value })}
                 rows={18}
-                className="tabular-nums text-[12px] leading-relaxed"
+                className="tabular-nums text-[12px]! leading-relaxed! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               />
             )}
           </div>
@@ -1322,14 +1357,18 @@ function NewDocumentModal({ pending, onClose, onCreate }: NewDocumentModalProps)
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
               placeholder="politique-remboursement"
-              className="tabular-nums"
+              className="tabular-nums h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
             />
           </label>
           <label className="space-y-1.5">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Titre
             </span>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+            <Input
+              className=" h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
           </label>
           <div className="space-y-1.5">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1361,7 +1400,11 @@ function NewDocumentModal({ pending, onClose, onCreate }: NewDocumentModalProps)
             <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Résumé
             </span>
-            <Input value={summary} onChange={(e) => setSummary(e.target.value)} />
+            <Input
+              className=" h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
+              value={summary}
+              onChange={(e) => setSummary(e.target.value)}
+            />
           </label>
           <label className="space-y-1.5 sm:col-span-2">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1371,7 +1414,7 @@ function NewDocumentModal({ pending, onClose, onCreate }: NewDocumentModalProps)
               value={body}
               onChange={(e) => setBody(e.target.value)}
               rows={10}
-              className="tabular-nums text-[12px]"
+              className="tabular-nums text-[12px]! h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
             />
           </label>
           <div

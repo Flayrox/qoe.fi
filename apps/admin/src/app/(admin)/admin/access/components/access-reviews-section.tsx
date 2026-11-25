@@ -25,6 +25,8 @@ import { triggerAccessReviewSnapshotAction } from '@/lib/admin-access-actions';
 import { useStaffAction } from '@/components/queue/useStaffAction';
 import { StatusPill } from '@/components/queue/StatusPill';
 import type { AccessReviewsData, AccessGrantRow } from '@/lib/admin-access-data';
+import { Button } from '@qoe/ui/button';
+import { Input } from '@qoe/ui/input';
 
 interface AccessReviewsSectionProps {
   data: AccessReviewsData;
@@ -83,16 +85,18 @@ export function AccessReviewsSection({ data, canGrant }: AccessReviewsSectionPro
         </div>
 
         {canGrant && (
-          <button
-            type="button"
+          <Button
+            variant="solid"
+            tone="brand"
+            size="sm"
             onClick={() => setIsSnapshotting(true)}
             disabled={loadingId === 'snapshot'}
-            className="text-xs font-bold px-3 py-2 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            className="items-center gap-1.5 rounded-xl px-3 py-2 text-xs! font-bold! leading-[16px]! h-auto! whitespace-normal! justify-normal "
             data-testid="access-snapshot-trigger"
           >
-            <Camera className="w-3.5 h-3.5" />
+            <Camera className="w-3.5! h-3.5!" />
             Sceller l’instantané ({currentPeriod})
-          </button>
+          </Button>
         )}
       </div>
 
@@ -107,29 +111,32 @@ export function AccessReviewsSection({ data, canGrant }: AccessReviewsSectionPro
             Un motif est requis pour consigner ce scellement dans le journal d’audit d’accès.
           </p>
           <div className="flex flex-col sm:flex-row gap-2">
-            <input
+            <Input
               type="text"
               value={snapshotReason}
               onChange={(e) => setSnapshotReason(e.target.value)}
               placeholder="Motif de la revue (ex. : Audit trimestriel Q4 2026)…"
-              className="text-xs px-3 py-2 rounded-xl border border-border bg-background outline-none flex-1"
+              className="text-xs! px-3 py-2 rounded-xl border border-border bg-background outline-none flex-1 leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
             />
             <div className="flex gap-2">
-              <button
-                type="button"
+              <Button
+                variant="solid"
+                tone="brand"
+                size="sm"
                 onClick={handleSnapshot}
                 disabled={loadingId === 'snapshot' || snapshotReason.trim().length < 5}
-                className="text-xs font-bold px-3 py-2 rounded-xl bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 cursor-pointer"
+                className="rounded-xl px-3 py-2 text-xs! font-bold! leading-[16px]! h-auto! whitespace-normal! justify-normal inline-block "
               >
                 Confirmer le scellement
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => setIsSnapshotting(false)}
-                className="text-xs px-3 py-2 rounded-xl border border-border hover:bg-muted cursor-pointer"
+                className="rounded-xl px-3 py-2 text-xs! leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               >
                 Annuler
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -219,18 +226,19 @@ export function AccessReviewsSection({ data, canGrant }: AccessReviewsSectionPro
       {/* Historique des revues archivées */}
       {history.length > 0 && (
         <div className="space-y-3">
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="xs"
             onClick={() => setShowHistory(!showHistory)}
-            className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+            className="items-center gap-2 p-0 text-xs! font-semibold! text-muted-foreground hover:bg-transparent hover:text-foreground leading-[16px]! h-auto! whitespace-normal! justify-normal "
           >
             {showHistory ? (
-              <ChevronUp className="w-3.5 h-3.5" />
+              <ChevronUp className="w-3.5! h-3.5!" />
             ) : (
-              <ChevronDown className="w-3.5 h-3.5" />
+              <ChevronDown className="w-3.5! h-3.5!" />
             )}
             <span>Historique des revues mensuelles scellées ({history.length})</span>
-          </button>
+          </Button>
 
           {showHistory && (
             <div className="rounded-lg border border-border divide-y divide-border overflow-hidden bg-card/30">

@@ -6,6 +6,9 @@ import { updateFeatureAction } from '@/lib/admin-feature-actions';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
 import { Select } from '@qoe/ui/select';
 import { UnavailableNotice } from '@/components/shell/UnavailableNotice';
+import { Button } from '@qoe/ui/button';
+import { Input } from '@qoe/ui/input';
+import { CheckboxInput } from '@qoe/ui/checkbox';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,7 +57,12 @@ export default async function AdminFeaturesPage() {
               action={updateFeatureAction}
               className="grid gap-3 rounded-lg border border-border/60 bg-card p-5 shadow-sm md:grid-cols-[1fr_1fr_1fr_auto] md:items-end"
             >
-              <input type="hidden" name="key" value={feature.key} />
+              <Input
+                className=" h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
+                type="hidden"
+                name="key"
+                value={feature.key}
+              />
               <div>
                 <p className="tabular-nums text-xs text-muted-foreground">{feature.key}</p>
                 <p className="mt-1 text-sm font-semibold">
@@ -79,43 +87,45 @@ export default async function AdminFeaturesPage() {
               <div className="space-y-2">
                 <label className="text-[11px] text-muted-foreground space-y-1 block">
                   Flag lié
-                  <input
+                  <Input
                     name="flagKey"
                     defaultValue={feature.flagKey ?? ''}
                     disabled={!canWrite}
                     placeholder="ex. reader-plus-banner"
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs"
+                    className="w-full! rounded-xl border border-border bg-background px-3 py-2 text-xs! leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                   />
                 </label>
                 <label className="text-[11px] text-muted-foreground space-y-1 block">
                   Page de destination
-                  <input
+                  <Input
                     name="href"
                     defaultValue={feature.href ?? ''}
                     disabled={!canWrite}
                     placeholder="/settings/domain"
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs"
+                    className="w-full! rounded-xl border border-border bg-background px-3 py-2 text-xs! leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                   />
                 </label>
               </div>
 
               <div className="flex flex-col gap-3">
                 <label className="flex items-center gap-2 text-xs">
-                  <input
-                    type="checkbox"
+                  <CheckboxInput
                     name="notifyEnabled"
                     defaultChecked={feature.notifyEnabled}
                     disabled={!canWrite}
                   />
                   Me prévenir ouvert
                 </label>
-                <button
+                <Button
                   type="submit"
+                  variant="solid"
+                  tone="brand"
+                  size="sm"
                   disabled={!canWrite}
-                  className="rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground disabled:opacity-40"
+                  className="rounded-xl px-3 py-2 text-xs! font-bold! leading-[16px]! h-auto! whitespace-normal! justify-normal inline-block "
                 >
                   Enregistrer
-                </button>
+                </Button>
               </div>
             </form>
           ))}

@@ -15,6 +15,8 @@ import type {
 } from '@/lib/admin-data';
 import { dismissLegalReviewAction, runLegalLifecycleAction } from '@/lib/admin-legal-actions';
 import { ExportForm } from './ExportForm';
+import { Button } from '@qoe/ui/button';
+import { Input } from '@qoe/ui/input';
 
 function formatDate(value?: string) {
   if (!value) return '—';
@@ -77,12 +79,14 @@ export function ComplianceLifecycle({
             Cycle de vie — revues et publications planifiées
           </h2>
           <form action={runLegalLifecycleAction} className="ml-auto">
-            <button
+            <Button
               type="submit"
-              className="rounded-xl border border-border px-3 py-1.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted"
+              variant="outline"
+              size="xs"
+              className="rounded-xl px-3 py-1.5 text-[11px]! font-semibold! text-foreground hover:bg-muted h-auto! leading-[inherit]! whitespace-normal! justify-normal inline-block "
             >
               Lancer le cycle maintenant
-            </button>
+            </Button>
           </form>
         </header>
 
@@ -144,19 +148,26 @@ export function ComplianceLifecycle({
                       Ouvrir l&apos;éditeur
                     </Link>
                     <form action={dismissLegalReviewAction} className="flex items-center gap-1.5">
-                      <input type="hidden" name="reviewId" value={review.id} />
-                      <input
+                      <Input
+                        className=" h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
+                        type="hidden"
+                        name="reviewId"
+                        value={review.id}
+                      />
+                      <Input
                         name="notes"
                         required
                         placeholder="Motif de clôture"
-                        className="w-[180px] rounded-lg border border-border bg-background px-2 py-1 text-[11px] text-foreground"
+                        className="w-[180px]! rounded-lg border border-border bg-background px-2 py-1 text-[11px]! text-foreground h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                       />
-                      <button
+                      <Button
                         type="submit"
-                        className="rounded-lg border border-border px-2 py-1 text-[11px] font-semibold text-muted-foreground hover:bg-muted"
+                        variant="outline"
+                        size="xs"
+                        className="rounded-lg px-2 py-1 text-[11px]! font-semibold! text-muted-foreground hover:bg-muted h-auto! leading-[inherit]! whitespace-normal! justify-normal inline-block "
                       >
                         Clore
-                      </button>
+                      </Button>
                     </form>
                   </div>
                 </div>

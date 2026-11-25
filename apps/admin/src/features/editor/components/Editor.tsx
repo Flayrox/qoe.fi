@@ -33,6 +33,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { toast } from '@qoe/ui/toast';
+import { Button } from '@qoe/ui/button';
+import { Input } from '@qoe/ui/input';
 import {
   ImageEditorDialog,
   type ImageEditorPreset,
@@ -328,12 +330,13 @@ export function Editor({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
         <div className="flex items-center gap-3">
           {onBack && (
-            <button
+            <Button
+              variant="outline"
               onClick={onBack}
-              className="h-9 w-9 rounded-lg flex items-center justify-center border border-border bg-muted/50 hover:bg-secondary hover:text-foreground text-muted-foreground transition-colors cursor-pointer"
+              className="h-9! w-9! rounded-lg flex items-center justify-center border border-border bg-muted/50 hover:bg-secondary hover:text-foreground text-muted-foreground transition-colors cursor-pointer [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! "
             >
-              <ArrowLeft className="h-4 w-4" />
-            </button>
+              <ArrowLeft className="h-4! w-4!" />
+            </Button>
           )}
           <div>
             <h2 className="text-lg font-bold tracking-tight text-foreground font-sans flex items-center gap-2">
@@ -356,75 +359,83 @@ export function Editor({
 
         <div className="flex items-center gap-2 flex-wrap">
           {/* Premium Toggle */}
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={togglePremium}
             className={cn(
-              'h-9 px-3 rounded-lg flex items-center gap-2 border border-border font-sans text-xs font-medium transition-colors cursor-pointer',
+              'h-9! px-3 rounded-lg flex items-center gap-2 border border-border font-sans text-xs! font-medium! transition-colors cursor-pointer [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! ',
               isPremium
                 ? 'bg-highlight/10 border-highlight/80 text-highlight hover:bg-highlight/20'
-                : 'bg-muted text-muted-foreground hover:bg-secondary'
+                : 'bg-muted text-muted-foreground hover:bg-secondary leading-[16px]! whitespace-normal! justify-normal py-0 '
             )}
             title="Premium content will be hidden behind a paywall"
           >
             {isPremium ? (
               <>
-                <Lock className="h-3.5 w-3.5" />
+                <Lock className="h-3.5! w-3.5!" />
                 Premium
               </>
             ) : (
               <>
-                <Unlock className="h-3.5 w-3.5" />
+                <Unlock className="h-3.5! w-3.5!" />
                 Free
               </>
             )}
-          </button>
+          </Button>
 
           <div className="w-[1px] h-6 bg-border mx-1"></div>
 
           {/* Published Toggle */}
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={togglePublished}
             className={cn(
-              'h-9 px-3 rounded-lg flex items-center gap-2 border border-border font-sans text-xs font-medium transition-colors cursor-pointer',
+              'h-9! px-3 rounded-lg flex items-center gap-2 border border-border font-sans text-xs! font-medium! transition-colors cursor-pointer [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! ',
               published
                 ? 'bg-success/10 border-success/80 text-success-text hover:bg-success/20'
-                : 'bg-muted text-muted-foreground hover:bg-secondary'
+                : 'bg-muted text-muted-foreground hover:bg-secondary leading-[16px]! whitespace-normal! justify-normal py-0 '
             )}
           >
             {published ? (
               <>
-                <Globe className="h-3.5 w-3.5" />
+                <Globe className="h-3.5! w-3.5!" />
                 Published
               </>
             ) : (
               <>
-                <Lock className="h-3.5 w-3.5" />
+                <Lock className="h-3.5! w-3.5!" />
                 Draft
               </>
             )}
-          </button>
+          </Button>
 
           {/* Send Email Newsletter */}
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handlePublishAndEmail}
-            className="h-9 px-3 rounded-lg flex items-center gap-2 border border-neural-blue/50 bg-neural-blue/10 text-neural-blue hover:bg-neural-blue/20 font-sans text-xs font-medium transition-colors cursor-pointer"
+            className="h-9! px-3 rounded-lg flex items-center gap-2 border border-neural-blue/50 bg-neural-blue/10 text-neural-blue hover:bg-neural-blue/20 font-sans text-xs! font-medium! transition-colors cursor-pointer leading-[16px]! whitespace-normal! justify-normal py-0 "
             title="Publish and email to subscribers"
           >
-            <Send className="h-3.5 w-3.5" />
+            <Send className="h-3.5! w-3.5!" />
             <span className="hidden sm:inline">Dispatch</span>
-          </button>
+          </Button>
 
           {/* Save Button */}
-          <button
+          <Button
+            variant="solid"
+            size="sm"
             onClick={handleManualSave}
             disabled={isSaving || isAutoSaving}
-            className="h-9 px-4 bg-foreground text-background font-sans text-xs font-semibold rounded-lg flex items-center gap-2 hover:bg-foreground/80 transition-all disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+            className="h-9! px-4 bg-foreground text-background font-sans text-xs! font-semibold! rounded-lg flex items-center gap-2 hover:bg-foreground/80 transition-all disabled:opacity-50 disabled:pointer-events-none cursor-pointer leading-[16px]! whitespace-normal! justify-normal py-0 "
           >
-            <Save className="h-3.5 w-3.5" />
+            <Save className="h-3.5! w-3.5!" />
             <span className="hidden sm:inline">
               {isSaving || isAutoSaving ? 'Saving...' : 'Save Changes'}
             </span>
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -442,12 +453,12 @@ export function Editor({
             <label className="text-xs uppercase tracking-wider text-muted-foreground font-sans font-semibold">
               Article Title
             </label>
-            <input
+            <Input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="The sovereign manifestation of independent media..."
-              className="w-full bg-muted/30 border border-border rounded-lg p-3 text-lg font-bold font-sans text-foreground focus:outline-none focus:border-foreground placeholder:text-muted-foreground transition-colors"
+              className="w-full! bg-muted/30 border border-border rounded-lg p-3 text-lg! font-bold! font-sans text-foreground focus:outline-none focus:border-foreground placeholder:text-muted-foreground transition-colors leading-[28px]! h-auto! whitespace-normal! justify-normal inline-block "
             />
           </div>
 
@@ -455,12 +466,12 @@ export function Editor({
             <label className="text-xs uppercase tracking-wider text-muted-foreground font-sans font-semibold">
               Slug Identifier
             </label>
-            <input
+            <Input
               type="text"
               value={slug}
               onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-'))}
               placeholder="e.g. sovereign-manifesto"
-              className="w-full bg-muted/10 border border-border rounded-lg p-3 text-sm tabular-nums text-muted-foreground focus:outline-none focus:border-foreground focus:text-foreground transition-colors"
+              className="w-full! bg-muted/10 border border-border rounded-lg p-3 text-sm! tabular-nums text-muted-foreground focus:outline-none focus:border-foreground focus:text-foreground transition-colors leading-[20px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
             />
           </div>
         </div>
@@ -560,12 +571,12 @@ export function Editor({
             <div className="h-5 w-[1px] bg-border mx-1" />
 
             {/* Media */}
-            <input
+            <Input
               type="file"
               ref={fileInputRef}
               onChange={handleFileSelect}
               accept="image/*"
-              className="hidden"
+              className="hidden h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal "
             />
             <ToolbarButton
               onClick={() => fileInputRef.current?.click()}
@@ -627,20 +638,22 @@ interface ToolbarButtonProps {
 
 function ToolbarButton({ active, onClick, icon, tooltip, disabled }: ToolbarButtonProps) {
   return (
-    <button
+    <Button
+      variant="ghost"
+      size="sm"
       type="button"
       onClick={onClick}
       title={tooltip}
       disabled={disabled}
       className={cn(
-        'h-8 w-8 flex items-center justify-center rounded-md transition-colors font-sans text-sm cursor-pointer',
+        'hover:bg-transparent h-8! w-8! flex items-center justify-center rounded-md transition-colors font-sans text-sm! cursor-pointer [font-size:inherit]! leading-[inherit]! whitespace-normal! ',
         active
           ? 'bg-foreground text-background font-medium'
           : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60',
-        disabled && 'opacity-50 cursor-not-allowed'
+        disabled && 'opacity-50 cursor-not-allowed leading-[20px]! whitespace-normal! '
       )}
     >
       {icon}
-    </button>
+    </Button>
   );
 }

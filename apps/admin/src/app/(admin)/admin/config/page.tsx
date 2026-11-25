@@ -21,6 +21,7 @@ import { RegistrationsControl } from './components/RegistrationsControl';
 import { FeedbackForm, type FormActionResult } from '@/components/shell/feedback-form';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 import { formatReservedIdentifiers, splitReservedIdentifiers } from '@/lib/reserved-identifiers';
+import { Input, Textarea } from '@qoe/ui/input';
 
 function parseDisabledEndpoints(raw?: string): string[] {
   if (!raw) return [];
@@ -187,38 +188,43 @@ export default async function AdminConfig() {
         >
           <div className="flex-1 w-full space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Key</label>
-            <input
+            <Input
               type="text"
               name="key"
               placeholder="ALLOW_NEW_REGISTRATIONS"
-              className="w-full bg-transparent border-none px-0 py-1.5 text-base font-medium text-foreground placeholder:text-muted-foreground focus:ring-0 shadow-none"
+              className="w-full! bg-transparent border-none py-1.5 text-base! font-medium! text-foreground placeholder:text-muted-foreground focus:ring-0 shadow-none leading-[24px]! h-auto! whitespace-normal! justify-normal inline-block px-0 "
               required
             />
           </div>
 
           <div className="flex-1 w-full space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Value</label>
-            <input
+            <Input
               type="text"
               name="value"
               placeholder="true"
-              className="w-full bg-transparent border-none px-0 py-1.5 text-base font-medium text-foreground placeholder:text-muted-foreground focus:ring-0 shadow-none"
+              className="w-full! bg-transparent border-none py-1.5 text-base! font-medium! text-foreground placeholder:text-muted-foreground focus:ring-0 shadow-none leading-[24px]! h-auto! whitespace-normal! justify-normal inline-block px-0 "
               required
             />
           </div>
 
           <div className="flex-1 w-full space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Description</label>
-            <input
+            <Input
               type="text"
               name="description"
               placeholder="Context..."
-              className="w-full bg-transparent border-none px-0 py-1.5 text-base font-medium text-foreground placeholder:text-muted-foreground focus:ring-0 shadow-none"
+              className="w-full! bg-transparent border-none py-1.5 text-base! font-medium! text-foreground placeholder:text-muted-foreground focus:ring-0 shadow-none leading-[24px]! h-auto! whitespace-normal! justify-normal inline-block px-0 "
             />
           </div>
 
           <div className="shrink-0 mb-1">
-            <Button type="submit" size="sm" variant="outline" className="text-sm font-medium">
+            <Button
+              type="submit"
+              size="sm"
+              variant="outline"
+              className="text-sm! font-medium! leading-[20px]! h-auto! whitespace-normal! justify-normal inline-block "
+            >
               Add
             </Button>
           </div>
@@ -248,14 +254,19 @@ export default async function AdminConfig() {
               successMessage="Identifiants protégés enregistrés"
               className="space-y-3"
             >
-              <input type="hidden" name="kind" value={kind} />
+              <Input
+                className=" h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
+                type="hidden"
+                name="kind"
+                value={kind}
+              />
               <label className="block space-y-1.5">
                 <span className="text-sm font-medium">{label}</span>
-                <textarea
+                <Textarea
                   name="values"
                   defaultValue={formatReservedIdentifiers(values)}
                   rows={8}
-                  className="w-full rounded-lg border border-border bg-transparent px-3 py-2 tabular-nums text-sm"
+                  className="w-full! rounded-lg border border-border bg-transparent px-3 py-2 tabular-nums text-sm! leading-[20px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                   aria-label={`${label} protégés`}
                 />
               </label>
@@ -292,23 +303,28 @@ export default async function AdminConfig() {
                     action={handleUpdateConfig}
                     successMessage={`${c.key} enregistrée`}
                   >
-                    <input type="hidden" name="key" value={c.key} />
-                    <textarea
+                    <Input
+                      className=" h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
+                      type="hidden"
+                      name="key"
+                      value={c.key}
+                    />
+                    <Textarea
                       name="value"
                       defaultValue={c.value}
                       rows={c.value.length > 80 || c.value.includes('\n') ? 3 : 1}
-                      className="w-full bg-transparent border border-border/50 px-2 py-1 text-xs text-foreground focus:ring-1 focus:ring-ring resize-y shadow-none tabular-nums rounded outline-none"
+                      className="w-full! bg-transparent border border-border/50 px-2 py-1 text-xs! text-foreground focus:ring-1 focus:ring-ring resize-y shadow-none tabular-nums rounded outline-none leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                     />
                   </FeedbackForm>
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    <input
+                    <Input
                       type="text"
                       form={`form-val-${c.key}`}
                       name="description"
                       defaultValue={c.description || ''}
-                      className="w-full bg-transparent border border-border/50 px-2 py-1 text-xs text-foreground focus:ring-1 focus:ring-ring shadow-none rounded outline-none"
+                      className="w-full! bg-transparent border border-border/50 px-2 py-1 text-xs! text-foreground focus:ring-1 focus:ring-ring shadow-none rounded outline-none leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                       placeholder="Add a description..."
                     />
                     <Button
@@ -316,7 +332,7 @@ export default async function AdminConfig() {
                       form={`form-val-${c.key}`}
                       variant="outline"
                       size="xs"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                     >
                       Save
                     </Button>
@@ -329,7 +345,12 @@ export default async function AdminConfig() {
                     refreshOnSuccess
                     className="inline-block opacity-0 group-hover:opacity-100 transition-opacity"
                   >
-                    <input type="hidden" name="key" value={c.key} />
+                    <Input
+                      className=" h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
+                      type="hidden"
+                      name="key"
+                      value={c.key}
+                    />
                     <Button type="submit" variant="ghost" tone="danger" size="xs">
                       Delete
                     </Button>

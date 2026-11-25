@@ -360,7 +360,12 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
             })}
           >
             <Upload className="w-3.5 h-3.5" /> Import
-            <input type="file" accept=".csv,.json" onChange={handleFileUpload} className="hidden" />
+            <Input
+              type="file"
+              accept=".csv,.json"
+              onChange={handleFileUpload}
+              className="hidden h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal "
+            />
           </label>
 
           {overriddenCount > 0 && (
@@ -405,6 +410,7 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
         <div className="flex-1 w-full">
           <InputGroup size="sm" left={<Search />}>
             <Input
+              className=" h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               type="text"
               placeholder="Rechercher par clé ou texte..."
               value={searchTerm}
@@ -434,27 +440,28 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
         </div>
 
         {/* Untranslated Filter Toggle */}
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="xs"
           onClick={() => setShowUntranslatedOnly((v) => !v)}
-          className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${
+          className={`items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px]! font-bold! hover:bg-transparent ${
             showUntranslatedOnly
               ? 'bg-highlight text-highlight-foreground border-highlight'
               : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
-          }`}
+          } h-auto! leading-[inherit]! whitespace-normal! justify-normal `}
         >
-          <AlertCircle className="w-3.5 h-3.5" />
+          <AlertCircle className="w-3.5! h-3.5!" />
           Non traduites ({untranslatedKeys.length})
           {showUntranslatedOnly && (
             <X
-              className="w-3.5 h-3.5 ml-0.5"
+              className="w-3.5! h-3.5! ml-0.5"
               onClick={(e) => {
                 e.stopPropagation();
                 setShowUntranslatedOnly(false);
               }}
             />
           )}
-        </button>
+        </Button>
       </div>
 
       {/* Save Notification */}
@@ -484,13 +491,14 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
             absente ou copiée du français). Saisissez une traduction dans la colonne 🇬🇧, puis
             enregistrez.
           </span>
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="xs"
             onClick={() => setShowUntranslatedOnly(true)}
-            className="ml-auto text-[10px] font-bold underline underline-offset-2 hover:opacity-80 cursor-pointer"
+            className="ml-auto p-0 text-[10px]! font-bold! underline underline-offset-2 hover:bg-transparent hover:opacity-80 h-auto! leading-[inherit]! whitespace-normal! justify-normal inline-block "
           >
             Voir
-          </button>
+          </Button>
         </div>
       )}
 
@@ -565,16 +573,16 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
                     >
                       Défaut: {defaultFrVal}
                     </span>
-                    <input
+                    <Input
                       type="text"
                       value={overrides.fr?.[key] ?? ''}
                       placeholder={defaultFrVal}
                       onChange={(e) => handleOverrideChange('fr', key, e.target.value)}
-                      className={`w-full bg-muted/30 border rounded-lg px-2 py-1 text-[11px] focus:ring-1 focus:ring-primary focus:border-primary focus:bg-card outline-none transition-colors ${
+                      className={`w-full! bg-muted/30 border rounded-lg px-2 py-1 text-[11px]! focus:ring-1 focus:ring-primary focus:border-primary focus:bg-card outline-none transition-colors ${
                         isOverriddenFr
                           ? 'border-primary/40 bg-destructive/10 font-medium'
                           : 'border-border'
-                      }`}
+                      } h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block `}
                     />
                   </div>
 
@@ -590,32 +598,34 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
                     >
                       Default: {defaultEnVal || '—'}
                     </span>
-                    <input
+                    <Input
                       type="text"
                       value={overrides.en?.[key] ?? ''}
                       placeholder={defaultEnVal || (defaultFrVal ? 'Traduire en anglais…' : '')}
                       onChange={(e) => handleOverrideChange('en', key, e.target.value)}
-                      className={`w-full bg-muted/30 border rounded-lg px-2 py-1 text-[11px] focus:ring-1 focus:ring-primary focus:border-primary focus:bg-card outline-none transition-colors ${
+                      className={`w-full! bg-muted/30 border rounded-lg px-2 py-1 text-[11px]! focus:ring-1 focus:ring-primary focus:border-primary focus:bg-card outline-none transition-colors ${
                         isOverriddenEn
                           ? 'border-primary/40 bg-destructive/10 font-medium'
                           : isUntranslated
                             ? 'border-highlight/50 bg-highlight/10 placeholder:text-highlight/60'
                             : 'border-border'
-                      }`}
+                      } h-auto! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block `}
                     />
                   </div>
 
                   {/* Clear Button */}
                   <div className="col-span-1 flex justify-center">
                     {isAnyOverridden ? (
-                      <button
-                        type="button"
+                      <Button
+                        variant="ghost"
+                        shape="icon"
+                        size="xs"
                         onClick={() => handleClearKey(key)}
                         title="Réinitialiser"
-                        className="p-1 rounded-md text-muted-foreground hover:text-destructive-text hover:bg-destructive/10 transition-all cursor-pointer"
+                        className="rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive-text h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                        <Trash2 className="w-3.5! h-3.5!" />
+                      </Button>
                     ) : (
                       <span className="w-1.5 h-1.5 rounded-full bg-border" />
                     )}
@@ -636,13 +646,14 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
               {diff.length} clé(s) modifiée(s)
             </span>
           </div>
-          <button
-            type="button"
+          <Button
+            variant="solid"
+            tone="brand"
             onClick={() => setShowModal(true)}
-            className="inline-flex items-center gap-1.5 text-xs bg-primary text-primary-foreground font-bold px-4 py-2.5 rounded-xl hover:opacity-95 transition-all cursor-pointer shadow-sm"
+            className="items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs! font-bold! shadow-sm leading-[16px]! h-auto! whitespace-normal! justify-normal "
           >
-            <Save className="w-4 h-4" /> Enregistrer
-          </button>
+            <Save className="w-4! h-4!" /> Enregistrer
+          </Button>
         </div>
       )}
 

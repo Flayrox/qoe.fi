@@ -231,19 +231,23 @@ export function WidgetsCMS({
           const isActive = activeTab === tab.id;
 
           return (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               key={tab.id}
               onClick={() => setActiveTab(tab.id as 'featured' | 'trends' | 'promos')}
               className={cn(
-                'relative pb-3 flex items-center gap-2 text-sm font-semibold transition-colors outline-none cursor-pointer',
-                isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                'hover:bg-transparent relative pb-3 flex items-center gap-2 text-sm! font-semibold! transition-colors outline-none cursor-pointer h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! ',
+                isActive
+                  ? 'text-primary'
+                  : 'text-muted-foreground hover:text-foreground leading-[20px]! h-auto! whitespace-normal! justify-normal px-0 '
               )}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="w-4! h-4!" />
               {tab.label}
 
               {isActive && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
-            </button>
+            </Button>
           );
         })}
       </div>
@@ -265,6 +269,7 @@ export function WidgetsCMS({
               <div className="max-w-sm w-full">
                 <InputGroup size="sm" left={<Search className="w-4 h-4 text-muted-foreground" />}>
                   <Input
+                    className=" h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                     type="text"
                     placeholder="Rechercher un article ou un auteur..."
                     value={searchQuery}
@@ -341,6 +346,7 @@ export function WidgetsCMS({
                     Hashtag
                   </label>
                   <Input
+                    className=" h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                     type="text"
                     value={newHashtag}
                     onChange={(e) => setNewHashtag(e.target.value)}
@@ -355,6 +361,7 @@ export function WidgetsCMS({
                     Volume (lectures)
                   </label>
                   <Input
+                    className=" h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                     type="number"
                     value={newCount}
                     onChange={(e) => setNewCount(parseInt(e.target.value) || 0)}
@@ -397,7 +404,7 @@ export function WidgetsCMS({
                               defaultValue={t.count}
                               onBlur={(e) => handleUpdateTrend(t.id, parseInt(e.target.value) || 0)}
                               size="xs"
-                              className="w-24 tabular-nums"
+                              className="w-24! tabular-nums h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                             />
                             <span className="text-[10px] text-muted-foreground">
                               (Sortir du champ pour enregistrer)
@@ -411,9 +418,9 @@ export function WidgetsCMS({
                             shape="icon"
                             onClick={() => handleDeleteTrend(t.id)}
                             aria-label="Supprimer"
-                            className="hover:text-destructive-text"
+                            className="hover:text-destructive-text h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-4! h-4!" />
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -438,6 +445,7 @@ export function WidgetsCMS({
                       Titre du widget
                     </label>
                     <Input
+                      className=" h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                       type="text"
                       value={promoTitle}
                       onChange={(e) => setPromoTitle(e.target.value)}
@@ -452,6 +460,7 @@ export function WidgetsCMS({
                       Texte du bouton (CTA)
                     </label>
                     <Input
+                      className=" h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                       type="text"
                       value={promoCtaText}
                       onChange={(e) => setPromoCtaText(e.target.value)}
@@ -471,7 +480,7 @@ export function WidgetsCMS({
                     placeholder="Soutenez le journalisme libre et sans bruit..."
                     rows={3}
                     size="sm"
-                    className="resize-none"
+                    className="resize-none h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                     required
                   />
                 </div>
@@ -482,6 +491,7 @@ export function WidgetsCMS({
                       Lien de destination (CTA URL)
                     </label>
                     <Input
+                      className=" h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                       type="text"
                       value={promoCtaUrl}
                       onChange={(e) => setPromoCtaUrl(e.target.value)}
@@ -512,7 +522,7 @@ export function WidgetsCMS({
                     variant="solid"
                     tone="brand"
                     size="md"
-                    className="w-full md:w-auto"
+                    className="w-full! md:w-auto h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                   >
                     Créer le widget publicitaire
                   </Button>
@@ -559,9 +569,9 @@ export function WidgetsCMS({
                                 shape="icon"
                                 onClick={() => handleDeletePromo(p.id)}
                                 aria-label="Supprimer"
-                                className="hover:text-destructive-text"
+                                className="hover:text-destructive-text h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 className="w-4! h-4!" />
                               </Button>
                             </div>
                           </div>

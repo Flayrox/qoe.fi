@@ -15,6 +15,7 @@ import { saveApiAccessModulesAction } from '@/lib/admin-aux-actions';
 import { attemptWithStepUp, readMessage } from '@/lib/authz-feedback';
 import { cn } from '@qoe/utils';
 import { ArrowDownLeft, ArrowUpRight, KeyRound } from 'lucide-react';
+import { Button } from '@qoe/ui/button';
 
 export interface ApiAccessModule {
   key: string;
@@ -66,14 +67,15 @@ export function ApiAccessModulesToggles({ initialModules }: { initialModules: Ap
             les intégrations existantes.
           </p>
         </div>
-        <button
-          type="button"
+        <Button
+          variant="soft"
+          size="sm"
           onClick={handleSave}
-          disabled={saving}
-          className="rounded-lg bg-secondary px-3 py-1.5 text-sm font-medium hover:bg-border disabled:opacity-50"
+          loading={saving}
+          className="rounded-lg bg-secondary px-3 py-1.5 text-sm! font-medium! hover:bg-border leading-[20px]! h-auto! whitespace-normal! justify-normal inline-block "
         >
           {saving ? 'Sauvegarde…' : 'Enregistrer'}
-        </button>
+        </Button>
       </div>
 
       <div className="space-y-5">
@@ -89,9 +91,10 @@ export function ApiAccessModulesToggles({ initialModules }: { initialModules: Ap
                 .map((m) => {
                   const enabled = m.enabled;
                   return (
-                    <button
+                    <Button
                       key={m.key}
-                      type="button"
+                      variant={enabled ? 'solid' : 'outline'}
+                      size="xs"
                       aria-pressed={enabled}
                       onClick={() => {
                         setModules((prev) =>
@@ -100,10 +103,10 @@ export function ApiAccessModulesToggles({ initialModules }: { initialModules: Ap
                         setMessage(null);
                       }}
                       className={cn(
-                        'flex flex-col items-start gap-1 rounded-xl border p-4 text-left transition-colors cursor-pointer',
+                        'flex flex-col items-start gap-1 rounded-xl border p-4 text-left transition-colors cursor-pointer h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! ',
                         enabled
                           ? 'border-primary/40 bg-primary/5'
-                          : 'border-border bg-transparent opacity-60 hover:opacity-100'
+                          : 'border-border bg-transparent opacity-60 hover:opacity-100 h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal '
                       )}
                     >
                       <span className="flex w-full items-center justify-between gap-2">
@@ -122,7 +125,7 @@ export function ApiAccessModulesToggles({ initialModules }: { initialModules: Ap
                       <span className="text-xs text-muted-foreground leading-snug">
                         {m.description}
                       </span>
-                    </button>
+                    </Button>
                   );
                 })}
             </div>

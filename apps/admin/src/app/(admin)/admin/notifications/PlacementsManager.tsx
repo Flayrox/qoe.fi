@@ -12,6 +12,9 @@ import { Sparkles, Layers, Plus, Trash2, Eye, EyeOff, Target } from 'lucide-reac
 import { toast } from '@qoe/ui/toast';
 import { Select } from '@qoe/ui/select';
 import { ConfirmDialog, type ConfirmAction } from '@qoe/ui/confirm-dialog';
+import { Button } from '@qoe/ui/button';
+import { Input, Textarea } from '@qoe/ui/input';
+import { CheckboxInput } from '@qoe/ui/checkbox';
 import {
   createPlacementAdminAction,
   updatePlacementAdminAction,
@@ -162,14 +165,16 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
           </div>
         </div>
 
-        <button
-          type="button"
+        <Button
+          variant="solid"
+          tone="brand"
+          size="sm"
           onClick={() => setIsCreating((v) => !v)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-primary text-primary-foreground hover:opacity-90 transition-all cursor-pointer shadow-xs"
+          className="items-center gap-2 rounded-xl px-4 py-2 text-xs! font-bold! shadow-xs leading-[16px]! h-auto! whitespace-normal! justify-normal "
         >
-          <Plus className="w-3.5 h-3.5" />
+          <Plus className="w-3.5! h-3.5!" />
           {isCreating ? 'Fermer le formulaire' : 'Nouveau placement'}
-        </button>
+        </Button>
       </div>
 
       {feedback && (
@@ -210,12 +215,12 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
                 <label className="block text-xs font-semibold text-foreground mb-1">
                   Nom du slot personnalisé
                 </label>
-                <input
+                <Input
                   type="text"
                   value={customSlot}
                   onChange={(e) => setCustomSlot(e.target.value)}
                   placeholder="ex: reader.modal.welcome"
-                  className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs"
+                  className="w-full! rounded-xl border border-border bg-card px-3 py-2 text-xs! leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                 />
               </div>
             )}
@@ -283,11 +288,11 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
               <label className="block text-xs font-semibold text-foreground mb-1">
                 Priorité (résolution de conflit)
               </label>
-              <input
+              <Input
                 type="number"
                 value={priority}
                 onChange={(e) => setPriority(Number(e.target.value))}
-                className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs"
+                className="w-full! rounded-xl border border-border bg-card px-3 py-2 text-xs! leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               />
             </div>
           </div>
@@ -295,11 +300,11 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-foreground mb-1">Titre</label>
-              <input
+              <Input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs"
+                className="w-full! rounded-xl border border-border bg-card px-3 py-2 text-xs! leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               />
             </div>
 
@@ -307,11 +312,11 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
               <label className="block text-xs font-semibold text-foreground mb-1">
                 Corps du message
               </label>
-              <textarea
+              <Textarea
                 rows={2}
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
-                className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs"
+                className="w-full! rounded-xl border border-border bg-card px-3 py-2 text-xs! leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               />
             </div>
 
@@ -319,11 +324,11 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
               <label className="block text-xs font-semibold text-foreground mb-1">
                 Texte du bouton CTA
               </label>
-              <input
+              <Input
                 type="text"
                 value={ctaLabel}
                 onChange={(e) => setCtaLabel(e.target.value)}
-                className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs"
+                className="w-full! rounded-xl border border-border bg-card px-3 py-2 text-xs! leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               />
             </div>
 
@@ -331,34 +336,35 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
               <label className="block text-xs font-semibold text-foreground mb-1">
                 Lien cible du CTA
               </label>
-              <input
+              <Input
                 type="text"
                 value={ctaUrl}
                 onChange={(e) => setCtaUrl(e.target.value)}
-                className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs"
+                className="w-full! rounded-xl border border-border bg-card px-3 py-2 text-xs! leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               />
             </div>
           </div>
 
           <div className="flex items-center justify-between pt-2">
             <label className="flex items-center gap-2 text-xs font-medium text-foreground cursor-pointer">
-              <input
-                type="checkbox"
+              <CheckboxInput
                 checked={dismissible}
                 onChange={(e) => setDismissible(e.target.checked)}
-                className="rounded border-border text-primary focus:ring-0"
+                className="rounded border-border text-primary focus:ring-0 h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               />
               Fermable par l'utilisateur (mémorisé en base sur le compte)
             </label>
 
-            <button
-              type="button"
+            <Button
+              variant="solid"
+              tone="brand"
+              size="sm"
               onClick={handleCreate}
-              disabled={isPending}
-              className="px-5 py-2 rounded-xl text-xs font-bold bg-primary text-primary-foreground hover:opacity-90 shadow-md cursor-pointer disabled:opacity-50"
+              loading={isPending}
+              className="rounded-xl px-5 py-2 text-xs! font-bold! shadow-md leading-[16px]! h-auto! whitespace-normal! justify-normal inline-block "
             >
               {isPending ? 'Déploiement...' : 'Déployer sur la plateforme'}
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -406,36 +412,38 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    size="xs"
                     onClick={() => handleToggleActive(p.id!, p.isActive)}
                     disabled={isPending}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                    className={`items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs! font-medium! hover:bg-transparent ${
                       p.isActive
                         ? 'bg-success/10 text-success-text border border-success/30 hover:bg-success/20'
                         : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                    }`}
+                    } leading-[16px]! h-auto! whitespace-normal! justify-normal `}
                   >
                     {p.isActive ? (
                       <>
-                        <Eye className="w-3 h-3" /> Actif
+                        <Eye className="w-3! h-3!" /> Actif
                       </>
                     ) : (
                       <>
-                        <EyeOff className="w-3 h-3" /> En pause
+                        <EyeOff className="w-3! h-3!" /> En pause
                       </>
                     )}
-                  </button>
+                  </Button>
 
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    shape="icon"
                     onClick={() => handleDelete(p.id!)}
                     disabled={isPending}
-                    className="p-1.5 rounded-lg text-muted-foreground/60 hover:text-destructive-text hover:bg-destructive/10 transition-colors cursor-pointer"
+                    className="rounded-lg p-1.5 text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive-text h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                     aria-label="Supprimer"
                   >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                    <Trash2 className="w-4! h-4!" />
+                  </Button>
                 </div>
               </div>
             ))}

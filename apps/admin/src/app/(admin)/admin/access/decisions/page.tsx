@@ -23,6 +23,7 @@ import { denialGroups, getAuthzDecisions, modeSplit } from '@/lib/admin-audit-da
 import { parseOnlyDenied } from '@/lib/admin-decisions-filter';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
 import { QueueEmpty } from '@/components/queue/QueueEmpty';
+import { CheckboxInput } from '@qoe/ui/checkbox';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,7 +89,7 @@ export default async function AdminAccessDecisionsPage({ searchParams }: Decisio
             defaultValue={params.capability ?? ''}
             placeholder="admin.users.moderate"
             size="sm"
-            className="w-64"
+            className="w-64! h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
           />
         </label>
         <label className="text-[11px] text-muted-foreground space-y-1 block">
@@ -99,18 +100,17 @@ export default async function AdminAccessDecisionsPage({ searchParams }: Decisio
             min={1}
             defaultValue={windowHours}
             size="sm"
-            className="w-28"
+            className="w-28! h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
           />
         </label>
         <label className="flex items-center gap-2 text-[11px] text-muted-foreground mb-1 cursor-pointer">
           {/* Une case ne s'envoie que cochée : c'est donc l'état « tout
               afficher » qu'elle transporte. */}
-          <input
-            type="checkbox"
+          <CheckboxInput
             name="denied"
             value="all"
             defaultChecked={!onlyDenied}
-            className="rounded border-border"
+            className="rounded border-border h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
           />
           Toutes les décisions (accords compris)
         </label>{' '}

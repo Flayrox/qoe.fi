@@ -15,7 +15,7 @@
 import React, { useState } from 'react';
 import { Select } from '@qoe/ui/select';
 import { useRouter } from 'next/navigation';
-import { Loader2, Megaphone, Plus } from 'lucide-react';
+import { Megaphone, Plus } from 'lucide-react';
 import {
   CAMPAIGN_AUDIENCES,
   CAMPAIGN_TRANSITIONS,
@@ -26,6 +26,8 @@ import { campaignTransitionAction, createCampaignAction } from '@/lib/admin-infr
 import { QueueEmpty } from '@/components/queue/QueueEmpty';
 import { StatusPill } from '@/components/queue/StatusPill';
 import { useStaffAction } from '@/components/queue/useStaffAction';
+import { Button } from '@qoe/ui/button';
+import { Input, Textarea } from '@qoe/ui/input';
 
 const inputCls =
   'w-full text-xs px-3 py-2 rounded-xl border border-border bg-background outline-none';
@@ -109,15 +111,17 @@ export function CampaignManager({ initialCampaigns, canWrite }: CampaignManagerP
             ne part qu’après approbation explicite.
           </p>
         </div>
-        <button
-          type="button"
+        <Button
+          variant="solid"
+          tone="brand"
+          size="sm"
           disabled={!canWrite}
           onClick={() => setShowNew((open) => !open)}
           data-testid="campaign-toggle-new"
-          className="text-xs font-bold px-4 py-2 rounded-xl bg-primary text-primary-foreground cursor-pointer flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="items-center gap-1.5 rounded-xl px-4 py-2 text-xs! font-bold! leading-[16px]! h-auto! whitespace-normal! justify-normal "
         >
-          <Plus className="w-3 h-3" /> {showNew ? 'Fermer' : 'Nouvelle campagne'}
-        </button>
+          <Plus className="w-3! h-3!" /> {showNew ? 'Fermer' : 'Nouvelle campagne'}
+        </Button>
       </div>
 
       {!canWrite && (
@@ -163,7 +167,7 @@ export function CampaignManager({ initialCampaigns, canWrite }: CampaignManagerP
             </label>
           </div>
           {type === 'feature.launch' && (
-            <input
+            <Input
               value={featureKey}
               onChange={(e) => setFeatureKey(e.target.value)}
               placeholder="Clé de fonctionnalité (ex. custom-domain)"
@@ -172,7 +176,7 @@ export function CampaignManager({ initialCampaigns, canWrite }: CampaignManagerP
             />
           )}
           {audienceType === 'publisher_subscribers' && (
-            <input
+            <Input
               value={audiencePublisherId}
               onChange={(e) => setAudiencePublisherId(e.target.value)}
               placeholder="Identifiant de la publication (obligatoire pour cette audience)"
@@ -180,14 +184,14 @@ export function CampaignManager({ initialCampaigns, canWrite }: CampaignManagerP
               data-testid="campaign-audience-publication"
             />
           )}
-          <input
+          <Input
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
             placeholder="Objet de l’email"
             className={inputCls}
             data-testid="campaign-subject"
           />
-          <textarea
+          <Textarea
             value={bodyHtml}
             onChange={(e) => setBodyHtml(e.target.value)}
             placeholder="Corps (HTML) — le serveur refuse une catégorie sans contenu valide"
@@ -197,7 +201,7 @@ export function CampaignManager({ initialCampaigns, canWrite }: CampaignManagerP
           />
           <label className="text-[11px] text-muted-foreground space-y-1 block">
             Envoi programmé (vide = dès l’approbation)
-            <input
+            <Input
               type="datetime-local"
               value={scheduledAt}
               onChange={(e) => setScheduledAt(e.target.value)}
@@ -205,16 +209,19 @@ export function CampaignManager({ initialCampaigns, canWrite }: CampaignManagerP
               data-testid="campaign-scheduled"
             />
           </label>
-          <button
-            type="button"
+          <Button
+            variant="solid"
+            tone="brand"
+            size="sm"
             onClick={create}
-            disabled={running || subject.trim() === '' || bodyHtml.trim() === ''}
+            loading={running}
+            disabled={subject.trim() === '' || bodyHtml.trim() === ''}
             data-testid="campaign-create"
-            className="text-xs font-bold px-4 py-2 rounded-xl bg-primary text-primary-foreground cursor-pointer flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="items-center gap-1.5 rounded-xl px-4 py-2 text-xs! font-bold! leading-[16px]! h-auto! whitespace-normal! justify-normal "
           >
-            {running ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+            {!running && <Plus className="w-3! h-3!" />}
             Créer le brouillon
-          </button>
+          </Button>
         </section>
       )}
 
@@ -260,16 +267,17 @@ export function CampaignManager({ initialCampaigns, canWrite }: CampaignManagerP
               {canWrite && allowedTransitions(campaign.status).length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {allowedTransitions(campaign.status).map((step) => (
-                    <button
+                    <Button
                       key={step.action}
-                      type="button"
+                      variant="outline"
+                      size="xs"
                       disabled={running}
                       onClick={() => transition(campaign, step.action)}
                       data-testid={`campaign-${step.action}-${campaign.id}`}
-                      className="text-[11px] font-bold px-3 py-1.5 rounded-lg border border-border cursor-pointer disabled:opacity-40"
+                      className="rounded-lg px-3 py-1.5 text-[11px]! font-bold! h-auto! leading-[inherit]! whitespace-normal! justify-normal inline-block "
                     >
                       {step.label}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               )}

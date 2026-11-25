@@ -11,6 +11,7 @@ import { useState, useTransition } from 'react';
 import { toggleFeatureFlagAction } from '@/lib/admin-aux-actions';
 import type { FeatureFlagItem } from '@/lib/admin-data';
 import { cn } from '@qoe/utils';
+import { Button } from '@qoe/ui/button';
 
 type FlagCategory = 'all' | 'monetization' | 'reader' | 'safety';
 
@@ -141,19 +142,20 @@ export function FeatureFlagsToggles({ initialFlags }: { initialFlags: FeatureFla
               ['safety', 'Sécurité'],
             ] as const
           ).map(([cat, label]) => (
-            <button
+            <Button
               key={cat}
-              type="button"
+              variant="ghost"
+              size="xs"
               onClick={() => setActiveCategory(cat)}
               className={cn(
-                'px-2.5 py-1 rounded-md transition-colors cursor-pointer',
+                'rounded-md px-2.5 py-1 hover:bg-transparent h-auto! [font-size:inherit]! leading-[inherit]! whitespace-normal! ',
                 activeCategory === cat
-                  ? 'bg-card text-foreground font-semibold shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
+                  ? 'bg-card font-semibold text-foreground shadow-xs hover:bg-card'
+                  : 'text-muted-foreground hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! whitespace-normal! justify-normal inline-block '
               )}
             >
               {label}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -212,13 +214,16 @@ export function FeatureFlagsToggles({ initialFlags }: { initialFlags: FeatureFla
                   </span>
                 </div>
 
-                <button
-                  type="button"
+                <Button
+                  role="switch"
+                  aria-checked={flag.is_enabled}
                   disabled={isCurrentPending}
                   onClick={() => handleToggle(flag.key, flag.is_enabled)}
                   className={cn(
-                    'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50',
-                    flag.is_enabled ? 'bg-primary' : 'bg-muted'
+                    'relative h-6! w-11! shrink-0 rounded-full border-2 border-transparent p-0 duration-200 ease-in-out [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! ',
+                    flag.is_enabled
+                      ? 'bg-primary hover:bg-primary'
+                      : 'bg-muted hover:bg-muted [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block '
                   )}
                 >
                   <span
@@ -227,7 +232,7 @@ export function FeatureFlagsToggles({ initialFlags }: { initialFlags: FeatureFla
                       flag.is_enabled ? 'translate-x-5' : 'translate-x-0'
                     )}
                   />
-                </button>
+                </Button>
               </div>
             </div>
           );

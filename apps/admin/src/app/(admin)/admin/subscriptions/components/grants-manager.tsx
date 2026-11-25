@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Loader2, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { grantSubscriptionAction, revokeSubscriptionGrantAction } from '@qoe/sdk/actions/admin';
 import { Select } from '@qoe/ui/select';
 import { QueueEmpty } from '@/components/queue/QueueEmpty';
@@ -10,6 +10,8 @@ import { useStaffAction } from '@/components/queue/useStaffAction';
 import type { SubscriptionGrantItem } from '@/lib/admin-data';
 import { useRouter } from 'next/navigation';
 import { useServerState } from '@/lib/use-server-state';
+import { Button } from '@qoe/ui/button';
+import { Input } from '@qoe/ui/input';
 
 interface GrantsManagerProps {
   initialItems: SubscriptionGrantItem[];
@@ -76,13 +78,15 @@ export function GrantsManager({ initialItems }: GrantsManagerProps) {
   return (
     <div className="space-y-6 text-foreground font-sans">
       <div>
-        <button
+        <Button
+          variant="solid"
+          size="sm"
           onClick={() => setShowNew((v) => !v)}
-          className="text-xs font-bold px-4 py-2 rounded-xl bg-foreground text-background cursor-pointer flex items-center gap-1.5"
+          className="items-center gap-1.5 rounded-xl bg-foreground px-4 py-2 text-xs! font-bold! text-background leading-[16px]! h-auto! whitespace-normal! justify-normal "
         >
-          <Plus className="w-3 h-3" />
+          <Plus className="w-3! h-3!" />
           Octroyer un palier
-        </button>
+        </Button>
         {showNew && (
           <div className="mt-3 bg-card border border-border rounded-lg p-5 shadow-sm space-y-2">
             <div className="grid gap-2 md:grid-cols-2">
@@ -109,7 +113,7 @@ export function GrantsManager({ initialItems }: GrantsManagerProps) {
                 ]}
               />
             </div>
-            <input
+            <Input
               value={subjectId}
               onChange={(e) => setSubjectId(e.target.value)}
               placeholder="Identifiant du sujet (id publication ou compte)…"
@@ -118,7 +122,7 @@ export function GrantsManager({ initialItems }: GrantsManagerProps) {
             <div className="grid gap-2 md:grid-cols-2">
               <label className="text-[11px] text-muted-foreground space-y-1 block">
                 Début (vide = maintenant)
-                <input
+                <Input
                   type="datetime-local"
                   value={startsAt}
                   onChange={(e) => setStartsAt(e.target.value)}
@@ -127,7 +131,7 @@ export function GrantsManager({ initialItems }: GrantsManagerProps) {
               </label>
               <label className="text-[11px] text-muted-foreground space-y-1 block">
                 Fin (vide = sans fin)
-                <input
+                <Input
                   type="datetime-local"
                   value={endsAt}
                   onChange={(e) => setEndsAt(e.target.value)}
@@ -135,21 +139,23 @@ export function GrantsManager({ initialItems }: GrantsManagerProps) {
                 />
               </label>
             </div>
-            <input
+            <Input
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="Motif (presse, test, offert…)…"
               maxLength={200}
               className={inputCls}
             />
-            <button
-              disabled={loadingId === 'new' || subjectId.trim().length < 1}
+            <Button
+              variant="solid"
+              size="sm"
+              loading={loadingId === 'new'}
+              disabled={subjectId.trim().length < 1}
               onClick={() => void grant()}
-              className="text-xs font-bold px-4 py-2 rounded-xl bg-foreground text-background cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+              className="items-center gap-1.5 rounded-xl bg-foreground px-4 py-2 text-xs! font-bold! text-background leading-[16px]! h-auto! whitespace-normal! justify-normal "
             >
-              {loadingId === 'new' && <Loader2 className="w-3 h-3 animate-spin" />}
               Octroyer
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -181,14 +187,15 @@ export function GrantsManager({ initialItems }: GrantsManagerProps) {
                     </p>
                   </div>
                   {item.effective && (
-                    <button
-                      disabled={loadingId === item.id}
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      loading={loadingId === item.id}
                       onClick={() => void revoke(item)}
-                      className="text-xs font-semibold px-3 py-1.5 rounded-full border border-border bg-card hover:bg-muted cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                      className="items-center gap-1.5 rounded-full border-border bg-card px-3 py-1.5 text-xs! font-semibold! hover:bg-muted leading-[16px]! h-auto! whitespace-normal! justify-normal "
                     >
-                      {loadingId === item.id && <Loader2 className="w-3 h-3 animate-spin" />}
                       Révoquer
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>

@@ -20,6 +20,8 @@ import type { AllowlistEntry } from '@/lib/admin-data';
 import { attemptWithStepUp, readMessage } from '@/lib/authz-feedback';
 import { cn } from '@qoe/utils';
 import { ConfirmDialog, type ConfirmAction } from '@qoe/ui/confirm-dialog';
+import { Button } from '@qoe/ui/button';
+import { Input } from '@qoe/ui/input';
 
 export function RegistrationsControl({
   initialOpen,
@@ -144,13 +146,16 @@ export function RegistrationsControl({
               : 'Seuls les emails invités peuvent s’inscrire.'}
           </p>
         </div>
-        <button
-          type="button"
+        <Button
+          role="switch"
+          aria-checked={open}
           disabled={isPending}
           onClick={handleToggle}
           className={cn(
-            'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50',
-            open ? 'bg-primary' : 'bg-muted'
+            'relative h-6! w-11! shrink-0 rounded-full border-2 border-transparent p-0 duration-200 ease-in-out [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! ',
+            open
+              ? 'bg-primary hover:bg-primary'
+              : 'bg-muted hover:bg-muted [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block '
           )}
         >
           <span
@@ -159,7 +164,7 @@ export function RegistrationsControl({
               open ? 'translate-x-5' : 'translate-x-0'
             )}
           />
-        </button>
+        </Button>
       </div>
 
       <div className="space-y-4">
@@ -171,7 +176,7 @@ export function RegistrationsControl({
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3">
-          <input
+          <Input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -182,9 +187,9 @@ export function RegistrationsControl({
               }
             }}
             placeholder="adresse@domaine.fr"
-            className="bg-muted border border-border px-3 py-2 rounded-lg text-sm outline-none focus:border-border"
+            className="bg-muted border border-border px-3 py-2 rounded-lg text-sm! outline-none focus:border-border leading-[20px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
           />
-          <input
+          <Input
             type="text"
             value={note}
             onChange={(e) => setNote(e.target.value)}
@@ -195,17 +200,18 @@ export function RegistrationsControl({
               }
             }}
             placeholder="Note (optionnel)"
-            className="bg-muted border border-border px-3 py-2 rounded-lg text-sm outline-none focus:border-border"
+            className="bg-muted border border-border px-3 py-2 rounded-lg text-sm! outline-none focus:border-border leading-[20px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
           />
-          <button
-            type="button"
+          <Button
+            variant="solid"
+            tone="brand"
             disabled={isPending || !email.trim()}
             onClick={handleAdd}
-            className="flex items-center justify-center gap-2 text-sm font-bold text-primary-foreground bg-[var(--qoe-vermillion)] hover:bg-[var(--qoe-vermillion)]/90 px-5 py-2 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+            className="items-center justify-center gap-2 rounded-lg bg-[var(--qoe-vermillion)] px-5 py-2 text-sm! font-bold! text-primary-foreground hover:bg-[var(--qoe-vermillion)]/90 leading-[20px]! h-auto! whitespace-normal! "
           >
-            <UserPlus className="w-4 h-4" />
+            <UserPlus className="w-4! h-4!" />
             Inviter
-          </button>
+          </Button>
         </div>
 
         {entries.length === 0 ? (
@@ -227,14 +233,16 @@ export function RegistrationsControl({
                     {e.note ? ` — ${e.note}` : ''}
                   </p>
                 </div>
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  shape="icon"
                   onClick={() => handleDelete(e.email)}
-                  className="text-muted-foreground hover:text-destructive-text transition-colors cursor-pointer p-1.5"
+                  className="p-1.5 text-muted-foreground hover:bg-transparent hover:text-destructive-text h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                   title="Retirer l'invitation"
+                  aria-label="Retirer l'invitation"
                 >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                  <Trash2 className="w-4! h-4!" />
+                </Button>
               </li>
             ))}
           </ul>
