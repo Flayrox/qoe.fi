@@ -997,6 +997,14 @@ type Interaction struct {
 	CreatedAt  pgtype.Timestamp `json:"createdAt"`
 }
 
+type LatestArticlePerAuthor struct {
+	AuthorId    pgtype.UUID     `json:"authorId"`
+	ID          string          `json:"id"`
+	Title       string          `json:"title"`
+	Embedding   pgvector.Vector `json:"embedding"`
+	PublisherId string          `json:"publisherId"`
+}
+
 type LatestNonAllowRiskDecision struct {
 	ID          string           `json:"id"`
 	Policy      string           `json:"policy"`

@@ -10136,6 +10136,18 @@ Conséquences : l'auteur voit dans son dossier le verdict réellement contesté 
 
 Preuves : `go test ./internal/abuse -run 'TestAppeal_FullCycle|TestDecideAppeal_UsesDossierVerdictNotLatest'` → PASS sur PostgreSQL 16 local ; suites complètes ci-dessous.
 
+## Départages paginés — audit et autorité unique (2026-11-25)
+
+Recensement par grep :
+
+- `COALESCE(lm."createdAt", c."createdAt") DESC, COALESCE(lm.id, c.id) DESC` : **une seule** occurrence (`sql/queries/conversations.sql:66`). Ce n'est pas une copie.
+- `ORDER BY …createdAt …, <x>.id DESC` : **85 occurrences** dans 25 fichiers. Chaque site porte sur une table, un périmètre et des colonnes différents (articles, posts, activités, livraisons, abonnés, OAuth, webhooks…). Ce sont des tris **distincts** : aucune vue commune ne peut exprimer 85 WHERE différents sans reconstruire la requête. La règle (clé secondaire unique) est tenue par `guard:order-total`, pas par une abstraction cosmétique.
+- `ROW_NUMBER() OVER(PARTITION BY u.id ORDER BY a."createdAt" DESC, a.title DESC)` : **deux copies exactes** dans `internal/modules/home/widgets.go` (branche vecteur et branche cold-start). Vraie duplication, départage non canonique (`a.title`).
+
+Autorité unique, migration `00105` : vue `"LatestArticlePerAuthor"` — `DISTINCT ON ("authorId") … ORDER BY "authorId", "createdAt" DESC, id DESC`. Les deux branches des suggestions home joignent désormais cette vue (`LEFT JOIN "LatestArticlePerAuthor" a ON a."authorId" = u.id`) ; le `ROW_NUMBER`, le filtre `rn = 1` et les clés de groupe `a."createdAt"` sont supprimés. Mêmes lignes, même tri, départage canonique par `id`.
+
+Le garde n'a **pas** été étendu : après ce lot, plus aucun `ROW_NUMBER` de pagination, et les `ORDER BY` construits dynamiquement (`engine_candidates.go`) sont déjà lus par le garde (clause portant `createdAt` + `id`). Le trou n'existait pas.
+
 ## Autorité unique du « dernier verdict » — vues `00104` (2026-11-25)
 
 Constat : la lecture du dernier `RiskDecision` par sujet était recopiée dans **six** endroits, dont `admin/work_queue.go` qui utilisait encore l'ancien tri `createdAt, decidedBy, id` (non total, incohérent avec la revue).

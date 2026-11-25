@@ -175,10 +175,9 @@ func (s *Service) GetSuggestedCreators(ctx context.Context, userID string, limit
 				p.subdomain, p."customDomain",
 				COALESCE((1 - (COALESCE(u."embedding", a."embedding") <=> $1::vector))::float8, 0.5) AS sim_score,
 				a.title AS recent_title,
-				COUNT(DISTINCT s.id)::int AS subs_count,
-				ROW_NUMBER() OVER(PARTITION BY u.id ORDER BY a."createdAt" DESC, a.title DESC) as rn
+				COUNT(DISTINCT s.id)::int AS subs_count
 			FROM "User" u
-			LEFT JOIN "Article" a ON a."authorId" = u.id AND a.published = true
+			LEFT JOIN "LatestArticlePerAuthor" a ON a."authorId" = u.id
 			LEFT JOIN "Publisher" p ON p.id = a."publisherId"
 			LEFT JOIN "Subscriber" s ON s."publisherId" = p.id AND s."isActive" = true
 			WHERE u."isShadowbanned" = false AND u."isSuspended" = false
@@ -191,21 +190,19 @@ func (s *Service) GetSuggestedCreators(ctx context.Context, userID string, limit
 		}
 		if len(excluded) > 0 {
 			q += `
-			GROUP BY u.id, u.name, u.username, u."logoUrl", p."heroText", u."isCertified", p.subdomain, p."customDomain", u."embedding", a."embedding", a.title, a."createdAt"
+			GROUP BY u.id, u.name, u.username, u."logoUrl", p."heroText", u."isCertified", p.subdomain, p."customDomain", u."embedding", a.id, a."embedding", a.title
 		)
 		SELECT id, name, username, "logoUrl", "heroText", "isCertified", subdomain, "customDomain", sim_score, recent_title, subs_count
 		FROM AuthorStats
-		WHERE rn = 1
 		ORDER BY (0.70 * sim_score + 0.20 * LEAST(1.0, subs_count / 50.0) + 0.10 * (CASE WHEN "isCertified" THEN 1.0 ELSE 0.0 END)) DESC, id ASC
 		LIMIT $3`
 			args = append(args, limit)
 		} else {
 			q += `
-			GROUP BY u.id, u.name, u.username, u."logoUrl", p."heroText", u."isCertified", p.subdomain, p."customDomain", u."embedding", a."embedding", a.title, a."createdAt"
+			GROUP BY u.id, u.name, u.username, u."logoUrl", p."heroText", u."isCertified", p.subdomain, p."customDomain", u."embedding", a.id, a."embedding", a.title
 		)
 		SELECT id, name, username, "logoUrl", "heroText", "isCertified", subdomain, "customDomain", sim_score, recent_title, subs_count
 		FROM AuthorStats
-		WHERE rn = 1
 		ORDER BY (0.70 * sim_score + 0.20 * LEAST(1.0, subs_count / 50.0) + 0.10 * (CASE WHEN "isCertified" THEN 1.0 ELSE 0.0 END)) DESC, id ASC
 		LIMIT $2`
 			args = append(args, limit)
@@ -221,19 +218,17 @@ func (s *Service) GetSuggestedCreators(ctx context.Context, userID string, limit
 				p.subdomain, p."customDomain",
 				0.0::float8 AS sim_score,
 				a.title AS recent_title,
-				COUNT(DISTINCT s.id)::int AS subs_count,
-				ROW_NUMBER() OVER(PARTITION BY u.id ORDER BY a."createdAt" DESC, a.title DESC) as rn
+				COUNT(DISTINCT s.id)::int AS subs_count
 			FROM "User" u
-			LEFT JOIN "Article" a ON a."authorId" = u.id AND a.published = true
+			LEFT JOIN "LatestArticlePerAuthor" a ON a."authorId" = u.id
 			LEFT JOIN "Publisher" p ON p.id = a."publisherId"
 			LEFT JOIN "Subscriber" s ON s."publisherId" = p.id AND s."isActive" = true
 			WHERE u."isShadowbanned" = false AND u."isSuspended" = false
 			  AND u."publisherId"::text NOT IN (SELECT unnest($1::text[]))
-			GROUP BY u.id, u.name, u.username, u."logoUrl", p."heroText", u."isCertified", p.subdomain, p."customDomain", a.title, a."createdAt"
+			GROUP BY u.id, u.name, u.username, u."logoUrl", p."heroText", u."isCertified", p.subdomain, p."customDomain", a.id, a.title
 		)
 		SELECT id, name, username, "logoUrl", "heroText", "isCertified", subdomain, "customDomain", sim_score, recent_title, subs_count
 		FROM AuthorStats
-		WHERE rn = 1
 		ORDER BY (CASE WHEN id::text = ANY($2::text[]) THEN 1 ELSE 0 END) DESC,
 		         (subs_count * 2 + (CASE WHEN "isCertified" THEN 5 ELSE 0 END)) DESC,
 		         id ASC
