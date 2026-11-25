@@ -172,6 +172,50 @@ func TestCommentsPage_TotalCountAcrossPages(t *testing.T) {
 	}
 }
 
+// Le trigger de 00106 répare une écriture legacy qui omet rootId et
+// rootArticleId : le fil `scope=thread` doit retrouver l'enfant. Sans le
+// trigger, l'enfant a rootId NULL et n'apparaît jamais dans le fil.
+func TestThreadScope_TriggerBackfillsMissingRoot(t *testing.T) {
+	requirePool(t)
+	ctx := context.Background()
+	seed(t)
+	svc := newSvc()
+	reader := seedReader(t, ctx)
+
+	root, err := svc.CreateComment(ctx, "art_test_000", reader, "racine", nil)
+	if err != nil {
+		t.Fatalf("CreateComment(racine): %v", err)
+	}
+	const childID = "comment_legacy_child"
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Post" (id, content, "authorId", "createdAt", "updatedAt", "parentId")
+		 VALUES ($1, 'enfant legacy', $2, now(), now(), $3)`,
+		childID, reader, root.ID); err != nil {
+		t.Fatalf("insert enfant legacy: %v", err)
+	}
+
+	var rootID, articleID *string
+	if err := poolTest.QueryRow(ctx,
+		`SELECT "rootId", "rootArticleId" FROM "Post" WHERE id = $1`, childID).
+		Scan(&rootID, &articleID); err != nil {
+		t.Fatalf("relire enfant: %v", err)
+	}
+	if rootID == nil || *rootID != root.ID {
+		t.Fatalf("rootId réparé = %v, attendu %s", rootID, root.ID)
+	}
+	if articleID == nil || *articleID != "art_test_000" {
+		t.Fatalf("rootArticleId réparé = %v, attendu art_test_000", articleID)
+	}
+
+	page, err := posts.ReplyPageFor(ctx, svc.q, posts.ReplyScopeThread, "", root.ID, "", "", "", 20)
+	if err != nil {
+		t.Fatalf("fil thread: %v", err)
+	}
+	if len(page.Items) != 1 || page.Items[0].ID != childID {
+		t.Fatalf("fil thread = %+v, attendu [%s]", page.Items, childID)
+	}
+}
+
 func TestComments_Disabled(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()

@@ -344,6 +344,21 @@ total 3/3 ; rouge à `TotalCount: 0`), test UI « affiche le total serveur » (7
 pour 1 chargé ; rouge avec `roots.length`), `guard:sqlc` 41 fichiers, `go build`,
 `go vet`, `go test articles/posts` et vitest core.
 
+**Preuve L42 sur base vierge (2026-11-25).** Séquence réelle : base neuve →
+`00096` → jeu de données legacy (6 commentaires dont une réponse cross-article,
+fil de pensée profond, `rootId` legacy nul, réponse supprimée) → `00097` →
+`00098`. Après `00098` : **6/6** commentaires legacy copiés, **4/4** index L42
+présents, **0** parent absent, **0** `rootId` absent, mais **1** enfant sans
+`rootId`, **1** réponse cross-article et **2** `replyCount` faux. `00098` est
+bien une migration d'index ; la réparation des données est apportée par
+`00106_thread_consistency_backfill.sql` (forward-only, car `00098` peut déjà
+être appliquée) : après elle, **0/0/0** sur ces trois contrôles, `l42_cross`
+suit l'article B de son parent, `l42_t4` rejoint `l42_t1`, et les compteurs
+valent 2 et 1. Le trigger `Post_thread_root_guard` garantit les mêmes
+invariants pour les écritures futures ; `TestThreadScope_TriggerBackfillsMissingRoot`
+échoue sans lui (`rootId réparé = <nil>`) et passe avec. `up-to 106` rejoué
+sans erreur.
+
 **Décisions prises pendant L42.**
 
 - _Un seul chemin de lecture_ : `posts.ReplyPageFor` sert les trois surfaces ; la politique
