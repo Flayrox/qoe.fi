@@ -359,6 +359,12 @@ invariants pour les écritures futures ; `TestThreadScope_TriggerBackfillsMissin
 échoue sans lui (`rootId réparé = <nil>`) et passe avec. `up-to 106` rejoué
 sans erreur.
 
+La revue de clôture a trouvé un quatrième cas : une **racine** (`parentId
+NULL`) avec un `rootId` résiduel, que `00106` laissait intact. `00107` remet
+ces racines à `NULL` et simplifie le trigger pour appliquer la règle aux
+insertions et mises à jour ; preuve vierge : `1 → 0` racine sale, `0` enfant
+sans racine, `0` cross-article, `0` `replyCount` faux, puis rejeu sans erreur.
+
 **Clôture — lecteurs legacy (2026-11-25).** Comparaison `f822ce52d` (L42) →
 `HEAD`. Avant : **2 lecteurs de production logiques**, soit **3 sites** avec la
 copie générée — `apps/api/internal/modules/analytics/service.go:1420`,
@@ -373,16 +379,19 @@ contient plus la table. Aucune autre table legacy n'est nommée par L42. Le
 compteur analytics remplace bien `parentId IS NULL` (plan ci-dessous), corrigé
 lors de cette clôture.
 
-**Conformité de 00106 au plan.** Les règles du plan sont littérales :
+**Conformité de la réparation (00106 + 00107) au plan.** Les règles du plan
+sont littérales :
 « `parentId` ⇒ le parent existe et partage le même `rootArticleId` »,
 « réponses : `rootId = COALESCE(parent.rootId, parent.id)`, même
 `rootArticleId` », « `replyCount` recalculé depuis les enfants directs », et
 « `replyCount` et les compteurs d'articles comptent les lignes `deletedAt IS
-NULL` […] Le tombstone occupe une place mais n'est pas compté ». `00106`
-applique exactement ces trois règles : remontée jusqu'à la racine réelle
+NULL` […] Le tombstone occupe une place mais n'est pas compté », et
+« `rootId` est soit `NULL` (racine), soit l'id du post racine du fil ». `00106`
+applique les trois règles enfants : remontée jusqu'à la racine réelle
 (équivalent transitif de `COALESCE`), copie du `rootArticleId` du parent (la
 réponse cross-article rejoint donc l'article du parent), et comptage des seuls
-enfants directs vivants. Aucune correction de la migration n'était nécessaire.
+enfants directs vivants. `00107` complète la règle racine (`rootId = NULL`) et
+remplace le trigger par sa forme simplifiée.
 
 **Décisions prises pendant L42.**
 

@@ -214,6 +214,32 @@ func TestThreadScope_TriggerBackfillsMissingRoot(t *testing.T) {
 	if len(page.Items) != 1 || page.Items[0].ID != childID {
 		t.Fatalf("fil thread = %+v, attendu [%s]", page.Items, childID)
 	}
+
+	// Une racine ne garde jamais un rootId, à l'insertion comme à la mise à jour.
+	const strayRootID = "comment_stray_root"
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Post" (id, content, "authorId", "createdAt", "updatedAt", "rootId")
+		 VALUES ($1, 'racine sale', $2, now(), now(), $3)`,
+		strayRootID, reader, root.ID); err != nil {
+		t.Fatalf("insert racine sale: %v", err)
+	}
+	assertRootIDNil := func(step string) {
+		t.Helper()
+		var rootID *string
+		if err := poolTest.QueryRow(ctx,
+			`SELECT "rootId" FROM "Post" WHERE id = $1`, strayRootID).Scan(&rootID); err != nil {
+			t.Fatalf("relire racine (%s): %v", step, err)
+		}
+		if rootID != nil {
+			t.Fatalf("rootId racine (%s) = %q, attendu NULL", step, *rootID)
+		}
+	}
+	assertRootIDNil("insert")
+	if _, err := poolTest.Exec(ctx,
+		`UPDATE "Post" SET "rootId" = $1 WHERE id = $2`, root.ID, strayRootID); err != nil {
+		t.Fatalf("update racine sale: %v", err)
+	}
+	assertRootIDNil("update")
 }
 
 func TestComments_Disabled(t *testing.T) {
