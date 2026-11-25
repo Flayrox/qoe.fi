@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, type ReactNode } from 'react';
+import { forwardRef, useId, type InputHTMLAttributes, type ReactNode } from 'react';
 import { Check } from 'lucide-react';
 
 import { cn } from '@qoe/utils';
@@ -255,3 +255,33 @@ export function Checkbox({
 
 /** Alias d'import pour les évènements : `onChange` reçoit un booléen. */
 export type { AriaCheckboxProps as CheckboxPrimitiveProps };
+
+/* ---------------------------------------------------------------------
+   Case native dans un libellé existant
+   --------------------------------------------------------------------- */
+
+/**
+ * `<input type="checkbox">` de la maison, pour les cases qui vivent **déjà**
+ * dans un `<label>` de l'écran (carte cliquable, ligne de réglage, filtre).
+ *
+ * Pourquoi ne pas simplement utiliser `Checkbox` : la primitive react-aria
+ * rend son propre `<label>` et sa propre boîte. L'insérer dans le `<label>`
+ * de l'appelant produirait deux labels imbriqués — HTML invalide, double
+ * bascule au clic — et remplacerait la boîte de l'écran par celle du contrat.
+ * Ici on ne garde que le contrôle, avec la peau locale passée en
+ * `className` : le rendu est identique au markup recopié qu'elle remplace,
+ * mais il n'existe plus qu'à un seul endroit.
+ */
+export const CheckboxInput = forwardRef<
+  HTMLInputElement,
+  Omit<InputHTMLAttributes<HTMLInputElement>, 'type'>
+>(function CheckboxInput({ className, ...props }, ref) {
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      className={cn('accent-primary cursor-pointer', className)}
+      {...props}
+    />
+  );
+});
