@@ -49,7 +49,6 @@ import {
   ShareMenu,
   type QuotedArticleData,
 } from '@qoe/ui';
-import { HiddenParentNotice } from '@qoe/ui/social';
 
 import { routes, getArticleUrl } from '@qoe/config/routes';
 import { toast } from '@qoe/ui/toast';
@@ -369,7 +368,7 @@ export function ProfileView({
               router.push(routes.feed.home());
             }
           }}
-          className="text-muted-foreground hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
         >
           <ArrowLeft />
           <span>Retour</span>
@@ -423,7 +422,7 @@ export function ProfileView({
                       onClick={handleFollowToggle}
                       className={
                         effectiveFollowing
-                          ? 'hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive-text'
+                          ? 'hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive-text h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block '
                           : undefined
                       }
                     >
@@ -546,7 +545,9 @@ export function ProfileView({
 
             {/* Stats — cliquables */}
             <div className="flex items-center gap-6 pt-4 text-xs">
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() =>
                   handleTabChange(
                     rootThoughts.length > 0
@@ -556,7 +557,7 @@ export function ProfileView({
                         : 'thoughts'
                   )
                 }
-                className="flex items-center gap-1.5 cursor-pointer hover:underline group"
+                className="group flex items-center gap-1.5 p-0 hover:bg-transparent hover:underline h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal "
               >
                 <span className="font-bold text-foreground">
                   {user.posts?.length || user._count?.posts || 0}
@@ -564,10 +565,12 @@ export function ProfileView({
                 <span className="text-muted-foreground font-medium group-hover:text-foreground transition-colors">
                   pensées
                 </span>
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => canViewContent && setFollowsModalTab('following')}
-                className="flex items-center gap-1.5 cursor-pointer hover:underline group"
+                className="group flex items-center gap-1.5 p-0 hover:bg-transparent hover:underline h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal "
               >
                 <span className="font-bold text-foreground">
                   {user._count?.following || user._count?.follows || 0}
@@ -575,16 +578,18 @@ export function ProfileView({
                 <span className="text-muted-foreground font-medium group-hover:text-foreground transition-colors">
                   abonnements
                 </span>
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => canViewContent && setFollowsModalTab('followers')}
-                className="flex items-center gap-1.5 cursor-pointer hover:underline group"
+                className="group flex items-center gap-1.5 p-0 hover:bg-transparent hover:underline h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal "
               >
                 <span className="font-bold text-foreground">{followersCount}</span>
                 <span className="text-muted-foreground font-medium group-hover:text-foreground transition-colors">
                   abonnés
                 </span>
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -792,8 +797,11 @@ export function ProfileView({
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                   {mediaThoughts.map((post) =>
                     post.imageUrl ? (
-                      <button
+                      <Button
                         key={post.id}
+                        variant="ghost"
+                        className="group relative aspect-square overflow-hidden rounded-xl bg-muted p-0 hover:bg-muted h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
+                        aria-label={t`Ouvrir la pensée`}
                         onClick={() =>
                           openThought(
                             post.id,
@@ -803,7 +811,6 @@ export function ProfileView({
                               user.id
                           )
                         }
-                        className="relative aspect-square overflow-hidden rounded-xl bg-muted group cursor-pointer"
                       >
                         <Image
                           src={post.imageUrl}
@@ -812,7 +819,7 @@ export function ProfileView({
                           className="object-cover"
                           sizes="(max-width: 768px) 50vw, 33vw"
                         />
-                      </button>
+                      </Button>
                     ) : null
                   )}
                 </div>

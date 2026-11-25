@@ -6,6 +6,7 @@ import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
 import { TextToSpeechPlayer, ReadingSettingsSheet } from '@qoe/ui/reader';
 import { Popover, PopoverContent, PopoverTrigger, useFeatureAnnouncement } from '@qoe/ui';
+import { Button } from '@qoe/ui/button';
 import { useFlag } from '@qoe/flags';
 import { usePlus } from '@/lib/use-plus';
 import { useReaderToolbar } from './ReaderToolbarContext';
@@ -33,32 +34,34 @@ export function DockedReaderToolbar({ articleTitle, className = '' }: DockedRead
       {/* 🖥️ DESKTOP : Exactement le même ordre et placement que la ligne d'auteur (Signet -> Partager -> Écouter -> Aa) */}
       <div className="hidden md:flex items-center gap-2">
         {/* 1. Signet */}
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          shape="icon"
           onClick={toggleBookmark}
-          className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
+          className="rounded-full p-2 text-muted-foreground hover:bg-muted/60 hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
           title={bookmarked ? t`Supprimer des signets` : t`Mettre en signet`}
         >
           {bookmarked ? (
-            <BookMarked className="w-4 h-4 fill-current text-primary" />
+            <BookMarked className="w-4! h-4! fill-current text-primary" />
           ) : (
-            <Bookmark className="w-4 h-4" />
+            <Bookmark className="w-4! h-4!" />
           )}
-        </button>
+        </Button>
 
         {/* 2. Partager */}
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          shape="icon"
           onClick={handleShare}
-          className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
+          className="rounded-full p-2 text-muted-foreground hover:bg-muted/60 hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
           title={copied ? t`Lien copié !` : t`Partager l'article`}
         >
           {copied ? (
-            <Check className="w-4 h-4 text-success-text" />
+            <Check className="w-4! h-4! text-success-text" />
           ) : (
-            <Share2 className="w-4 h-4" />
+            <Share2 className="w-4! h-4!" />
           )}
-        </button>
+        </Button>
 
         {/* 3. Écouter (TTS, Plus — verrouillé sinon, upsell informatif) */}
         {isTtsEnabled && (
@@ -105,31 +108,33 @@ export function DockedReaderToolbar({ articleTitle, className = '' }: DockedRead
             sideOffset={8}
             className="w-56 p-2 rounded-2xl bg-popover/95 backdrop-blur-xl border border-border/40 shadow-2xl space-y-1 text-xs"
           >
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              block
               onClick={toggleBookmark}
-              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left font-medium text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
+              className="w-full! items-center gap-2.5 rounded-xl px-2.5 py-2 text-left font-medium! text-foreground hover:bg-muted/60 h-auto! [font-size:inherit]! leading-[inherit]! whitespace-normal! justify-normal "
             >
               {bookmarked ? (
-                <BookMarked className="w-4 h-4 fill-primary text-primary" />
+                <BookMarked className="w-4! h-4! fill-primary text-primary" />
               ) : (
-                <Bookmark className="w-4 h-4 text-muted-foreground" />
+                <Bookmark className="w-4! h-4! text-muted-foreground" />
               )}
               <span>{bookmarked ? t`Supprimer des signets` : t`Mettre en signet`}</span>
-            </button>
+            </Button>
 
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              block
               onClick={handleShare}
-              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left font-medium text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
+              className="w-full! items-center gap-2.5 rounded-xl px-2.5 py-2 text-left font-medium! text-foreground hover:bg-muted/60 h-auto! [font-size:inherit]! leading-[inherit]! whitespace-normal! justify-normal "
             >
               {copied ? (
-                <Check className="w-4 h-4 text-success-text" />
+                <Check className="w-4! h-4! text-success-text" />
               ) : (
-                <Share className="w-4 h-4 text-muted-foreground" />
+                <Share className="w-4! h-4! text-muted-foreground" />
               )}
               <span>{copied ? t`Lien copié !` : t`Partager l'article`}</span>
-            </button>
+            </Button>
 
             <div className="pt-1 border-t border-border/25">
               <ReadingSettingsSheet className="w-full justify-start h-9 px-2.5 text-xs bg-muted/40 hover:bg-muted/80 border-border/30" />

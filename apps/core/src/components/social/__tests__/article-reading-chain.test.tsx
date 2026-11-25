@@ -125,8 +125,17 @@ vi.mock('@qoe/ui/reader', () => ({
 }));
 
 vi.mock('@qoe/ui/button', () => ({
-  Button: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button {...props}>{children}</button>
+  // Le vrai `Button` consomme `loading` (spinner, `aria-busy`, `disabled`) :
+  // le mock doit honorer le même contrat, sinon l'attribut fuit dans le DOM
+  // et le test cesse de prouver l'état réellement rendu.
+  Button: ({
+    children,
+    loading,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement> & { loading?: boolean }) => (
+    <button {...props} disabled={props.disabled || loading} aria-busy={loading || undefined}>
+      {children}
+    </button>
   ),
 }));
 

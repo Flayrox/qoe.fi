@@ -8,6 +8,7 @@ import { Logo, SafeAvatar, ProfileHoverCard } from '@qoe/ui';
 import { useUnreadNotificationCount } from '@qoe/ui/notifications';
 import { useUnreadConversationCountQuery } from '@qoe/sdk';
 import { t } from '@lingui/core/macro';
+import { Button } from '@qoe/ui/button';
 
 interface ReaderNavOverlayProps {
   userId?: string | null;
@@ -48,14 +49,15 @@ export function ReaderNavOverlay({
     <header className="fixed top-0 left-0 right-0 z-30 h-14 bg-background/85 backdrop-blur-xl border-b border-border/40 px-3 sm:px-4 flex items-center justify-between md:hidden select-none">
       {/* ── GAUCHE : Bouton Hamburger & Marque ── */}
       <div className="flex items-center gap-2.5">
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          shape="icon"
           onClick={handleToggleSidebar}
-          className="p-2 -ml-1 rounded-xl text-foreground/80 hover:text-foreground hover:bg-muted/60 active:scale-95 transition-all cursor-pointer outline-none"
+          className="-ml-1 rounded-xl p-2 text-foreground/80 hover:bg-muted/60 hover:text-foreground active:scale-95 h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
           aria-label={t`Ouvrir le menu`}
         >
-          <Menu className="w-5 h-5" />
-        </button>
+          <Menu className="w-5! h-5!" />
+        </Button>
 
         <Link href="/home" className="flex items-center gap-2 outline-none group">
           <Logo className="h-5 w-auto" fillColor="#EE4B2B" />

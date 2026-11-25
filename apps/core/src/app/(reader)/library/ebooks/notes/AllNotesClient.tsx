@@ -8,6 +8,8 @@ import { toast } from '@qoe/ui/toast';
 import { normalizeForSearch } from '../ebook-search';
 import { ebookReadUrl } from '../ebooks-helpers';
 import { notesToMarkdown } from './notes-markdown';
+import { Button } from '@qoe/ui/button';
+import { Input } from '@qoe/ui/input';
 
 // =====================================================================
 // 🗂️ Toutes mes notes — recherche instantanée + export Markdown
@@ -97,25 +99,26 @@ export function AllNotesClient({
             {truncated && ' Liste bornée à 500 notes : les plus anciennes ne sont pas affichées.'}
           </p>
         </div>
-        <button
-          type="button"
+        <Button
+          variant="outline"
+          size="sm"
           onClick={exportMarkdown}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-muted/60 hover:bg-muted text-foreground border border-border/50 transition-colors shadow-2xs cursor-pointer self-start sm:self-auto"
+          className="gap-1.5 self-start rounded-xl border-border/50 bg-muted/60 px-3 py-1.5 text-xs! font-semibold! text-foreground shadow-2xs hover:bg-muted sm:self-auto leading-[16px]! h-auto! whitespace-normal! justify-normal "
           title="Exporter au format Markdown (Notion, Obsidian)"
         >
-          <Download className="w-3.5 h-3.5 text-primary" />
+          <Download className="w-3.5! h-3.5! text-primary" />
           <span>Exporter (.md)</span>
-        </button>
+        </Button>
       </div>
 
       {/* ─── Recherche locale ─── */}
       <div className="relative">
         <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-        <input
+        <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Rechercher dans mes notes (passage, note, livre, auteur)…"
-          className="w-full text-xs pl-9 pr-3 py-2 rounded-xl bg-muted/50 border border-border/50 focus:outline-none focus:ring-1 focus:ring-primary/40"
+          className="w-full! text-xs! pl-9 pr-3 py-2 rounded-xl bg-muted/50 border border-border/50 focus:outline-none focus:ring-1 focus:ring-primary/40 leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
         />
       </div>
 

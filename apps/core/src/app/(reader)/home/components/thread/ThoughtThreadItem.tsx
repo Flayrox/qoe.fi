@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { EyeOff, CornerDownRight } from 'lucide-react';
 import { toggleHideReplyAction, toggleBlockUserAction } from '@qoe/sdk/actions/feed';
 import { toast } from '@qoe/ui/toast';
+import { Button } from '@qoe/ui/button';
 import { HiddenParentNotice } from '@qoe/ui/social';
 import { ThoughtThreadTombstone } from './ThoughtThreadTombstone';
 import { useThoughtThreadContext, type OptimisticThought } from './ThoughtThreadContext';
@@ -85,12 +86,15 @@ export function ThoughtThreadItem({ reply, depth = 0 }: ThoughtThreadItemProps) 
             <EyeOff className="w-3.5 h-3.5 text-muted-foreground/70" />
             <span>{t`Réponse masquée par l'auteur de la pensée`}</span>
           </span>
-          <button
+          <Button
+            variant="ghost"
+            tone="brand"
+            size="xs"
             onClick={() => setShowHidden(true)}
-            className="text-brand font-medium hover:underline cursor-pointer"
+            className="p-0 font-medium! text-brand hover:bg-transparent hover:underline h-auto! [font-size:inherit]! leading-[inherit]! whitespace-normal! justify-normal inline-block "
           >
             Afficher
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -134,17 +138,19 @@ export function ThoughtThreadItem({ reply, depth = 0 }: ThoughtThreadItemProps) 
 
           {!showAllChildren && remainingChildren > 0 && (
             <div className="pl-6 py-1">
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                tone="brand"
+                size="xs"
                 onClick={() => setShowAllChildren(true)}
-                className="text-[11px] font-medium text-brand hover:underline flex items-center gap-1.5 cursor-pointer py-1"
+                className="flex items-center gap-1.5 py-1 text-[11px]! font-medium! text-brand hover:bg-transparent hover:underline h-auto! leading-[inherit]! whitespace-normal! justify-normal px-0 "
               >
-                <CornerDownRight className="w-3 h-3" />
+                <CornerDownRight className="w-3! h-3!" />
                 <span>
                   Afficher {remainingChildren} autre{remainingChildren > 1 ? 's' : ''} sous-réponse
                   {remainingChildren > 1 ? 's' : ''}
                 </span>
-              </button>
+              </Button>
             </div>
           )}
         </div>

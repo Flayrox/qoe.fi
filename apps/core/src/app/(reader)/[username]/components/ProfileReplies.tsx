@@ -15,6 +15,7 @@ import { t } from '@lingui/core/macro';
 import { getUserRepliesAction } from '@qoe/sdk/actions/feed';
 import { mapProfileSlice } from '@qoe/sdk/actions/feed/mappers';
 import type { ProfilePostPayload } from '@qoe/sdk';
+import { Button } from '@qoe/ui/button';
 import { HiddenParentNotice } from '@qoe/ui/social';
 import { ThoughtCard } from '@/components/social/ThoughtCard';
 
@@ -133,15 +134,15 @@ export function ProfileReplies({
         </div>
       ))}
       {hasMore && (
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => void loadMore()}
-          disabled={loadingMore}
-          className="mx-auto flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+          loading={loadingMore}
+          className="mx-auto flex gap-1.5 rounded-xl border border-border px-3 py-2 font-medium! text-muted-foreground transition-colors hover:bg-transparent hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! whitespace-normal! justify-normal "
         >
-          {loadingMore && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
           {t`Charger plus de réponses`}
-        </button>
+        </Button>
       )}
     </div>
   );

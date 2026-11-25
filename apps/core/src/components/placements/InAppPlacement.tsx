@@ -17,6 +17,7 @@ import { Sparkles, Info, AlertTriangle, AlertCircle, X, ArrowRight, Crown } from
 import { InvertedCurveBanner } from '@qoe/ui';
 import { useFlag } from '@qoe/flags';
 import { dismissPlacementAction, type InAppPlacementDTO } from '@/app/actions/placements';
+import { Button } from '@qoe/ui/button';
 
 export interface InAppPlacementProps {
   slot: string;
@@ -141,14 +142,15 @@ export function InAppPlacement({
           className={`relative rounded-2xl border ${style.bg} p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs transition-all ${className}`}
         >
           {placement.dismissible && (
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              shape="icon"
               onClick={handleDismiss}
-              className="absolute top-3 right-3 p-1 rounded-full text-muted-foreground/60 hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer"
+              className="absolute right-3 top-3 rounded-full p-1 text-muted-foreground/60 hover:bg-muted/50 hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               aria-label={t`Fermer cette notification`}
             >
-              <X className="w-4 h-4" />
-            </button>
+              <X className="w-4! h-4!" />
+            </Button>
           )}
 
           <div className="flex items-start sm:items-center gap-3.5 pr-6 sm:pr-0">

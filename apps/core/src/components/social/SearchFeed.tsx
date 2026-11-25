@@ -29,6 +29,8 @@ import {
   type OpenArticleInput,
 } from '@/components/article-overlay/ArticleOverlayProvider';
 import { useThoughtOverlay } from '@/components/thought-overlay/context';
+import { Button } from '@qoe/ui/button';
+import { Input } from '@qoe/ui/input';
 import {
   hasResultsForTab,
   mergeArticlePages,
@@ -165,22 +167,25 @@ export function SearchFeed({ initialQuery = '' }: { initialQuery?: string }) {
       <div className="relative">
         <div className="relative flex items-center">
           <SearchIcon className="absolute left-4 w-4 h-4 text-muted-foreground pointer-events-none" />
-          <input
+          <Input
             ref={inputRef}
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t`Rechercher une pensée, un profil ou une thématique...`}
-            className="w-full pl-11 pr-16 py-3 bg-card border border-border/60 rounded-2xl text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 transition-all shadow-2xs"
+            className="w-full! pl-11 pr-16 py-3 bg-card border border-border/60 rounded-2xl text-sm! text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 transition-all shadow-2xs leading-[20px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
           />
           {hasQuery ? (
-            <button
+            <Button
+              variant="ghost"
+              shape="icon"
               onClick={() => setQuery('')}
-              className="absolute right-3 p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              className="absolute right-3 rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               title={t`Effacer`}
+              aria-label={t`Effacer`}
             >
-              <X className="w-4 h-4" />
-            </button>
+              <X className="w-4! h-4!" />
+            </Button>
           ) : (
             <kbd className="absolute right-3 px-2 py-0.5 text-[10px] font-mono font-semibold text-muted-foreground bg-muted/60 border border-border/50 rounded-md">
               /
@@ -192,63 +197,73 @@ export function SearchFeed({ initialQuery = '' }: { initialQuery?: string }) {
       {/* Tabs Bar */}
       {hasQuery && (
         <div className="flex items-center gap-1 border-b border-border/40 pb-2 overflow-x-auto no-scrollbar">
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setActiveTab('all')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer ${
+            className={`rounded-xl px-3.5 py-1.5 text-xs! font-semibold! hover:bg-transparent ${
               activeTab === 'all'
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-            }`}
+            } leading-[16px]! h-auto! whitespace-normal! justify-normal inline-block `}
           >
             {t`Tous les résultats`}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setActiveTab('thoughts')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+            className={`items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs! font-semibold! hover:bg-transparent ${
               activeTab === 'thoughts'
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-            }`}
+            } leading-[16px]! h-auto! whitespace-normal! justify-normal `}
           >
-            <MessageSquare className="w-3.5 h-3.5" />
+            <MessageSquare className="w-3.5! h-3.5!" />
             <span>{t`Pensées (${thoughtCountLabel})`}</span>
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setActiveTab('users')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+            className={`items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs! font-semibold! hover:bg-transparent ${
               activeTab === 'users'
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-            }`}
+            } leading-[16px]! h-auto! whitespace-normal! justify-normal `}
           >
-            <UserIcon className="w-3.5 h-3.5" />
+            <UserIcon className="w-3.5! h-3.5!" />
             <span>{t`Profils (${users.length})`}</span>
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setActiveTab('articles')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+            className={`items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs! font-semibold! hover:bg-transparent ${
               activeTab === 'articles'
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-            }`}
+            } leading-[16px]! h-auto! whitespace-normal! justify-normal `}
           >
-            <FileText className="w-3.5 h-3.5" />
+            <FileText className="w-3.5! h-3.5!" />
             <span>{t`Articles (${articleCountLabel})`}</span>
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setActiveTab('semantic')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+            className={`items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs! font-semibold! hover:bg-transparent ${
               activeTab === 'semantic'
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-            }`}
+            } leading-[16px]! h-auto! whitespace-normal! justify-normal `}
             title={t`Classement par similarité de sens`}
           >
-            <Sparkles className="w-3.5 h-3.5" />
+            <Sparkles className="w-3.5! h-3.5!" />
             <span>
               {semanticItems.length > 0 ? t`Sémantique (${semanticItems.length})` : t`Sémantique`}
             </span>
-          </button>
+          </Button>
         </div>
       )}
 
@@ -379,30 +394,30 @@ export function SearchFeed({ initialQuery = '' }: { initialQuery?: string }) {
               )}
 
               {activeTab === 'thoughts' && infiniteThoughts.hasNextPage && (
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => infiniteThoughts.fetchNextPage()}
-                  disabled={infiniteThoughts.isFetchingNextPage}
-                  className="mx-auto mt-2 flex items-center gap-1.5 rounded-xl border border-border/50 bg-card px-4 py-2 text-xs font-semibold text-foreground hover:bg-muted/40 disabled:opacity-60"
+                  loading={infiniteThoughts.isFetchingNextPage}
+                  className="mx-auto mt-2 items-center gap-1.5 rounded-xl border-border/50 bg-card px-4 py-2 text-xs! font-semibold! text-foreground hover:bg-muted/40 leading-[16px]! h-auto! whitespace-normal! justify-normal "
                 >
-                  {infiniteThoughts.isFetchingNextPage ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <ChevronDown className="w-3.5 h-3.5" />
+                  {!infiniteThoughts.isFetchingNextPage && (
+                    <ChevronDown className="w-3.5! h-3.5!" />
                   )}
                   {t`Charger plus de pensées`}
-                </button>
+                </Button>
               )}
 
               {activeTab === 'all' && base.data?.nextCursor && (
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => setActiveTab('thoughts')}
-                  className="mx-auto mt-2 flex items-center gap-1.5 rounded-xl border border-border/50 bg-card px-4 py-2 text-xs font-semibold text-foreground hover:bg-muted/40"
+                  className="mx-auto mt-2 items-center gap-1.5 rounded-xl border-border/50 bg-card px-4 py-2 text-xs! font-semibold! text-foreground hover:bg-muted/40 leading-[16px]! h-auto! whitespace-normal! justify-normal "
                 >
-                  <MessageSquare className="w-3.5 h-3.5" />
+                  <MessageSquare className="w-3.5! h-3.5!" />
                   {t`Parcourir toutes les pensées`}
-                </button>
+                </Button>
               )}
             </div>
           )}
@@ -418,11 +433,12 @@ export function SearchFeed({ initialQuery = '' }: { initialQuery?: string }) {
               {articles.length > 0 && (
                 <div className="grid gap-2">
                   {articles.map((art) => (
-                    <button
+                    <Button
                       key={art.id}
-                      type="button"
+                      variant="ghost"
+                      block
                       onClick={() => openArticle(art)}
-                      className="p-4 rounded-2xl bg-card border border-border/50 space-y-1 text-left hover:border-border/80 hover:bg-muted/40 transition-all cursor-pointer select-none"
+                      className="select-none flex-col items-start gap-0 space-y-1 rounded-2xl border border-border/50 bg-card p-4 text-left hover:border-border/80 hover:bg-muted/40 h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal "
                     >
                       <h4 className="font-bold text-sm text-foreground hover:text-primary transition-colors">
                         {art.title}
@@ -432,7 +448,7 @@ export function SearchFeed({ initialQuery = '' }: { initialQuery?: string }) {
                           {art.content.slice(0, 140)}...
                         </p>
                       )}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               )}
@@ -446,30 +462,30 @@ export function SearchFeed({ initialQuery = '' }: { initialQuery?: string }) {
                 )}
 
               {activeTab === 'articles' && infiniteArticles.hasNextPage && (
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => infiniteArticles.fetchNextPage()}
-                  disabled={infiniteArticles.isFetchingNextPage}
-                  className="mx-auto mt-2 flex items-center gap-1.5 rounded-xl border border-border/50 bg-card px-4 py-2 text-xs font-semibold text-foreground hover:bg-muted/40 disabled:opacity-60"
+                  loading={infiniteArticles.isFetchingNextPage}
+                  className="mx-auto mt-2 items-center gap-1.5 rounded-xl border-border/50 bg-card px-4 py-2 text-xs! font-semibold! text-foreground hover:bg-muted/40 leading-[16px]! h-auto! whitespace-normal! justify-normal "
                 >
-                  {infiniteArticles.isFetchingNextPage ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <ChevronDown className="w-3.5 h-3.5" />
+                  {!infiniteArticles.isFetchingNextPage && (
+                    <ChevronDown className="w-3.5! h-3.5!" />
                   )}
                   {t`Charger plus d'articles`}
-                </button>
+                </Button>
               )}
 
               {activeTab === 'all' && base.data?.articlesNextCursor && (
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => setActiveTab('articles')}
-                  className="mx-auto mt-2 flex items-center gap-1.5 rounded-xl border border-border/50 bg-card px-4 py-2 text-xs font-semibold text-foreground hover:bg-muted/40"
+                  className="mx-auto mt-2 items-center gap-1.5 rounded-xl border-border/50 bg-card px-4 py-2 text-xs! font-semibold! text-foreground hover:bg-muted/40 leading-[16px]! h-auto! whitespace-normal! justify-normal "
                 >
-                  <FileText className="w-3.5 h-3.5" />
+                  <FileText className="w-3.5! h-3.5!" />
                   {t`Parcourir tous les articles`}
-                </button>
+                </Button>
               )}
             </div>
           )}
@@ -485,9 +501,10 @@ export function SearchFeed({ initialQuery = '' }: { initialQuery?: string }) {
               </p>
               <div className="grid gap-2">
                 {semanticItems.map((item) => (
-                  <button
+                  <Button
                     key={item.id}
-                    type="button"
+                    variant="ghost"
+                    block
                     onClick={() =>
                       openArticle({
                         id: item.id,
@@ -498,7 +515,7 @@ export function SearchFeed({ initialQuery = '' }: { initialQuery?: string }) {
                         authorId: item.authorId,
                       })
                     }
-                    className="space-y-1 rounded-2xl border border-border/50 bg-card p-4 text-left transition-all hover:border-border/80 hover:bg-muted/40"
+                    className="flex-col items-start gap-0 space-y-1 rounded-2xl border border-border/50 bg-card p-4 text-left hover:border-border/80 hover:bg-muted/40 h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal "
                   >
                     <div className="flex items-start justify-between gap-3">
                       <h4 className="font-bold text-sm text-foreground hover:text-primary transition-colors">
@@ -513,7 +530,7 @@ export function SearchFeed({ initialQuery = '' }: { initialQuery?: string }) {
                       {t`${item.readingTime} min`}
                       {item.isPremium ? t` · Premium` : ''}
                     </p>
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>

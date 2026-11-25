@@ -4,11 +4,12 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { t } from '@lingui/core/macro';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Loader2, UserCheck, UserPlus, Users } from 'lucide-react';
+import { UserCheck, UserPlus, Users } from 'lucide-react';
 
 import { routes } from '@qoe/config/routes';
 import { cn } from '@qoe/utils';
 import { CertifiedBadge } from '@qoe/ui';
+import { Button } from '@qoe/ui/button';
 import {
   toggleFollowCreatorHomeAction as toggleFollowCreator,
   getFollowListAction,
@@ -188,17 +189,21 @@ export function FollowList({
           const Icon = t.icon;
           const isActive = tab === t.key;
           return (
-            <button
+            <Button
               key={t.key}
+              variant="ghost"
+              size="sm"
               onClick={() => setTab(t.key)}
               className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer',
-                isActive ? 'bg-card shadow-xs text-foreground' : 'text-muted-foreground'
+                'flex items-center gap-1.5 px-3 py-1.5 text-xs! font-semibold! rounded-md transition-all cursor-pointer hover:bg-transparent h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! ',
+                isActive
+                  ? 'bg-card shadow-xs text-foreground hover:bg-card'
+                  : 'text-muted-foreground leading-[16px]! h-auto! whitespace-normal! justify-normal '
               )}
             >
-              <Icon className="w-3.5 h-3.5" />
+              <Icon className="w-3.5! h-3.5!" />
               {t.label}
-            </button>
+            </Button>
           );
         })}
       </div>
@@ -251,41 +256,39 @@ export function FollowList({
             </Link>
 
             {isOwnProfile && tab === 'followers' ? (
-              <button
-                type="button"
+              <Button
+                variant="outline"
+                tone="danger"
+                size="sm"
                 onClick={() => void handleRemoveFollower(actor)}
-                disabled={removingId === actor.id}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border/60 bg-card hover:bg-destructive/10 hover:text-destructive-text text-muted-foreground transition-all cursor-pointer shrink-0"
+                loading={removingId === actor.id}
+                className="shrink-0 rounded-lg border-border/60 bg-card px-3 py-1.5 text-xs! font-medium! text-muted-foreground leading-[16px]! h-auto! whitespace-normal! justify-normal inline-block "
                 title={t`Retirer cet abonné`}
               >
-                {removingId === actor.id ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  t`Retirer`
-                )}
-              </button>
+                {t`Retirer`}
+              </Button>
             ) : currentUserId && actor.id !== currentUserId ? (
-              <button
+              <Button
+                variant={actor.viewerFollows ? 'outline' : 'solid'}
+                size="sm"
                 onClick={() => void handleFollow(actor)}
-                disabled={busyId === actor.id}
+                loading={busyId === actor.id}
                 className={cn(
-                  'px-4 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer shrink-0',
+                  'shrink-0 rounded-lg px-4 py-1.5 text-xs! font-semibold! h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! ',
                   actor.viewerFollows
-                    ? 'border border-border/60 bg-card hover:bg-destructive/10 hover:text-destructive-text text-foreground'
-                    : 'bg-foreground text-background hover:opacity-90'
+                    ? 'border-border/60 bg-card text-foreground hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive-text'
+                    : 'bg-foreground text-background hover:bg-foreground/90 leading-[16px]! h-auto! whitespace-normal! justify-normal inline-block '
                 )}
               >
-                {busyId === actor.id ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : actor.viewerFollows ? (
+                {actor.viewerFollows ? (
                   'Abonné'
                 ) : (
                   <span className="flex items-center gap-1">
-                    <UserPlus className="w-3.5 h-3.5" />
+                    <UserPlus className="w-3.5! h-3.5!" />
                     Suivre
                   </span>
                 )}
-              </button>
+              </Button>
             ) : null}
           </div>
         ))}
@@ -293,13 +296,16 @@ export function FollowList({
 
       {hasMore && (
         <div className="flex justify-center pt-2">
-          <button
+          <Button
+            variant="ghost"
+            tone="brand"
+            size="sm"
             onClick={() => void load(false)}
-            disabled={loading}
-            className="text-xs font-semibold text-brand hover:underline cursor-pointer flex items-center gap-1.5"
+            loading={loading}
+            className="flex items-center gap-1.5 p-0 text-xs! font-semibold! text-brand hover:bg-transparent hover:underline leading-[16px]! h-auto! whitespace-normal! justify-normal "
           >
-            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Afficher plus'}
-          </button>
+            Afficher plus
+          </Button>
         </div>
       )}
     </div>

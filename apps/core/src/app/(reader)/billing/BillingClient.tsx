@@ -18,6 +18,7 @@ import { routes } from '@qoe/config/routes';
 import { cn } from '@qoe/utils';
 import { SafeAvatar } from '@qoe/ui';
 import { DynamicBannerSlot } from '@/components/banners/DynamicBannerSlot';
+import { Button } from '@qoe/ui/button';
 
 import {
   type BillingTransaction,
@@ -79,14 +80,16 @@ export function BillingClient({ billing, userEmail, userName }: BillingClientPro
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            type="button"
+          <Button
+            variant="solid"
+            tone="brand"
+            size="sm"
             onClick={handleTopUp}
-            className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground hover:opacity-90 transition-opacity py-2 px-4 rounded-xl text-xs font-semibold shadow-xs cursor-pointer"
+            className="gap-1.5 rounded-xl px-4 py-2 text-xs! font-semibold! shadow-xs leading-[16px]! h-auto! whitespace-normal! justify-normal "
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-3.5! h-3.5!" />
             Recharger le solde
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -259,14 +262,15 @@ export function BillingClient({ billing, userEmail, userName }: BillingClientPro
                     </div>
                   </Link>
 
-                  <button
-                    type="button"
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => handleCancelSub(pubName)}
-                    className="text-[11px] font-semibold text-muted-foreground hover:text-destructive-text hover:bg-destructive/10 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 border border-border/60 hover:border-destructive/30 shrink-0 cursor-pointer"
+                    className="shrink-0 items-center gap-1 rounded-lg border-border/60 px-3 py-1.5 text-[11px]! font-semibold! text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive-text h-auto! leading-[inherit]! whitespace-normal! justify-normal "
                   >
-                    <ShieldX className="w-3.5 h-3.5" />
+                    <ShieldX className="w-3.5! h-3.5!" />
                     Gérer
-                  </button>
+                  </Button>
                 </div>
               );
             })}
@@ -286,42 +290,45 @@ export function BillingClient({ billing, userEmail, userName }: BillingClientPro
 
           {/* Filtres de transactions */}
           <div className="inline-flex items-center p-0.5 bg-muted/50 border border-border/50 rounded-xl">
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setFilter('all')}
               className={cn(
-                'px-3 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer',
+                'rounded-lg px-3 py-1 text-xs! font-semibold! hover:bg-transparent h-auto! [font-size:inherit]! leading-[inherit]! whitespace-normal! ',
                 filter === 'all'
-                  ? 'bg-card text-foreground shadow-2xs font-bold'
-                  : 'text-muted-foreground hover:text-foreground'
+                  ? 'bg-card font-bold text-foreground shadow-2xs hover:bg-card'
+                  : 'text-muted-foreground hover:text-foreground leading-[16px]! h-auto! whitespace-normal! justify-normal inline-block '
               )}
             >
               Toutes ({totalTransactions})
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setFilter('credits')}
               className={cn(
-                'px-3 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer',
+                'rounded-lg px-3 py-1 text-xs! font-semibold! hover:bg-transparent h-auto! [font-size:inherit]! leading-[inherit]! whitespace-normal! ',
                 filter === 'credits'
-                  ? 'bg-card text-foreground shadow-2xs font-bold'
-                  : 'text-muted-foreground hover:text-foreground'
+                  ? 'bg-card font-bold text-foreground shadow-2xs hover:bg-card'
+                  : 'text-muted-foreground hover:text-foreground leading-[16px]! h-auto! whitespace-normal! justify-normal inline-block '
               )}
             >
               Crédits ({creditsCount})
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setFilter('debits')}
               className={cn(
-                'px-3 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer',
+                'rounded-lg px-3 py-1 text-xs! font-semibold! hover:bg-transparent h-auto! [font-size:inherit]! leading-[inherit]! whitespace-normal! ',
                 filter === 'debits'
-                  ? 'bg-card text-foreground shadow-2xs font-bold'
-                  : 'text-muted-foreground hover:text-foreground'
+                  ? 'bg-card font-bold text-foreground shadow-2xs hover:bg-card'
+                  : 'text-muted-foreground hover:text-foreground leading-[16px]! h-auto! whitespace-normal! justify-normal inline-block '
               )}
             >
               Débits ({debitsCount})
-            </button>
+            </Button>
           </div>
         </div>
 

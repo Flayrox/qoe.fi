@@ -5,7 +5,6 @@ import {
   Check,
   X,
   Shield,
-  Loader2,
   AlertTriangle,
   ExternalLink,
   Building2,
@@ -13,6 +12,8 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { toast } from '@qoe/ui/toast';
+import { Button } from '@qoe/ui/button';
+import { CheckboxInput } from '@qoe/ui/checkbox';
 import {
   decideOAuthAuthorizationAction,
   type OAuthAuthorizeInfo,
@@ -206,11 +207,10 @@ export function OAuthConsentClient({
 
           {/* Remember */}
           <label className="flex items-start gap-2.5 cursor-pointer select-none">
-            <input
-              type="checkbox"
+            <CheckboxInput
               checked={remember}
               onChange={(e) => setRemember(e.target.checked)}
-              className="mt-0.5 accent-primary"
+              className="mt-0.5 accent-primary h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
             />
             <span className="text-xs text-muted-foreground leading-relaxed">
               Ne plus me redemander pour cette application (les autorisations restent révocables à
@@ -221,30 +221,27 @@ export function OAuthConsentClient({
 
         {/* Actions */}
         <div className="px-8 py-5 border-t border-border/80 bg-muted/10 flex items-center justify-end gap-2.5">
-          <button
+          <Button
+            variant="outline"
             onClick={() => decide('deny')}
+            loading={deciding === 'deny'}
             disabled={deciding !== null}
-            className="px-4 py-2.5 rounded-xl text-xs font-semibold border border-border text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer disabled:opacity-60 flex items-center gap-1.5"
+            className="items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs! font-semibold! text-muted-foreground hover:bg-muted/60 hover:text-foreground leading-[16px]! h-auto! whitespace-normal! justify-normal "
           >
-            {deciding === 'deny' ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <X className="w-3.5 h-3.5" />
-            )}
+            {deciding !== 'deny' && <X className="w-3.5! h-3.5!" />}
             Refuser
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="solid"
+            tone="brand"
             onClick={() => decide('approve')}
+            loading={deciding === 'approve'}
             disabled={deciding !== null}
-            className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer disabled:opacity-60 flex items-center gap-1.5 shadow-xs"
+            className="items-center gap-1.5 rounded-xl px-5 py-2.5 text-xs! font-semibold! shadow-xs leading-[16px]! h-auto! whitespace-normal! justify-normal "
           >
-            {deciding === 'approve' ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Check className="w-3.5 h-3.5" />
-            )}
+            {deciding !== 'approve' && <Check className="w-3.5! h-3.5!" />}
             Autoriser
-          </button>
+          </Button>
         </div>
       </div>
     </main>

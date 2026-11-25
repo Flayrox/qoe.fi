@@ -3,10 +3,11 @@
 import React, { useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '@qoe/ui';
-import { BookOpen, Upload, Trash2, Loader2, ArrowLeft, Lock, NotebookPen } from 'lucide-react';
+import { BookOpen, Upload, Trash2, ArrowLeft, Lock, NotebookPen } from 'lucide-react';
 import { deleteEbookAction, type EbookSummary } from '@qoe/sdk';
 import { toast } from '@qoe/ui/toast';
-import { cn } from '@qoe/utils';
+import { Button } from '@qoe/ui/button';
+import { Input } from '@qoe/ui/input';
 import {
   describeEbookError,
   describeEbookProgress,
@@ -144,25 +145,23 @@ export function EbooksClient({ initialEbooks, plus }: EbooksClientProps) {
             <NotebookPen className="w-3.5 h-3.5 text-primary" />
             <span>Mes notes</span>
           </Link>
-          <button
-            type="button"
+          <Button
+            variant="solid"
+            tone="brand"
+            size="sm"
             onClick={onPick}
-            disabled={uploading}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity shadow-2xs cursor-pointer disabled:opacity-60"
+            loading={uploading}
+            className="gap-1.5 rounded-xl px-3 py-1.5 text-xs! font-semibold! shadow-2xs leading-[16px]! h-auto! whitespace-normal! justify-normal "
           >
-            {uploading ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Upload className="w-3.5 h-3.5" />
-            )}
+            {!uploading && <Upload className="w-3.5! h-3.5!" />}
             <span>{uploading ? 'Import en cours…' : 'Importer un EPUB'}</span>
-          </button>
+          </Button>
         </div>
-        <input
+        <Input
           ref={inputRef}
           type="file"
           accept=".epub,application/epub+zip"
-          className="hidden"
+          className="hidden h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal "
           onChange={(e) => void onFile(e.target.files?.[0])}
         />
       </div>
@@ -197,14 +196,15 @@ export function EbooksClient({ initialEbooks, plus }: EbooksClientProps) {
             Importez un EPUB : le texte est extrait et sécurisé (titres, paragraphes, citations), la
             couverture conservée, et votre progression synchronisée entre vos appareils.
           </p>
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            size="sm"
             onClick={onPick}
-            className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-muted/60 hover:bg-muted text-foreground border border-border/50 transition-colors cursor-pointer"
+            className="mt-2 gap-1.5 rounded-xl border-border/50 bg-muted/60 px-3 py-1.5 text-xs! font-semibold! text-foreground hover:bg-muted leading-[16px]! h-auto! whitespace-normal! justify-normal "
           >
-            <Upload className="w-3.5 h-3.5 text-primary" />
+            <Upload className="w-3.5! h-3.5! text-primary" />
             <span>Importer un EPUB</span>
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -258,26 +258,28 @@ export function EbooksClient({ initialEbooks, plus }: EbooksClientProps) {
                       {book.progressPct > 0 ? 'Reprendre' : 'Lire'}
                     </Link>
                     {confirmId === book.id ? (
-                      <button
-                        type="button"
+                      <Button
+                        variant="soft"
+                        tone="danger"
+                        size="xs"
                         onClick={() => onDelete(book.id)}
-                        disabled={pendingDelete}
-                        className={cn(
-                          'text-[11px] font-semibold px-2 py-0.5 rounded-md',
-                          'bg-destructive/10 text-destructive-text hover:bg-destructive/20 cursor-pointer'
-                        )}
+                        loading={pendingDelete}
+                        className="rounded-md px-2 py-0.5 text-[11px]! font-semibold! h-auto! leading-[inherit]! whitespace-normal! justify-normal inline-block "
                       >
                         Confirmer
-                      </button>
+                      </Button>
                     ) : (
-                      <button
-                        type="button"
+                      <Button
+                        variant="ghost"
+                        shape="icon"
+                        size="xs"
                         onClick={() => setConfirmId(book.id)}
-                        className="text-muted-foreground hover:text-destructive-text transition-colors cursor-pointer"
+                        className="p-0 text-muted-foreground hover:bg-transparent hover:text-destructive-text h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                         title="Supprimer ce livre"
+                        aria-label="Supprimer ce livre"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                        <Trash2 className="w-3.5! h-3.5!" />
+                      </Button>
                     )}
                   </div>
                 </div>

@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { CornerDownRight, Loader2, MessageSquare } from 'lucide-react';
+import { CornerDownRight, MessageSquare } from 'lucide-react';
+import { Button } from '@qoe/ui/button';
 import { ThoughtThreadItem } from './ThoughtThreadItem';
 import { ThoughtThreadTombstone } from './ThoughtThreadTombstone';
 import { useThoughtThreadContext, type OptimisticThought } from './ThoughtThreadContext';
@@ -59,17 +60,19 @@ export function ThoughtThreadList({ children }: ThoughtThreadListProps) {
 
       {!showAllReplies && remainingCount > 0 && (
         <div className="py-3 px-1">
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="sm"
+            block
             onClick={() => setShowAllReplies(true)}
-            className="w-full py-2 px-3 rounded-xl border border-border/40 bg-card/60 hover:bg-muted/40 text-xs font-semibold text-brand transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
+            className="gap-2 rounded-xl border border-border/40 bg-card/60 px-3 py-2 font-semibold! text-brand shadow-2xs transition-all hover:bg-muted/40 h-auto! [font-size:inherit]! leading-[inherit]! whitespace-normal! justify-normal "
           >
-            <MessageSquare className="w-3.5 h-3.5" />
+            <MessageSquare />
             <span>
               Afficher {remainingCount} autre{remainingCount > 1 ? 's' : ''} réponse
               {remainingCount > 1 ? 's' : ''}
             </span>
-          </button>
+          </Button>
         </div>
       )}
 
@@ -77,21 +80,19 @@ export function ThoughtThreadList({ children }: ThoughtThreadListProps) {
           demande explicitement la suite au lieu de laisser croire le fil fini. */}
       {repliesHasMore && (
         <div className="py-3 px-1">
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="sm"
+            block
             onClick={loadMoreReplies}
-            disabled={repliesLoadingMore}
-            className="w-full py-2 px-3 rounded-xl border border-border/40 bg-card/60 hover:bg-muted/40 disabled:opacity-60 disabled:cursor-wait text-xs font-semibold text-brand transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
+            loading={repliesLoadingMore}
+            className="gap-2 rounded-xl border border-border/40 bg-card/60 px-3 py-2 font-semibold! text-brand shadow-2xs transition-all hover:bg-muted/40 h-auto! [font-size:inherit]! leading-[inherit]! whitespace-normal! justify-normal "
           >
-            {repliesLoadingMore ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <CornerDownRight className="w-3.5 h-3.5" />
-            )}
+            {!repliesLoadingMore && <CornerDownRight />}
             <span>
               {repliesLoadingMore ? 'Chargement de la suite…' : 'Charger la suite du fil'}
             </span>
-          </button>
+          </Button>
         </div>
       )}
     </div>

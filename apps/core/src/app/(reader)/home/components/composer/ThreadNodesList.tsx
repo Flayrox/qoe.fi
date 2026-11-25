@@ -12,6 +12,7 @@ import { QuotedThoughtCard } from '@/components/social/QuotedThoughtCard';
 import type { ThoughtData } from '@/components/social/ThoughtCard';
 import { MentionTypeahead } from './MentionTypeahead';
 import type { ComposerImage, DbUser, MentionSuggestion, ThreadNode } from './types';
+import { Textarea } from '@qoe/ui/input';
 
 interface ThreadNodesListProps {
   dbUser: DbUser | null;
@@ -82,7 +83,7 @@ export function ThreadNodesList({
             <div className="flex-1 min-w-0 pb-1">
               {isActive ? (
                 <div className="space-y-2">
-                  <textarea
+                  <Textarea
                     ref={textareaRef}
                     placeholder={
                       idx === 0 ? defaultPlaceholder : t`Ajouter une autre pensée à ce fil...`
@@ -94,9 +95,9 @@ export function ThreadNodesList({
                     onPaste={onPaste}
                     disabled={isSubmitting}
                     className={cn(
-                      'w-full font-sans text-sm focus:outline-none resize-none transition-all duration-200',
+                      'w-full! font-sans text-sm! focus:outline-none resize-none transition-all duration-200 [font-size:inherit]! whitespace-normal! ',
                       'placeholder:text-muted-foreground/60 text-foreground font-normal p-0',
-                      'bg-transparent border-0 focus:ring-0 leading-relaxed min-h-[44px]'
+                      'bg-transparent border-0 focus:ring-0 leading-relaxed! min-h-[44px] whitespace-normal! justify-normal inline-block '
                     )}
                     style={{ height: 'auto' }}
                   />
@@ -151,10 +152,10 @@ export function ThreadNodesList({
                   <Button
                     variant="ghost"
                     onClick={onClearQuotedThought}
-                    className="absolute top-2 right-2 z-20 p-1.5 rounded-full bg-foreground/80 text-background hover:bg-foreground transition-colors cursor-pointer h-[auto]! leading-[inherit]!"
+                    className="absolute top-2 right-2 z-20 p-1.5 rounded-full bg-foreground/80 text-background hover:bg-foreground transition-colors cursor-pointer h-[auto]! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                     title="Retirer la citation"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <X className="w-3.5! h-3.5!" />
                   </Button>
                   <QuotedThoughtCard post={quotedThought} />
                 </div>
@@ -165,10 +166,10 @@ export function ThreadNodesList({
                   <Button
                     variant="ghost"
                     onClick={onClearQuotedArticle}
-                    className="absolute top-2 right-2 z-20 p-1.5 rounded-full bg-foreground/80 text-background hover:bg-foreground transition-colors cursor-pointer shadow-md h-[auto]! leading-[inherit]!"
+                    className="absolute top-2 right-2 z-20 p-1.5 rounded-full bg-foreground/80 text-background hover:bg-foreground transition-colors cursor-pointer shadow-md h-[auto]! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                     title="Retirer la citation"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <X className="w-3.5! h-3.5!" />
                   </Button>
                   <QuotedArticleCard
                     article={quotedArticle}
@@ -182,10 +183,10 @@ export function ThreadNodesList({
               <Button
                 variant="ghost"
                 onClick={() => onRemoveNode(node.id)}
-                className="p-1.5 rounded-full text-muted-foreground/50 hover:text-destructive-text hover:bg-destructive/10 cursor-pointer shrink-0 self-start mt-0.5 transition-all outline-none h-[auto]! leading-[inherit]! [&_svg]:size-4!"
+                className="p-1.5 rounded-full text-muted-foreground/50 hover:text-destructive-text hover:bg-destructive/10 cursor-pointer shrink-0 self-start mt-0.5 transition-all outline-none h-[auto]! [&_svg]:size-4! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal "
                 title={t`Supprimer cette pensée du fil`}
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-4! h-4!" />
               </Button>
             )}
           </div>

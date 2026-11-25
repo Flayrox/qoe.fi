@@ -37,6 +37,8 @@ import {
 import { clampChapter, clampPct } from '../ebooks-helpers';
 import { searchEbookChapters, type EbookSearchHit } from '../ebook-search';
 import { EbookNotes } from './EbookNotes';
+import { Button } from '@qoe/ui/button';
+import { Input } from '@qoe/ui/input';
 
 /** Sélecteur du conteneur de chapitre : la synthèse vocale y lit ses paragraphes. */
 const CHAPTER_SELECTOR = '#ebook-chapter';
@@ -384,27 +386,31 @@ function EbookReaderInner({
             >
               <NotebookPen className="w-4 h-4" />
             </Link>
-            <button
-              type="button"
+            <Button
+              variant="ghost"
               onClick={listen}
               className={cn(
-                'flex items-center gap-1 transition-colors cursor-pointer',
-                tts?.isPlaying ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                'items-center gap-1 p-0 hover:bg-transparent h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! ',
+                tts?.isPlaying
+                  ? 'text-primary hover:text-primary'
+                  : 'text-muted-foreground hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal '
               )}
               title={
                 plus ? 'Écouter ce chapitre (synthèse vocale)' : 'Écoute réservée aux abonnés Plus'
               }
             >
-              <Headphones className="w-4 h-4" />
-              {!plus && <Lock className="w-2.5 h-2.5" />}
-            </button>
-            <button
-              type="button"
+              <Headphones className="w-4! h-4!" />
+              {!plus && <Lock className="w-2.5! h-2.5!" />}
+            </Button>
+            <Button
+              variant="ghost"
               onClick={() => void takeOffline()}
-              disabled={busy}
+              loading={busy}
               className={cn(
-                'flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50',
-                offline ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                'items-center gap-1 p-0 hover:bg-transparent h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! ',
+                offline
+                  ? 'text-primary hover:text-primary'
+                  : 'text-muted-foreground hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal '
               )}
               title={
                 offline
@@ -414,49 +420,48 @@ function EbookReaderInner({
                     : 'Le hors-ligne est réservé aux abonnés Plus'
               }
             >
-              {busy ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Download className="w-4 h-4" />
-              )}
-              {!plus && <Lock className="w-2.5 h-2.5" />}
-            </button>
-            <button
-              type="button"
+              {!busy && <Download className="w-4! h-4!" />}
+              {!plus && <Lock className="w-2.5! h-2.5!" />}
+            </Button>
+            <Button
+              variant="ghost"
               onClick={() => setNotesOpen((v) => !v)}
               className={cn(
-                'flex items-center gap-1 transition-colors cursor-pointer',
-                notesOpen ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                'items-center gap-1 p-0 hover:bg-transparent h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! ',
+                notesOpen
+                  ? 'text-primary hover:text-primary'
+                  : 'text-muted-foreground hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal '
               )}
               title="Mes notes sur ce chapitre"
             >
-              <StickyNote className="w-4 h-4" />
+              <StickyNote className="w-4! h-4!" />
               {chapterNotes.length > 0 && (
                 <span className="text-[10px] font-semibold">{chapterNotes.length}</span>
               )}
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="ghost"
               onClick={() => {
                 setSearchOpen((v) => !v);
                 setQuery('');
               }}
-              className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              className="p-0 text-muted-foreground hover:bg-transparent hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               title="Rechercher dans ce livre"
+              aria-label="Rechercher dans ce livre"
             >
-              {searchOpen ? <X className="w-4 h-4" /> : <Search className="w-4 h-4" />}
-            </button>
+              {searchOpen ? <X className="w-4! h-4!" /> : <Search className="w-4! h-4!" />}
+            </Button>
           </div>
         </div>
         {/* Recherche dans le livre (locale, instantanée) */}
         {searchOpen && (
           <div className="space-y-2">
-            <input
+            <Input
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Rechercher dans ce livre…"
-              className="w-full text-xs px-3 py-2 rounded-xl bg-muted/50 border border-border/50 focus:outline-none focus:ring-1 focus:ring-primary/40"
+              className="w-full! text-xs! px-3 py-2 rounded-xl bg-muted/50 border border-border/50 focus:outline-none focus:ring-1 focus:ring-primary/40 leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
             />
             {query.trim().length >= 2 && (
               <div className="rounded-xl border border-border/50 bg-card max-h-64 overflow-y-auto divide-y divide-border/40">
@@ -466,20 +471,22 @@ function EbookReaderInner({
                   </p>
                 ) : (
                   hits.map((hit, i) => (
-                    <button
+                    <Button
                       key={`${hit.chapterIndex}-${i}`}
-                      type="button"
+                      variant="ghost"
+                      block
                       onClick={() => setIndex(hit.chapterIndex)}
                       className={cn(
-                        'w-full text-left px-3 py-2 hover:bg-muted/40 transition-colors cursor-pointer',
-                        hit.chapterIndex === index && 'bg-muted/30'
+                        'w-full! flex-col items-start justify-start gap-0 rounded-none px-3 py-2 text-left hover:bg-muted/40 h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! ',
+                        hit.chapterIndex === index &&
+                          'bg-muted/30 h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal '
                       )}
                     >
                       <span className="block text-[10px] font-semibold text-primary mb-0.5">
                         {hit.chapterTitle}
                       </span>
                       <Snippet hit={hit} />
-                    </button>
+                    </Button>
                   ))
                 )}
               </div>
@@ -526,19 +533,16 @@ function EbookReaderInner({
 
       {/* ─── Navigation ─── */}
       <div className="flex items-center justify-between gap-3 border-t border-border/40 pt-4">
-        <button
-          type="button"
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => setIndex((i) => clampChapter(i - 1, chapters.length))}
           disabled={index === 0}
-          className={cn(
-            'inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl',
-            'bg-muted/60 hover:bg-muted text-foreground border border-border/50 transition-colors cursor-pointer',
-            'disabled:opacity-40 disabled:cursor-default'
-          )}
+          className="items-center gap-1.5 rounded-xl border-border/50 bg-muted/60 px-3 py-1.5 text-xs! font-semibold! text-foreground hover:bg-muted leading-[16px]! h-auto! whitespace-normal! justify-normal "
         >
-          <ChevronLeft className="w-3.5 h-3.5" />
+          <ChevronLeft className="w-3.5! h-3.5!" />
           <span>Précédent</span>
-        </button>
+        </Button>
 
         <Select
           label="Choisir un chapitre"
@@ -553,19 +557,17 @@ function EbookReaderInner({
           }))}
         />
 
-        <button
-          type="button"
+        <Button
+          variant="solid"
+          tone="brand"
+          size="sm"
           onClick={() => setIndex((i) => clampChapter(i + 1, chapters.length))}
           disabled={index >= chapters.length - 1}
-          className={cn(
-            'inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl',
-            'bg-primary text-primary-foreground hover:opacity-90 transition-opacity cursor-pointer',
-            'disabled:opacity-40 disabled:cursor-default'
-          )}
+          className="items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs! font-semibold! leading-[16px]! h-auto! whitespace-normal! justify-normal "
         >
           <span>Suivant</span>
-          <ChevronRight className="w-3.5 h-3.5" />
-        </button>
+          <ChevronRight className="w-3.5! h-3.5!" />
+        </Button>
       </div>
 
       {/* ─── Passage sélectionné : on propose de le garder (aucune action
@@ -579,26 +581,30 @@ function EbookReaderInner({
             <p className="text-[11px] italic text-muted-foreground line-clamp-2 flex-1">
               « {selection} »
             </p>
-            <button
-              type="button"
+            <Button
+              variant="solid"
+              tone="brand"
+              size="sm"
               onClick={() => {
                 setDraftExcerpt(selection);
                 setNotesOpen(true);
                 setSelection(null);
               }}
-              className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity cursor-pointer shrink-0"
+              className="shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px]! font-semibold! h-auto! leading-[inherit]! whitespace-normal! justify-normal "
             >
-              <StickyNote className="w-3.5 h-3.5" />
+              <StickyNote className="w-3.5! h-3.5!" />
               <span>Noter ce passage</span>
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="ghost"
+              shape="icon"
               onClick={() => setSelection(null)}
-              className="text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
+              className="shrink-0 p-0 text-muted-foreground hover:bg-transparent hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               title="Ignorer"
+              aria-label="Ignorer"
             >
-              <X className="w-3.5 h-3.5" />
-            </button>
+              <X className="w-3.5! h-3.5!" />
+            </Button>
           </div>
         </div>
       )}

@@ -8,6 +8,7 @@ import { ThoughtReplyModal } from './ThoughtReplyModal';
 import type { ThoughtData } from '@/components/social/ThoughtCard';
 import type { QuotedArticleData } from '@qoe/ui/social';
 import type { DbUser } from './ThoughtComposer';
+import { Button } from '@qoe/ui/button';
 
 interface ComposerModalProps {
   isOpen: boolean;
@@ -65,14 +66,15 @@ export function ComposerModal({
             Nouvelle pensée
           </span>
 
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            shape="icon"
             onClick={onClose}
-            className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer outline-none"
+            className="rounded-xl p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
             aria-label="Fermer"
           >
-            <X className="w-4 h-4" />
-          </button>
+            <X className="w-4! h-4!" />
+          </Button>
         </div>
 
         {/* Unified Core Composer */}

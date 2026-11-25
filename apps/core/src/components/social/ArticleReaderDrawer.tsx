@@ -12,6 +12,7 @@ import { resolveArticleByline } from './article-byline';
 import { DockedReaderToolbar } from './DockedReaderToolbar';
 import { TextToSpeechProvider } from '@qoe/ui/reader';
 import { ProgressiveBlur } from '@qoe/ui';
+import { Button } from '@qoe/ui/button';
 
 export interface ArticleReaderDrawerProps {
   isOpen: boolean;
@@ -201,14 +202,16 @@ function ArticleReaderDrawerContent({
                   >
                     <ExternalLink className="w-4 h-4" />
                   </a>
-                  <button
-                    type="button"
+                  <Button
+                    variant="outline"
+                    shape="icon"
                     onClick={onClose}
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground bg-background/80 hover:bg-muted border border-border/20 shadow-xs backdrop-blur-sm transition-all outline-none cursor-pointer shrink-0"
+                    className="w-8! shrink-0 rounded-full border-border/20 bg-background/80 p-0 text-muted-foreground shadow-xs backdrop-blur-sm hover:bg-muted hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                     title="Fermer"
+                    aria-label="Fermer"
                   >
-                    <X className="w-4 h-4" />
-                  </button>
+                    <X className="w-4! h-4!" />
+                  </Button>
                 </div>
               </div>
 

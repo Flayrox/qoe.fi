@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { t } from '@lingui/core/macro';
 import { Send } from 'lucide-react';
+import { Button } from '@qoe/ui/button';
+import { Input } from '@qoe/ui/input';
 
 // Fil de discussion d'un dossier (lot 2b) : partagé par les recours
 // (/recours) et le support (/support) — même rendu, mêmes règles : mes
@@ -57,24 +59,27 @@ export function DossierThread({
       ))}
       {canWrite ? (
         <div className="flex gap-2">
-          <input
+          <Input
             value={body}
             onChange={(e) => setBody(e.target.value)}
             placeholder={placeholder}
-            className="flex-1 text-xs px-3 py-2 rounded-xl border border-border outline-none"
+            className="flex-1 text-xs! px-3 py-2 rounded-xl border border-border outline-none leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
           />
-          <button
+          <Button
+            variant="solid"
+            shape="icon"
             aria-label={t`Envoyer`}
-            disabled={sending || body.trim().length < 1}
+            loading={sending}
+            disabled={body.trim().length < 1}
             onClick={() =>
               void onSend(body.trim()).then((ok) => {
                 if (ok) setBody('');
               })
             }
-            className="text-xs font-bold px-3 py-2 rounded-xl bg-foreground text-background cursor-pointer disabled:opacity-50"
+            className="rounded-xl bg-foreground px-3 py-2 text-xs! font-bold! text-background leading-[16px]! h-auto! whitespace-normal! justify-normal inline-block "
           >
-            <Send className="w-3 h-3" />
-          </button>
+            <Send className="w-3! h-3!" />
+          </Button>
         </div>
       ) : (
         <p className="text-[11px] text-muted-foreground">{closedHint}</p>

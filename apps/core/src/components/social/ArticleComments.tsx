@@ -25,6 +25,8 @@ import {
 } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 import { SafeAvatar } from '@qoe/ui';
+import { Button } from '@qoe/ui/button';
+import { Textarea } from '@qoe/ui/input';
 import {
   deleteArticleCommentAction,
   getArticleCommentsAction,
@@ -196,41 +198,39 @@ export function ArticleComments({ articleId, currentUserId = null }: ArticleComm
             ))}
           </div>
           {hasMore && (
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => void loadMore()}
-              disabled={loadingMore}
-              className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground disabled:opacity-50"
+              loading={loadingMore}
+              className="mt-4 gap-1.5 rounded-xl border border-border px-3 py-2 font-medium! text-muted-foreground hover:bg-transparent hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! whitespace-normal! justify-normal "
             >
-              {loadingMore && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {t`Afficher plus de commentaires`}
-            </button>
+            </Button>
           )}
         </>
       )}
 
       {currentUserId ? (
         <div className="mt-6 flex items-start gap-2">
-          <textarea
+          <Textarea
             value={content}
             onChange={(event) => setContent(event.target.value)}
             rows={3}
             placeholder={t`Ajouter un commentaire…`}
-            className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm"
+            className="w-full! resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm! leading-[20px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
           />
-          <button
-            type="button"
+          <Button
+            variant="solid"
+            size="sm"
             onClick={() => void submitRoot()}
             disabled={sending || !content.trim()}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-foreground px-3 py-2 text-xs font-semibold text-background disabled:opacity-50"
+            loading={sending}
+            className="shrink-0 gap-1.5 rounded-xl px-3 py-2 font-semibold! h-auto! [font-size:inherit]! leading-[inherit]! whitespace-normal! justify-normal "
           >
-            {sending ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Send className="h-3.5 w-3.5" />
-            )}
+            {!sending && <Send className="h-3.5! w-3.5!" />}
             {t`Envoyer`}
-          </button>
+          </Button>
         </div>
       ) : (
         <p className="mt-4 text-xs text-muted-foreground">
@@ -389,30 +389,33 @@ function CommentNode({ comment, articleId, currentUserId, depth, onTombstone }: 
 
           <div className="mt-1.5 flex items-center gap-3 text-[11px] text-muted-foreground">
             {replyCount > 0 && (
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="xs"
                 onClick={toggle}
-                className="inline-flex items-center gap-1 font-medium hover:text-foreground transition-colors"
+                className="gap-1 font-medium! text-muted-foreground transition-colors hover:bg-transparent hover:text-foreground [&_svg]:size-3! [font-size:inherit]! leading-[inherit]! whitespace-normal! justify-normal "
               >
-                {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                {open ? <ChevronDown /> : <ChevronRight />}
                 {replyCount === 1 ? t`1 réponse` : t`${replyCount} réponses`}
-              </button>
+              </Button>
             )}
             {!isTombstone && (
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="xs"
                 onClick={() => {
                   setReplying((value) => !value);
                   setReplyContent('');
                 }}
-                className="font-medium hover:text-foreground transition-colors"
+                className="font-medium! text-muted-foreground transition-colors hover:bg-transparent hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! whitespace-normal! justify-normal inline-block "
               >
                 {t`Répondre`}
-              </button>
+              </Button>
             )}
             {!isTombstone && (
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="xs"
                 aria-pressed={liked}
                 onClick={() => {
                   const next = !liked;
@@ -434,23 +437,24 @@ function CommentNode({ comment, articleId, currentUserId, depth, onTombstone }: 
                       setLikeCount((n) => Math.max(0, n + (next ? -1 : 1)));
                     });
                 }}
-                className={`inline-flex items-center gap-1 font-medium transition-colors ${
-                  liked ? 'text-destructive-text' : 'hover:text-foreground'
+                className={`h-auto gap-1 px-0 font-medium transition-colors hover:bg-transparent [&_svg]:size-3 ${
+                  liked ? 'text-destructive-text' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <Heart className="h-3 w-3" fill={liked ? 'currentColor' : 'none'} />
+                <Heart fill={liked ? 'currentColor' : 'none'} />
                 {likeCount > 0 ? likeCount : t`J'aime`}
-              </button>
+              </Button>
             )}
             {canDelete && !isTombstone && (
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="xs"
                 onClick={() => void remove()}
-                className="inline-flex items-center gap-1 hover:text-destructive-text transition-colors"
+                className="gap-1 font-medium! text-muted-foreground transition-colors hover:bg-transparent hover:text-destructive-text [&_svg]:size-3! [font-size:inherit]! leading-[inherit]! whitespace-normal! justify-normal "
               >
-                <Trash2 className="h-3 w-3" />
+                <Trash2 />
                 {t`Supprimer`}
-              </button>
+              </Button>
             )}
           </div>
 
@@ -462,21 +466,23 @@ function CommentNode({ comment, articleId, currentUserId, depth, onTombstone }: 
 
           {replying && (
             <div className="mt-3 flex items-start gap-2">
-              <textarea
+              <Textarea
                 value={replyContent}
                 onChange={(event) => setReplyContent(event.target.value)}
                 rows={2}
                 placeholder={t`Votre réponse…`}
-                className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-xs"
+                className="w-full! resize-none rounded-xl border border-border bg-background px-3 py-2 text-xs! leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               />
-              <button
-                type="button"
+              <Button
+                variant="solid"
+                size="xs"
                 onClick={() => void submitReply()}
                 disabled={sending || !replyContent.trim()}
-                className="rounded-xl bg-foreground px-3 py-2 text-[11px] font-semibold text-background disabled:opacity-50"
+                loading={sending}
+                className="rounded-xl px-3 py-2 font-semibold! h-auto! [font-size:inherit]! leading-[inherit]! whitespace-normal! justify-normal inline-block "
               >
-                {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t`Envoyer`}
-              </button>
+                {!sending && t`Envoyer`}
+              </Button>
             </div>
           )}
         </div>
@@ -501,13 +507,14 @@ function CommentNode({ comment, articleId, currentUserId, depth, onTombstone }: 
             />
           ))}
           {hasMore && !loading && (
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="xs"
               onClick={() => void loadReplies(cursor)}
-              className="ml-10 mt-2 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+              className="ml-10 mt-2 font-medium! text-muted-foreground hover:bg-transparent hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! whitespace-normal! justify-normal inline-block "
             >
               {t`Afficher plus de réponses`}
-            </button>
+            </Button>
           )}
         </div>
       )}

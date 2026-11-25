@@ -6,6 +6,7 @@ import { Dialog, DialogContent } from '@qoe/ui';
 import { ThoughtComposer, type ComposedPost, type DbUser } from './ThoughtComposer';
 import type { ThoughtData } from '@/components/social/ThoughtCard';
 import { X } from 'lucide-react';
+import { Button } from '@qoe/ui/button';
 
 export interface ThoughtReplyModalProps {
   isOpen: boolean;
@@ -40,14 +41,15 @@ export function ThoughtReplyModal({
       >
         {/* Modal Top Navigation Header Bar */}
         <div className="flex items-center justify-between pb-3 mb-2 border-b border-border/30">
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            shape="icon"
             onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer outline-none"
+            className="rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
             aria-label="Fermer"
           >
-            <X className="w-4 h-4" />
-          </button>
+            <X className="w-4! h-4!" />
+          </Button>
           <span className="text-xs font-semibold text-muted-foreground">
             En réponse à <span className="text-foreground font-bold">@{parentHandle}</span>
           </span>

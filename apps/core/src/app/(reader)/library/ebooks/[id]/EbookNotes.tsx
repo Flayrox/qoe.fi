@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Loader2, Pencil, Trash2, X } from 'lucide-react';
+import { Pencil, Trash2, X } from 'lucide-react';
 import {
   addEbookNoteAction,
   deleteEbookNoteAction,
@@ -11,6 +11,8 @@ import {
 import { toast } from '@qoe/ui/toast';
 import { cn } from '@qoe/utils';
 import { describeEbookError } from '../ebooks-helpers';
+import { Button } from '@qoe/ui/button';
+import { Textarea } from '@qoe/ui/input';
 
 // =====================================================================
 // 📝 Notes du chapitre — un passage et/ou un mot à soi (table dédiée)
@@ -150,17 +152,20 @@ export function EbookNotes({
             <p className="text-[11px] italic text-muted-foreground line-clamp-3 flex-1">
               « {excerpt} »
             </p>
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              shape="icon"
+              size="xs"
               onClick={() => setExcerpt('')}
-              className="text-muted-foreground hover:text-foreground cursor-pointer"
+              className="p-0 text-muted-foreground hover:bg-transparent hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
               title="Retirer le passage"
+              aria-label="Retirer le passage"
             >
-              <X className="w-3 h-3" />
-            </button>
+              <X className="w-3! h-3!" />
+            </Button>
           </div>
         )}
-        <textarea
+        <Textarea
           ref={textareaRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -168,30 +173,32 @@ export function EbookNotes({
           placeholder={
             excerpt ? 'Votre mot sur ce passage (optionnel)…' : 'Écrire une note sur ce chapitre…'
           }
-          className="w-full text-xs px-3 py-2 rounded-xl bg-muted/50 border border-border/50 focus:outline-none focus:ring-1 focus:ring-primary/40 resize-y"
+          className="w-full! text-xs! px-3 py-2 rounded-xl bg-muted/50 border border-border/50 focus:outline-none focus:ring-1 focus:ring-primary/40 resize-y leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
         />
         <div className="flex items-center justify-end gap-2">
           {(excerpt || text) && (
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="xs"
               onClick={() => {
                 setExcerpt('');
                 setText('');
               }}
-              className="text-[11px] font-semibold text-muted-foreground hover:text-foreground cursor-pointer"
+              className="p-0 text-[11px]! font-semibold! text-muted-foreground hover:bg-transparent hover:text-foreground h-auto! leading-[inherit]! whitespace-normal! justify-normal inline-block "
             >
               Annuler
-            </button>
+            </Button>
           )}
-          <button
-            type="button"
+          <Button
+            variant="solid"
+            tone="brand"
+            size="sm"
             onClick={() => void save()}
-            disabled={saving}
-            className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-60"
+            loading={saving}
+            className="gap-1.5 rounded-xl px-3 py-1.5 text-[11px]! font-semibold! h-auto! leading-[inherit]! whitespace-normal! justify-normal "
           >
-            {saving && <Loader2 className="w-3 h-3 animate-spin" />}
             <span>Ajouter la note</span>
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -210,29 +217,32 @@ export function EbookNotes({
               )}
               {editingId === note.id ? (
                 <div className="space-y-1.5">
-                  <textarea
+                  <Textarea
                     value={editText}
                     onChange={(e) => setEditText(e.target.value)}
                     rows={2}
                     autoFocus
-                    className="w-full text-xs px-2 py-1.5 rounded-lg bg-muted/50 border border-border/50 focus:outline-none focus:ring-1 focus:ring-primary/40"
+                    className="w-full! text-xs! px-2 py-1.5 rounded-lg bg-muted/50 border border-border/50 focus:outline-none focus:ring-1 focus:ring-primary/40 leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                   />
                   <div className="flex items-center justify-end gap-2">
-                    <button
-                      type="button"
+                    <Button
+                      variant="ghost"
+                      size="xs"
                       onClick={() => setEditingId(null)}
-                      className="text-[11px] font-semibold text-muted-foreground hover:text-foreground cursor-pointer"
+                      className="p-0 text-[11px]! font-semibold! text-muted-foreground hover:bg-transparent hover:text-foreground h-auto! leading-[inherit]! whitespace-normal! justify-normal inline-block "
                     >
                       Annuler
-                    </button>
-                    <button
-                      type="button"
+                    </Button>
+                    <Button
+                      variant="solid"
+                      tone="brand"
+                      size="xs"
                       onClick={() => void saveEdit(note.id)}
-                      disabled={pendingId === note.id}
-                      className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-primary text-primary-foreground cursor-pointer disabled:opacity-60"
+                      loading={pendingId === note.id}
+                      className="rounded-lg px-2.5 py-1 text-[11px]! font-semibold! h-auto! leading-[inherit]! whitespace-normal! justify-normal inline-block "
                     >
                       Enregistrer
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ) : (
@@ -253,26 +263,32 @@ export function EbookNotes({
                   })}
                 </span>
                 <span className="flex items-center gap-2">
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    shape="icon"
+                    size="xs"
                     onClick={() => {
                       setEditingId(note.id);
                       setEditText(note.note);
                     }}
-                    className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    className="p-0 text-muted-foreground hover:bg-transparent hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                     title="Modifier la note"
+                    aria-label="Modifier la note"
                   >
-                    <Pencil className="w-3 h-3" />
-                  </button>
-                  <button
-                    type="button"
+                    <Pencil className="w-3! h-3!" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    shape="icon"
+                    size="xs"
                     onClick={() => void remove(note.id)}
-                    disabled={pendingId === note.id}
-                    className="text-muted-foreground hover:text-destructive-text transition-colors cursor-pointer"
+                    loading={pendingId === note.id}
+                    className="p-0 text-muted-foreground hover:bg-transparent hover:text-destructive-text h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                     title="Supprimer la note"
+                    aria-label="Supprimer la note"
                   >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
+                    <Trash2 className="w-3! h-3!" />
+                  </Button>
                 </span>
               </div>
             </li>

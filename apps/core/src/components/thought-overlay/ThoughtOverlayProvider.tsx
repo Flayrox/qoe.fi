@@ -28,6 +28,7 @@ import { ThoughtThreadView } from '@/app/(reader)/home/components/ThoughtThreadV
 import type { DbUser } from '@/app/(reader)/home/components/ThoughtComposer';
 import { useArticleOverlay } from '@/components/article-overlay/ArticleOverlayProvider';
 import { captureBase, restorePosition, type BasePosition } from '@/components/overlay/position';
+import { Button } from '@qoe/ui/button';
 import {
   ThoughtOverlayContext,
   type ThoughtOverlayApi,
@@ -212,15 +213,16 @@ export function ThoughtOverlayProvider({
 
                 {/* Header Row with Close Button */}
                 <div className="h-11 px-3.5 sm:px-6 flex items-center justify-end">
-                  <button
-                    type="button"
+                  <Button
+                    variant="outline"
+                    shape="icon"
                     onClick={closeThought}
                     aria-label={t`Fermer le fil`}
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground bg-background/80 hover:bg-muted border border-border/20 shadow-xs backdrop-blur-sm transition-all outline-none cursor-pointer shrink-0 pointer-events-auto"
+                    className="pointer-events-auto w-8! shrink-0 rounded-full border-border/20 bg-background/80 p-0 text-muted-foreground shadow-xs backdrop-blur-sm hover:bg-muted hover:text-foreground h-auto! [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
                     title={t`Fermer le fil`}
                   >
-                    <X className="w-4 h-4" />
-                  </button>
+                    <X className="w-4! h-4!" />
+                  </Button>
                 </div>
               </div>
 

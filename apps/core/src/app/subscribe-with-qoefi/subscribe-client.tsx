@@ -13,6 +13,7 @@
 
 import { useState } from 'react';
 import { subscribeWithQoeFiAction } from './actions';
+import { Button } from '@qoe/ui/button';
 
 interface Props {
   email: string;
@@ -147,22 +148,22 @@ export function SubscribeWithQoeFiClient({
       </p>
       {status === 'error' && <p className="mt-3 text-sm text-destructive-text">{message}</p>}
       <div className="mt-6 flex gap-3">
-        <button
-          type="button"
+        <Button
+          variant="solid"
           onClick={() => void confirm()}
-          disabled={status === 'loading'}
-          className="rounded-xl bg-foreground px-6 py-2.5 text-sm font-semibold text-background disabled:opacity-50"
+          loading={status === 'loading'}
+          className="rounded-xl bg-foreground px-6 py-2.5 text-sm! font-semibold! text-background leading-[20px]! h-auto! whitespace-normal! justify-normal inline-block "
         >
           {status === 'loading' ? 'Confirmation…' : "Oui, m'abonner"}
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="outline"
           onClick={cancel}
           disabled={status === 'loading'}
-          className="rounded-xl border border-border px-6 py-2.5 text-sm font-semibold disabled:opacity-50"
+          className="rounded-xl px-6 py-2.5 text-sm! font-semibold! leading-[20px]! h-auto! whitespace-normal! justify-normal inline-block "
         >
           Annuler
-        </button>
+        </Button>
       </div>
     </main>
   );

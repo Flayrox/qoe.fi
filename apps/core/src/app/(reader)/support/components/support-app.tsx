@@ -3,9 +3,11 @@
 import React, { useState } from 'react';
 import { toast } from '@qoe/ui/toast';
 import { Select } from '@qoe/ui/select';
-import { Loader2, LifeBuoy, ShieldCheck } from 'lucide-react';
+import { LifeBuoy, ShieldCheck } from 'lucide-react';
 import { DossierThread } from '@/components/dossiers/DossierThread';
 import { URLS } from '@qoe/config';
+import { Button } from '@qoe/ui/button';
+import { Input, Textarea } from '@qoe/ui/input';
 
 // Centre d'aide public (vitrine) : réponses immédiates avant d'ouvrir un
 // dossier. URLS.LANDING = hi.qoe.fi (env-aware : dev/staging/prod).
@@ -134,28 +136,30 @@ export function SupportApp({ initialItems }: SupportAppProps) {
               label: supportKind.label,
             }))}
           />
-          <input
+          <Input
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
             placeholder="Sujet (5-200 caractères)…"
-            className="flex-1 text-xs px-3 py-2 rounded-xl border border-border bg-background outline-none"
+            className="flex-1 text-xs! px-3 py-2 rounded-xl border border-border bg-background outline-none leading-[16px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
           />
         </div>
-        <textarea
+        <Textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           placeholder="Décrivez le problème…"
           rows={3}
-          className="w-full text-sm px-3 py-2 rounded-xl border border-border bg-background outline-none"
+          className="w-full! text-sm! px-3 py-2 rounded-xl border border-border bg-background outline-none leading-[20px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
         />
-        <button
-          disabled={loading || subject.trim().length < 5 || message.trim().length < 1}
+        <Button
+          variant="solid"
+          size="sm"
+          loading={loading}
+          disabled={subject.trim().length < 5 || message.trim().length < 1}
           onClick={() => void submitOpen()}
-          className="text-xs font-bold px-4 py-2 rounded-xl bg-foreground text-background cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+          className="items-center gap-1.5 rounded-xl bg-foreground px-4 py-2 text-xs! font-bold! text-background leading-[16px]! h-auto! whitespace-normal! justify-normal "
         >
-          {loading && <Loader2 className="w-3 h-3 animate-spin" />}
           Ouvrir
-        </button>
+        </Button>
       </div>
 
       <div className="space-y-3">
@@ -180,12 +184,14 @@ export function SupportApp({ initialItems }: SupportAppProps) {
                   </span>
                 </div>
                 <p className="text-sm font-semibold">{t.subject}</p>
-                <button
+                <Button
+                  variant="ghost"
+                  size="xs"
                   onClick={() => void openDetail(t.id)}
-                  className="text-xs font-semibold underline underline-offset-2 cursor-pointer"
+                  className="p-0 text-xs! font-semibold! underline underline-offset-2 hover:bg-transparent leading-[16px]! h-auto! whitespace-normal! justify-normal inline-block "
                 >
                   {expanded ? 'Refermer' : 'Voir le dossier'}
-                </button>
+                </Button>
                 {expanded && (
                   <DossierThread
                     messages={shown.messages ?? []}

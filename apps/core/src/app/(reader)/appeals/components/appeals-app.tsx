@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { toast } from '@qoe/ui/toast';
-import { Loader2, Scale, ShieldCheck } from 'lucide-react';
+import { Scale, ShieldCheck } from 'lucide-react';
 import {
   openAppealAction,
   addAppealMessageAction,
@@ -11,6 +11,8 @@ import {
   type AppealDTO,
 } from '@qoe/sdk';
 import { DossierThread } from '@/components/dossiers/DossierThread';
+import { Button } from '@qoe/ui/button';
+import { Textarea } from '@qoe/ui/input';
 
 interface AppealsAppProps {
   userId: string;
@@ -104,21 +106,23 @@ export function AppealsApp({ userId, initialItems }: AppealsAppProps) {
 
       <div className="bg-muted/40 border border-border/40 rounded-xl p-4 space-y-2">
         <h2 className="text-sm font-semibold">Déposer un recours</h2>
-        <textarea
+        <Textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           placeholder="Expliquez pourquoi la mesure est injustifiée…"
           rows={3}
-          className="w-full text-sm px-3 py-2 rounded-xl border border-border bg-background outline-none"
+          className="w-full! text-sm! px-3 py-2 rounded-xl border border-border bg-background outline-none leading-[20px]! h-auto! [font-weight:inherit]! whitespace-normal! justify-normal inline-block "
         />
-        <button
-          disabled={loading || message.trim().length < 1}
+        <Button
+          variant="solid"
+          size="sm"
+          loading={loading}
+          disabled={message.trim().length < 1}
           onClick={() => void submitOpen()}
-          className="text-xs font-bold px-4 py-2 rounded-xl bg-foreground text-background cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+          className="items-center gap-1.5 rounded-xl bg-foreground px-4 py-2 text-xs! font-bold! text-background leading-[16px]! h-auto! whitespace-normal! justify-normal "
         >
-          {loading && <Loader2 className="w-3 h-3 animate-spin" />}
           Déposer
-        </button>
+        </Button>
       </div>
 
       <div className="space-y-3">
@@ -146,12 +150,14 @@ export function AppealsApp({ userId, initialItems }: AppealsAppProps) {
                     {a.outcome === 'upheld' && ' · Mesure confirmée'}
                   </span>
                 </div>
-                <button
+                <Button
+                  variant="ghost"
+                  size="xs"
                   onClick={() => void openDetail(a.id)}
-                  className="text-xs font-semibold underline underline-offset-2 cursor-pointer"
+                  className="p-0 text-xs! font-semibold! underline underline-offset-2 hover:bg-transparent leading-[16px]! h-auto! whitespace-normal! justify-normal inline-block "
                 >
                   {expanded ? 'Refermer' : 'Voir le dossier'}
-                </button>
+                </Button>
                 {expanded && (
                   <DossierThread
                     messages={shown.messages ?? []}
