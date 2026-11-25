@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	db "github.com/qoefi/api/internal/database"
 	notifpkg "github.com/qoefi/api/internal/notifications"
 	"github.com/qoefi/api/internal/testutil"
 )
@@ -388,6 +389,76 @@ func TestMediaInviteIsServed(t *testing.T) {
 	}
 	if count < 1 {
 		t.Fatalf("unread = %d, attendu >= 1", count)
+	}
+}
+
+// Un commentaire créé APRÈS L41 n'existe que dans "Post" : le centre de
+// notifications doit donc lire son contenu là, pas dans la table legacy
+// "ArticleComment" (gelée, destinée à disparaître). Sans ce test, une
+// notification de commentaire s'affichait sans contenu.
+func TestListCommentContentComesFromPost(t *testing.T) {
+	requirePool(t)
+	ctx := context.Background()
+	fx, err := testutil.SeedPosts(ctx, poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	const commentID = "post_comment_l41"
+	const content = "Commentaire créé après L41"
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Post" (id, content, "authorId", "createdAt", "updatedAt",
+		                    "rootArticleId", "replyRestriction")
+		 VALUES ($1, $2, $3, now(), now(), $4, 'everyone')`,
+		commentID, content, fx.ViewerID, fx.ArticleID); err != nil {
+		t.Fatalf("insert comment post: %v", err)
+	}
+
+	// Preuve que la ligne n'existe pas dans la table legacy : le contenu ne
+	// peut venir que de "Post".
+	var legacy int
+	if err := poolTest.QueryRow(ctx,
+		`SELECT count(*) FROM "ArticleComment" WHERE id = $1`, commentID).Scan(&legacy); err != nil {
+		t.Fatalf("count ArticleComment: %v", err)
+	}
+	if legacy != 0 {
+		t.Fatalf("ArticleComment contient %d ligne(s) pour %s ; le test ne prouve rien", legacy, commentID)
+	}
+
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Notification" (id, "recipientId", "senderId", type, "articleId", "commentId", "isRead")
+		 VALUES (gen_random_uuid()::text, $1, $2, 'COMMENT', $3, $4, false)`,
+		fx.AuthorID, fx.ViewerID, fx.ArticleID, commentID); err != nil {
+		t.Fatalf("insert notification: %v", err)
+	}
+
+	rows, err := db.New(poolTest).GetNotifications(ctx, db.GetNotificationsParams{
+		RecipientId: toUUID(fx.AuthorID),
+		Column2:     []string{"COMMENT"},
+		Limit:       10,
+	})
+	if err != nil {
+		t.Fatalf("GetNotifications: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("lignes = %d, attendu 1", len(rows))
+	}
+	if !rows[0].CommentId.Valid || rows[0].CommentId.String != commentID {
+		t.Fatalf("commentId = %v, attendu %q", rows[0].CommentId, commentID)
+	}
+	if !rows[0].CommentContent.Valid || rows[0].CommentContent.String != content {
+		t.Fatalf("comment_content = %v, attendu %q (lu depuis Post)", rows[0].CommentContent, content)
+	}
+
+	res, err := NewService(poolTest).List(ctx, fx.AuthorID, "replies", 30, 0)
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(res.Notifications) != 1 {
+		t.Fatalf("notifications = %d, attendu 1", len(res.Notifications))
+	}
+	if res.Notifications[0].CommentID == nil || *res.Notifications[0].CommentID != commentID {
+		t.Fatalf("CommentID = %v, attendu %q", res.Notifications[0].CommentID, commentID)
 	}
 }
 

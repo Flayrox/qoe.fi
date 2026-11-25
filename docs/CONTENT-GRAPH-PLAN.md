@@ -280,6 +280,16 @@ Risques nommés :
 | Seed                                | ✅   | `world`/`top` écrivent désormais des posts commentaires                                                                                                                                     |
 | Surfaces de feed                    | ⏸️   | `FindFollowingFeed`, `FindTrending`, `FindPostsByAuthor` excluent `rootArticleId IS NOT NULL` : le contexte d'article et le ranking arrivent en L43, l'onglet « réponses » du profil en L42 |
 
+**Complément 2026-11-25 — le dernier lecteur legacy est parti.** `GetNotifications`
+joignait encore `"ArticleComment"` pour `comment_content` alors que
+`Notification."commentId"` pointe `Post` depuis 00097 : un commentaire créé après
+L41 s'affichait donc sans contenu. La requête joint désormais `Post` ; le test DB
+`TestListCommentContentComesFromPost` crée un commentaire absent de la table legacy,
+le notifie et vérifie le contenu lu (rouge avec l'ancienne jointure :
+`comment_content = { false}` ; vert après). Backfill rejoué sur une base Postgres 16
+locale vierge : 3 commentaires legacy → 3 posts, réponse rattachée à sa racine
+(`rootId`), `replyCount` = 1, notification toujours jointe à `Post`, 0 orphelin.
+
 **Décisions prises pendant L41.**
 
 - _Suppression_ : `DeleteArticleComment` reste un `DELETE` dur en L41 (comportement

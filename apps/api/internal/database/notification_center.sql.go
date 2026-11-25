@@ -87,7 +87,7 @@ FROM "Notification" n
 JOIN "User" u ON u.id = n."senderId"
 LEFT JOIN "Post" t ON t.id = n."thoughtId"
 LEFT JOIN "Article" a ON a.id = n."articleId"
-LEFT JOIN "ArticleComment" c ON c.id = n."commentId"
+LEFT JOIN "Post" c ON c.id = n."commentId"
 LEFT JOIN "Publisher" p ON p.id = n."publisherId"
 LEFT JOIN "Publisher" sp ON sp.id = u."publisherId"
 LEFT JOIN "Media" md ON md."publisherId" = n."publisherId"
