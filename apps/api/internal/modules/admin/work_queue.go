@@ -96,11 +96,7 @@ type queueDefinition struct {
 // abuseQueueSource matérialise le dossier anti-abus : le dernier verdict par
 // sujet, non `allow`, non expiré — exactement la définition de
 // abuse.ListOpenDecisions. Le triage vit sur ce verdict.
-const abuseQueueSource = `(SELECT * FROM (
-		SELECT DISTINCT ON ("subjectType", "subjectId") *
-		FROM "RiskDecision"
-		ORDER BY "subjectType", "subjectId", "createdAt" DESC, "decidedBy" DESC, "id" DESC
-	) latest
+const abuseQueueSource = `(SELECT * FROM "LatestRiskDecision" latest
 	WHERE latest."result" <> 'allow'
 	  AND (latest."expiresAt" IS NULL OR latest."expiresAt" > now())
 ) q`
@@ -109,12 +105,9 @@ const abuseQueueSource = `(SELECT * FROM (
 // un verdict historique n'est pas triable, et le prédicat sert aussi
 // d'UPDATE pour ne pas écrire sur une décision périmée.
 const abuseOpenPredicate = `q."id" IN (
-	SELECT l."id" FROM (
-		SELECT DISTINCT ON ("subjectType", "subjectId") "id", "result", "expiresAt"
-		FROM "RiskDecision"
-		ORDER BY "subjectType", "subjectId", "createdAt" DESC, "decidedBy" DESC, "id" DESC
-	) l
-	WHERE l."result" <> 'allow' AND (l."expiresAt" IS NULL OR l."expiresAt" > now())
+	SELECT l."id" FROM "LatestRiskDecision" l
+	WHERE l."result" <> 'allow'
+	  AND (l."expiresAt" IS NULL OR l."expiresAt" > now())
 )`
 
 // queueDefinitions est le registre FERMÉ des files triables, dans l'ordre

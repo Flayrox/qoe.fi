@@ -29,6 +29,35 @@ function walk(dir, out = []) {
   return out;
 }
 
+// Auto-test du prédicat : un garde qui ne sait plus distinguer un tri total
+// d'un tri partiel est pire que pas de garde. Cas positifs et négatifs
+// exécutés à chaque lancement.
+function hasTieBreak(clause) {
+  // Les virgules DANS COALESCE(...) ne sont pas des clés de tri : on aplatit
+  // les parenthèses avant de compter les clés de premier niveau.
+  let flat = clause;
+  for (let i = 0; i < 4; i++) flat = flat.replace(/\([^()]*\)/g, '()');
+  const keys = flat
+    .replace(/^ORDER\s+BY/i, '')
+    .split(',')
+    .filter((k) => k.trim());
+  return keys.length >= 2;
+}
+const SELF_TESTS = [
+  ['ORDER BY "createdAt" DESC', false],
+  ['ORDER BY "createdAt" DESC, "id" DESC', true],
+  ['ORDER BY a."createdAt" DESC, a.id DESC', true],
+  ['ORDER BY COALESCE(lm."createdAt", c."createdAt") DESC', false],
+  ['ORDER BY COALESCE(lm."createdAt", c."createdAt") DESC, COALESCE(lm.id, c.id) DESC', true],
+  ['ORDER BY r."createdAt" DESC, r."seq" DESC', true],
+];
+for (const [clause, expected] of SELF_TESTS) {
+  if (hasTieBreak(clause) !== expected) {
+    console.error(`❌ guard:order-total — auto-test cassé sur : ${clause}`);
+    process.exit(1);
+  }
+}
+
 const violations = [];
 for (const file of ROOTS.flatMap((r) => walk(r))) {
   const rel = relative('.', file);
@@ -47,8 +76,7 @@ for (const file of ROOTS.flatMap((r) => walk(r))) {
     if (!/createdAt/i.test(clause)) return;
     // Départage exigé : une clé secondaire après createdAt (id/seq, ou une
     // clé unique dans le périmètre de la requête : email, featureKey…).
-    const tail = clause.replace(/^[\s\S]*?createdAt/i, '');
-    if (/\b(id|seq)\b/i.test(clause) || tail.includes(',')) return;
+    if (hasTieBreak(clause)) return;
     violations.push(`${rel}:${i + 1} ${clause.trim().replace(/\s+/g, ' ')}`);
   });
 }

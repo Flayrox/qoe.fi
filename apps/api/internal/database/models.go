@@ -997,6 +997,40 @@ type Interaction struct {
 	CreatedAt  pgtype.Timestamp `json:"createdAt"`
 }
 
+type LatestNonAllowRiskDecision struct {
+	ID          string           `json:"id"`
+	Policy      string           `json:"policy"`
+	Version     string           `json:"version"`
+	SubjectType string           `json:"subjectType"`
+	SubjectId   string           `json:"subjectId"`
+	Result      string           `json:"result"`
+	ReasonCodes []string         `json:"reasonCodes"`
+	DecidedBy   string           `json:"decidedBy"`
+	DeciderId   pgtype.Text      `json:"deciderId"`
+	Note        pgtype.Text      `json:"note"`
+	ExpiresAt   pgtype.Timestamp `json:"expiresAt"`
+	AppealRef   pgtype.Text      `json:"appealRef"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
+	Seq         int64            `json:"seq"`
+}
+
+type LatestRiskDecision struct {
+	ID          string           `json:"id"`
+	Policy      string           `json:"policy"`
+	Version     string           `json:"version"`
+	SubjectType string           `json:"subjectType"`
+	SubjectId   string           `json:"subjectId"`
+	Result      string           `json:"result"`
+	ReasonCodes []string         `json:"reasonCodes"`
+	DecidedBy   string           `json:"decidedBy"`
+	DeciderId   pgtype.Text      `json:"deciderId"`
+	Note        pgtype.Text      `json:"note"`
+	ExpiresAt   pgtype.Timestamp `json:"expiresAt"`
+	AppealRef   pgtype.Text      `json:"appealRef"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
+	Seq         int64            `json:"seq"`
+}
+
 type LegalAcceptance struct {
 	ID         string           `json:"id"`
 	UserID     pgtype.UUID      `json:"user_id"`

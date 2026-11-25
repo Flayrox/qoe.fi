@@ -206,7 +206,7 @@ func (f *fakeAppealDB) Query(_ context.Context, sql string, args ...any) (pgx.Ro
 }
 
 func (f *fakeAppealDB) QueryRow(_ context.Context, sql string, args ...any) pgx.Row {
-	if strings.Contains(sql, `FROM "RiskDecision"`) {
+	if strings.Contains(sql, `FROM "LatestNonAllowRiskDecision"`) {
 		subjectID := args[1].(string)
 		decID, ok := f.decisions[subjectID]
 		if !ok {

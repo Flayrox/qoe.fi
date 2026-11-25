@@ -3589,3 +3589,15 @@ CREATE INDEX IF NOT EXISTS "Message_conversationId_seq_idx" ON "Message" ("conve
 ALTER TABLE "RiskDecision" ADD COLUMN IF NOT EXISTS "seq" BIGSERIAL NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS "RiskDecision_seq_key" ON "RiskDecision" ("seq");
 CREATE INDEX IF NOT EXISTS "RiskDecision_subject_seq_idx" ON "RiskDecision" ("subjectType", "subjectId", "seq" DESC);
+
+-- Autorité unique du « dernier verdict » (migration 00104).
+CREATE VIEW "LatestRiskDecision" AS
+SELECT DISTINCT ON ("subjectType", "subjectId") *
+FROM "RiskDecision"
+ORDER BY "subjectType", "subjectId", "seq" DESC;
+
+CREATE VIEW "LatestNonAllowRiskDecision" AS
+SELECT DISTINCT ON ("subjectType", "subjectId") *
+FROM "RiskDecision"
+WHERE "result" <> 'allow'
+ORDER BY "subjectType", "subjectId", "seq" DESC;

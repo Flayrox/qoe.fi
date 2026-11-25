@@ -10136,6 +10136,23 @@ Conséquences : l'auteur voit dans son dossier le verdict réellement contesté 
 
 Preuves : `go test ./internal/abuse -run 'TestAppeal_FullCycle|TestDecideAppeal_UsesDossierVerdictNotLatest'` → PASS sur PostgreSQL 16 local ; suites complètes ci-dessous.
 
+## Autorité unique du « dernier verdict » — vues `00104` (2026-11-25)
+
+Constat : la lecture du dernier `RiskDecision` par sujet était recopiée dans **six** endroits, dont `admin/work_queue.go` qui utilisait encore l'ancien tri `createdAt, decidedBy, id` (non total, incohérent avec la revue).
+
+Autorité unique en base, migration `00104` :
+
+- `"LatestRiskDecision"` : `DISTINCT ON ("subjectType","subjectId") … ORDER BY subjectType, subjectId, seq DESC` — le dernier verdict, quel qu'il soit. **Un `allow` plus récent ferme donc le dossier** : revue, file admin et profondeur de file filtrent `result <> 'allow'` sur cette vue.
+- `"LatestNonAllowRiskDecision"` : même chose restreinte à `result <> 'allow'` — pour le **recours**, qui conteste le dernier verdict bloquant même si un `allow` est arrivé après (sémantique livrée, testée par `TestAppeal_FullCycle`).
+
+Sites remplacés (copies supprimées, contrats publics inchangés) : `abuse.ListOpenDecisions`, `abuse.ResolveDecision`, `abuse.contestableDecision` (ouverture du recours), `abuse.metrics` (profondeur de file + dernier verdict des sujets chauds), `admin.abuseQueueSource` et `admin.abuseOpenPredicate` — ces deux derniers utilisaient encore l'ancien tri `createdAt, decidedBy, id`. Toute nouvelle lecture du dernier verdict doit interroger ces vues, jamais recopier un `DISTINCT ON` sur `RiskDecision`.
+
+Restent explicites car la sémantique diffère (ce n'est pas une copie du « dernier verdict ») : `trust` (dernière sanction active parmi un sous-ensemble de résultats), `feed/home_feed` (dernier `suspend` humain actif par utilisateur), `abuse/eligibility` et `creator.sql` (`EXISTS` d'une sanction active). Les curseurs paginés n'ont qu'un implémenteur (`conversations.ListMessagesFromCursor` + `CursorSeqBeforeTimestamp`) : aucune abstraction supplémentaire n'a été créée, la garde couvre le reste.
+
+Le garde `guard:order-total` embarque désormais un **auto-test** du prédicat (cas positifs/négatifs, dont `COALESCE(lm."createdAt", c."createdAt")` sans départage) exécuté à chaque lancement.
+
+Preuves : `sqlc generate` + `guard:sqlc` 41 fichiers ; `pnpm guard:order-total` vert ; suite interne complète 80 paquets `ok` sur PostgreSQL 16 local ; migrations 104, `00100` toujours absente.
+
 ## Tris métier — audit transverse `createdAt` (2026-11-25)
 
 **Périmètre mesuré** : 68 clauses `ORDER BY …createdAt` dans `sql/queries/*.sql` et 93 dans les requêtes Go brutes hors `internal/database`. Toutes les listes paginées ou « la plus récente » sans clé secondaire ont reçu un départage déterministe : `id` (ou `seq` quand la table en a un, ou une clé unique de portée comme `email`, `featureKey`, `word`).

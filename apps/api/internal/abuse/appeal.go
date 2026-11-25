@@ -131,10 +131,9 @@ type contestedVerdict struct {
 // l'origine du verdict.
 func contestableDecision(ctx context.Context, pool SignalDB, subjectType, subjectID string, now time.Time) (contestedVerdict, error) {
 	return scanContested(pool.QueryRow(ctx, `
-		SELECT "id", "policy", "version", "result", "reasonCodes" FROM "RiskDecision"
+		SELECT "id", "policy", "version", "result", "reasonCodes" FROM "LatestNonAllowRiskDecision"
 		WHERE "subjectType" = $1 AND "subjectId" = $2
-		  AND "result" <> 'allow' AND ("expiresAt" IS NULL OR "expiresAt" > $3)
-		ORDER BY "seq" DESC LIMIT 1`,
+		  AND ("expiresAt" IS NULL OR "expiresAt" > $3)`,
 		subjectType, subjectID, now))
 }
 

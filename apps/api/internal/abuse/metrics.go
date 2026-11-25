@@ -123,12 +123,7 @@ func ComputeMetrics(ctx context.Context, pool SignalDB, days int, now time.Time)
 	// Profondeur de la file ouverte (même définition que la revue).
 	var open int
 	if err := pool.QueryRow(ctx, `
-		WITH latest AS (
-			SELECT DISTINCT ON ("subjectType", "subjectId") "result", "expiresAt"
-			FROM "RiskDecision"
-			ORDER BY "subjectType", "subjectId", "seq" DESC
-		)
-		SELECT COUNT(*) FROM latest
+		SELECT COUNT(*) FROM "LatestRiskDecision"
 		WHERE "result" <> 'allow' AND ("expiresAt" IS NULL OR "expiresAt" > $1)`, now).Scan(&open); err != nil {
 		return m, err
 	}
@@ -137,9 +132,8 @@ func ComputeMetrics(ctx context.Context, pool SignalDB, days int, now time.Time)
 	// Sujets chauds : signaux récents + dernier verdict connu.
 	rows, err = pool.Query(ctx, `
 		SELECT s."subjectType", s."subjectId", COUNT(*),
-		       (SELECT d."result" FROM "RiskDecision" d
-		         WHERE d."subjectType" = s."subjectType" AND d."subjectId" = s."subjectId"
-		         ORDER BY d."seq" DESC LIMIT 1)
+		       (SELECT d."result" FROM "LatestRiskDecision" d
+		         WHERE d."subjectType" = s."subjectType" AND d."subjectId" = s."subjectId")
 		FROM "AbuseSignal" s WHERE s."observedAt" >= $1
 		GROUP BY s."subjectType", s."subjectId"
 		ORDER BY COUNT(*) DESC LIMIT 10`, since)

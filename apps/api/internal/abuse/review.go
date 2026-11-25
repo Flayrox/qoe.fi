@@ -64,20 +64,13 @@ func ListOpenDecisions(ctx context.Context, pool SignalDB, limit, offset int, no
 		offset = 0
 	}
 	rows, err := pool.Query(ctx, `
-		WITH latest AS (
-			SELECT DISTINCT ON ("subjectType", "subjectId") *
-			FROM "RiskDecision"
-			-- Ordre total d'insertion : deux verdicts de la même
-			-- milliseconde ne se départagent plus par identifiant.
-			ORDER BY "subjectType", "subjectId", "seq" DESC
-		)
 		SELECT l."id", l."policy", l."version", l."subjectType", l."subjectId",
 		       l."result", l."reasonCodes", l."decidedBy", l."deciderId", l."createdAt",
 		       (SELECT COUNT(*) FROM "AbuseSignal" s
 		         WHERE s."subjectType" = l."subjectType" AND s."subjectId" = l."subjectId"
 		           AND s."observedAt" >= $1) AS recent_facts,
 		       COUNT(*) OVER () AS total
-		FROM latest l
+		FROM "LatestRiskDecision" l
 		WHERE l."result" <> 'allow'
 		  AND (l."expiresAt" IS NULL OR l."expiresAt" > $2)
 		ORDER BY l."seq" DESC
@@ -120,9 +113,8 @@ func ResolveDecision(ctx context.Context, pool BudgetDB, subjectType, subjectID,
 	var latestExpiry *time.Time
 	err := pool.QueryRow(ctx, `
 		SELECT "id", "policy", "version", "reasonCodes", "result", "expiresAt"
-		FROM "RiskDecision"
-		WHERE "subjectType" = $1 AND "subjectId" = $2
-		ORDER BY "seq" DESC LIMIT 1`,
+		FROM "LatestRiskDecision"
+		WHERE "subjectType" = $1 AND "subjectId" = $2`,
 		subjectType, subjectID).Scan(&latestID, &policy, &version, &reasons, &latestResult, &latestExpiry)
 	if err != nil {
 		// Aucune ligne = pas de dossier (refus explicite) ; toute autre
