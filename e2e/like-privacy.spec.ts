@@ -87,9 +87,9 @@ test.describe('Confidentialité des likes (Core)', () => {
 
   test.beforeAll(async () => {
     // 🚦 Prérequis explicite : ce parcours crée un utilisateur GoTrue réel. Sans
-    // Supabase local (:54321), la première requête échouait sur un
-    // `TypeError: fetch failed` opaque ; on saute désormais avec une raison
-    // visible dans le rapport. Lever la limite : `supabase start`.
+    // le stack Supabase de test/dev (Hetzner, relayé sur 127.0.0.1:54321), la
+    // première requête échouait sur un `TypeError: fetch failed` opaque ; on
+    // saute désormais avec une raison visible. Lever la limite : `pnpm dev:vps`.
     const supabaseReady = await fetch(`${SUPABASE_URL}/auth/v1/health`, {
       headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '' },
     })
@@ -97,7 +97,7 @@ test.describe('Confidentialité des likes (Core)', () => {
       .catch(() => false);
     test.skip(
       !supabaseReady,
-      `Supabase local injoignable sur ${SUPABASE_URL} : la confidentialité des likes exige « supabase start ».`
+      `Stack Supabase de test/dev injoignable sur ${SUPABASE_URL} : lancer pnpm dev:vps (relais Hetzner).`
     );
 
     expect(DATABASE_URL, 'DATABASE_URL requis').toBeTruthy();

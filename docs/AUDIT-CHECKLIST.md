@@ -10207,3 +10207,37 @@ Preuves après correctif : `TestReadingHistory` **15/15** PASS, `TestAbuseWiring
 | Ordre total du listing des messages (`Message.seq`, migration `00101`) et curseur de pagination total | livré                             | `TestListMessagesSameMillisecondTotalOrder` (10 lectures identiques + pagination 2 par 2 sans doublon/trou), `TestSendAndListMessages` inchangé, 3 exécutions complètes consécutives du package vertes sur Postgres local ; `nextCursor` exposé au SDK, `before` RFC3339 traduit en curseur `seq`                                                                                           |
 | Ordre total des verdicts (`RiskDecision.seq`, migration `00102`), recours inclus                      | livré                             | `TestAppeal_FullCycle` et `TestDecideAppeal_UsesDossierVerdictNotLatest` verts sur Postgres local ; `TestReview_OpenResolveClose` vert ; ordre d'insertion, aucune lecture de l'origine dans le départage                                                                                                                                                                                   |
 | `DROP TABLE "ArticleComment"`                                                                         | **étape de déploiement ordonnée** | lecteurs restants : `notification_center.sql` (join `commentId`), `seed/top.go:767` (TRUNCATE) ; analytics lit désormais `Post."rootArticleId"` ; **aucun writer** (`comments.sql` écrit `Post`). Séquence : repoint join → seed → `00100` drop + schéma, après fin du déploiement L41. `00100` n'est pas créée : le correctif L46 a pris `00101`. **Seule étape de déploiement ordonnée.** |
+
+## Stack Supabase de test/dev — décision Hetzner (2026-11-25)
+
+**Décision utilisateur explicite.** Le stack Supabase self-hosted qui sert au **test et au dev** est celui du **VPS Hetzner** (`116.203.158.47:54321`). Aucun `supabase start` local n'est plus le chemin attendu.
+
+**Pourquoi ce n'est pas un retour en arrière sur L20i.** La garde `resolveSupabaseUrl` (TS) et `resolveSupabaseOrigin` (Go) interdit à un build local de viser la **production** ; elle n'interdit pas le stack de test/dev. Le relais SSH expose Hetzner sur `127.0.0.1:54321`, donc l'application continue de voir une origine **loopback** : la garde reste vraie, les bundles locaux n'inlinent jamais l'IP publique, et un `.env` pointé sur la prod resterait replié sur le local. Ce qui change est la **provenance** du service derrière la loopback, pas la règle d'origine.
+
+**Câblage livré.**
+
+- `scripts/ensure-supabase-hetzner.sh` : ouvre / ferme un tunnel SSH dédié (`ControlMaster`, socket `/tmp/qoe-hetzner-supabase.ctl`) vers `127.0.0.1:54321` ; `ensure` est idempotent.
+- `scripts/e2e.sh` : `ensure` avant les tests, `stop` en `trap EXIT` (ne ferme que son propre tunnel).
+- `scripts/test-db.sh up` : ne lance plus `docker compose` si une base de test répond déjà sur `127.0.0.1:55432` (Postgres natif local).
+- `e2e/oauth-consent.spec.ts` : les appels GoTrue (`health`, `signup`, `token`) utilisent `SUPABASE_URL` au lieu de `http://127.0.0.1:54321` codé en dur.
+- Messages de skip (`smoke`, `smoke-zero-crash`, `connected-feed-capture`, `like-privacy`, `studio`, `admin`, `admin-legal`) : nomment le stack Hetzner et `pnpm dev:vps`, plus « supabase start ».
+- `AGENTS.md` : la règle d'environnement nomme Hetzner et le relais.
+
+**Exception assumée.** `scripts/e2e-studio-auth.mjs` continue de monter une pile **jetable** (Postgres, Redis, GoTrue) : c'est le chemin CI qui doit prouver le parcours studio sans dépendre d'un VPS joignable, et son démontage est testé. Il n'est pas le chemin de dev/e2e local.
+
+**Dette R306.** Les 10 cas locaux qui se sautaient faute de GoTrue deviennent exécutables localement avec le relais (`pnpm dev:vps`, puis `pnpm e2e`). La CI, qui n'a pas d'accès SSH au VPS, conserve le skip visible : R306 reste ouverte pour la CI, pas pour le poste.
+
+**Preuves exécutées le 2026-11-25** (Postgres 16 local sur `127.0.0.1:55432`, stack Supabase Hetzner relayé sur `127.0.0.1:54321`, seed de base appliqué) :
+
+```
+bash scripts/ensure-supabase-hetzner.sh ensure   → tunnel ouvert, health 401 sans clé (Kong vivant)
+playwright --project=chromium e2e/smoke.spec.ts  → 6 passed (session GoTrue réelle + ligne User)
+playwright --project=chromium smoke-zero-crash + oauth-consent → 3 passed (parcours consentement complet)
+playwright --project=chromium like-privacy + connected-feed-capture → 4 passed
+pnpm --filter @qoe/sdk test   → 237 passed (35 fichiers)
+pnpm --filter @qoe/sdk typecheck → exit 0
+```
+
+Total : **13 cas verts**, dont les 10 qui se sautaient faute de GoTrue (5 `smoke`, 2 `smoke-zero-crash`, 3 `connected-feed-capture`).
+
+**Bug révélé et corrigé par cette exécution** : `packages/sdk/src/actions/feed/index.ts` est un fichier `"use server"` et faisait `export * from './eligibility'`, qui réexporte des fonctions synchrones et une constante. Next refuse (« Only async functions are allowed to be exported in a "use server" file ») et les cinq routes du smoke tombaient en erreur de compilation à l'exécution. La réexportation n'avait aucun consommateur (`ELIGIBILITY_SURFACES`/`parseEligibilitySurface`… ne sont importés que par leur test, depuis `./eligibility`) : supprimée, le type reste importé localement. Les 237 tests SDK restent verts.

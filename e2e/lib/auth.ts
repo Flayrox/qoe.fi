@@ -8,9 +8,10 @@
 // utilisateur nul, donc un 307 vers /login. Toutes les specs « authentifiées »
 // assertaient donc sur la page de login en croyant tester le produit.
 //
-// Ici : une session RÉELLE quand la stack locale est là (signup GoTrue +
-// ligne `User` en base), et un drapeau explicite quand elle ne l'est pas —
-// jamais un cookie inventé.
+// Ici : une session RÉELLE quand le stack Supabase de test/dev (VPS Hetzner,
+// relayé sur 127.0.0.1:54321 par `pnpm dev:vps`) est là (signup GoTrue + ligne
+// `User` en base), et un drapeau explicite quand il ne l'est pas — jamais un
+// cookie inventé.
 // =====================================================================
 
 import { DATABASE_URL, SUPABASE_ANON_KEY, SUPABASE_URL, createRealSession } from './env';

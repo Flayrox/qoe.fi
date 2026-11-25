@@ -14,7 +14,7 @@
 import { test, expect } from '@playwright/test';
 import crypto from 'crypto';
 import { TestDb } from './lib/db';
-import { DATABASE_URL, SUPABASE_ANON_KEY } from './lib/env';
+import { DATABASE_URL, SUPABASE_ANON_KEY, SUPABASE_URL } from './lib/env';
 
 const CONSENT_EMAIL = 'consent.e2e@qoe.fi';
 const CONSENT_PASSWORD = 'E2E-Consent-Passw0rd!';
@@ -44,26 +44,29 @@ test.describe('Consentement OAuth (page réelle)', () => {
   test.beforeAll(async () => {
     expect(DATABASE_URL, 'DATABASE_URL requis').toBeTruthy();
 
-    // Supabase local requis (sessions réelles) : skip propre en CI où
-    // seul Postgres existe.
+    // Stack Supabase de test/dev (Hetzner, relayé sur SUPABASE_URL) requis
+    // pour les sessions réelles : skip propre en CI où seul Postgres existe.
     try {
       // ⚠️ `health.ok` seul sous-estimait la disponibilité : derrière l'enveloppe
       // Supabase (Kong), `/auth/v1/health` répond 401 sans `apikey` alors que
       // GoTrue est parfaitement en ligne → tout le projet était sauté en silence.
       // On considère le service joignable dès qu'il répond autre chose qu'un 5xx.
-      const health = await fetch('http://127.0.0.1:54321/auth/v1/health');
+      const health = await fetch(`${SUPABASE_URL}/auth/v1/health`);
       supabaseUp = health.status < 500;
     } catch {
       supabaseUp = false;
     }
-    test.skip(!supabaseUp, 'Supabase local indisponible — parcours consentement local uniquement');
+    test.skip(
+      !supabaseUp,
+      `Stack Supabase de test/dev injoignable sur ${SUPABASE_URL} — lancer pnpm dev:vps (relais Hetzner).`
+    );
 
     // L'utilisateur doit exister côté DB avec l'UUID GOTRUE comme id :
     // l'API Go résout /v1/me via le sub du JWT (jamais par email).
     const anon = SUPABASE_ANON_KEY;
     if (!anon) throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY requis');
 
-    const signup = await fetch('http://127.0.0.1:54321/auth/v1/signup', {
+    const signup = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: anon },
       body: JSON.stringify({ email: CONSENT_EMAIL, password: CONSENT_PASSWORD }),
@@ -71,7 +74,7 @@ test.describe('Consentement OAuth (page réelle)', () => {
     if (!signup.ok && signup.status !== 422) {
       throw new Error(`GoTrue signup ${signup.status}`);
     }
-    const grant = await fetch('http://127.0.0.1:54321/auth/v1/token?grant_type=password', {
+    const grant = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: anon },
       body: JSON.stringify({

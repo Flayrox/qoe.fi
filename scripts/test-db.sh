@@ -19,9 +19,21 @@ assert_test_database_url() {
   esac
 }
 
+# Une base de test déjà joignable (Postgres natif local, par exemple) ne doit
+# pas déclencher Docker : AGENTS.md interdit docker compose sur le poste.
+probe_db() {
+  (exec 3<>/dev/tcp/127.0.0.1/55432) 2>/dev/null || return 1
+  exec 3>&- 3<&- 2>/dev/null || true
+  return 0
+}
+
 case "${1:-up}" in
   up)
-    docker compose -f "$ROOT_DIR/docker-compose.test.yml" up -d test-db
+    if probe_db; then
+      echo "Base de test déjà joignable sur 127.0.0.1:55432 — Docker non requis."
+    else
+      docker compose -f "$ROOT_DIR/docker-compose.test.yml" up -d test-db
+    fi
     ;;
   down)
     docker compose -f "$ROOT_DIR/docker-compose.test.yml" down

@@ -61,7 +61,10 @@ test.describe('Console admin — contenu juridique', () => {
   test('brouillon → avertissement placeholder → publication → page publique', async ({
     browser,
   }) => {
-    test.skip(!RUN_FULL_STACK, 'Parcours complet : nécessite RUN_FULL_STACK=1 + Supabase local');
+    test.skip(
+      !RUN_FULL_STACK,
+      'Parcours complet : nécessite RUN_FULL_STACK=1 + stack Supabase de test/dev (Hetzner, pnpm dev:vps)'
+    );
 
     expect(DATABASE_URL, 'DATABASE_URL requis').toBeTruthy();
 

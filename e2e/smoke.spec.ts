@@ -6,12 +6,13 @@ const ROUTES = ['/home', '/settings', '/notifications', '/search', '/library'];
 
 test.describe('Feed E2E Scan & Zero-Hydration Error Audit', () => {
   // 🚦 `/home`, `/settings`, `/notifications`, `/search`, `/library` résolvent la
-  // session côté serveur (GoTrue). Sans stack locale, ces routes redirigent vers
-  // /login : les asserter donnerait cinq fois le même test de la page de login.
+  // session côté serveur (GoTrue). Sans stack Supabase de test/dev, ces routes
+  // redirigent vers /login : les asserter donnerait cinq fois le même test de
+  // la page de login.
   test.beforeAll(async () => {
     test.skip(
       !(await supabaseReachable()),
-      'Supabase local requis (supabase start) : ces écrans connectés résolvent la session via GoTrue.'
+      'Stack Supabase de test/dev (Hetzner) injoignable : lancer pnpm dev:vps pour le relais 127.0.0.1:54321.'
     );
   });
 

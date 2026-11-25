@@ -2,8 +2,9 @@
 // 🎯 E2E — Capture du feed (lecteur CONNECTÉ, vrai utilisateur Supabase)
 // =====================================================================
 // Contrairement à auth.setup.ts (cookie mocké, rejeté par le JWT Go),
-// ce spec crée un VRAI utilisateur dans le Supabase local (signup +
-// confirmation email via service role), insère sa ligne « User » dans la
+// ce spec crée un VRAI utilisateur dans le stack Supabase de test/dev
+// (Hetzner, relayé sur 127.0.0.1:54321 : signup + confirmation email via
+// service role), insère sa ligne « User » dans la
 // base de l'app, puis navigue avec une session réelle. Le JWT est donc
 // accepté par le backend Go (signature HS256/JWKS) et dbUser est résolu
 // côté app → le menu « Voir moins » des pensées est câblé.
@@ -18,8 +19,9 @@
 //      en base) et la page « Historique » la rend via
 //      GET /v1/me/reading-history (Go).
 //
-// Prérequis : Supabase local (:54321) + qoe-server Go (QOE_API_URL) +
-// base seedée — comme public-feed-capture.spec.ts.
+// Prérequis : stack Supabase de test/dev (Hetzner relayé sur :54321, via
+// `pnpm dev:vps`) + qoe-server Go (QOE_API_URL) + base seedée — comme
+// public-feed-capture.spec.ts.
 // =====================================================================
 
 import { test, expect, type BrowserContext } from '@playwright/test';
@@ -73,11 +75,11 @@ test.describe('Capture du feed (connecté)', () => {
   }
 
   test.beforeAll(async () => {
-    // 🚦 Prérequis explicite : sans GoTrue local (:54321) il n'y a pas de vrai
-    // utilisateur à créer, donc rien à prouver. On saute AVEC une raison
-    // visible dans le rapport, au lieu d'échouer sur un `fetch failed` opaque
-    // (l'ancienne version, jamais lancée en CI, ne disait rien du tout).
-    // Pour lever la limite : `supabase start`, puis relancer la suite.
+    // 🚦 Prérequis explicite : sans le stack Supabase de test/dev (Hetzner,
+    // relayé sur 127.0.0.1:54321) il n'y a pas de vrai utilisateur à créer,
+    // donc rien à prouver. On saute AVEC une raison visible dans le rapport,
+    // au lieu d'échouer sur un `fetch failed` opaque.
+    // Pour lever la limite : `pnpm dev:vps`, puis relancer la suite.
     const supabaseReady = await fetch(`${SUPABASE_URL}/auth/v1/health`, {
       headers: { apikey: ANON_KEY },
     })
@@ -85,7 +87,7 @@ test.describe('Capture du feed (connecté)', () => {
       .catch(() => false);
     test.skip(
       !supabaseReady || !SERVICE_ROLE_KEY || !ANON_KEY,
-      `Supabase local injoignable sur ${SUPABASE_URL} ou clé manquante : la capture connectée exige « supabase start ».`
+      `Stack Supabase de test/dev injoignable sur ${SUPABASE_URL} ou clé manquante : lancer pnpm dev:vps (relais Hetzner).`
     );
 
     expect(SUPABASE_URL, 'NEXT_PUBLIC_SUPABASE_URL requis').toBeTruthy();
@@ -103,7 +105,7 @@ test.describe('Capture du feed (connecté)', () => {
     userId = signupBody.user?.id ?? signupBody.id ?? '';
     expect(userId, 'le signup doit renvoyer un user id').toBeTruthy();
 
-    // 2. Confirmation email via service role (Supabase local : confirmation requise).
+    // 2. Confirmation email via service role (stack Hetzner : confirmation requise).
     await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
       method: 'PATCH',
       headers: {

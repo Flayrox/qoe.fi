@@ -5,7 +5,10 @@
 # run vidait la base de dev seedée.
 #
 # Ce script :
-#   1. monte la base de test (docker-compose.test.yml, port 55432)
+#   0. ouvre le relais vers le stack Supabase de test/dev (VPS Hetzner,
+#      127.0.0.1:54321) — aucun `supabase start` local n'est requis
+#   1. monte la base de test (docker-compose.test.yml, port 55432) sauf si
+#      une base de test y répond déjà (Postgres natif local)
 #   2. applique les migrations goose
 #   3. seed la base de test avec le seed de BASE (slugs canoniques e2e :
 #      souverainete-medias-independants, essai-premium-souverainete …)
@@ -19,6 +22,10 @@ export DATABASE_URL="$TEST_DATABASE_URL"
 export API_DATABASE_URL="$TEST_DATABASE_URL"
 
 echo "==> Base de test : $TEST_DATABASE_URL"
+
+# 0. Supabase (GoTrue/Kong) de test/dev : stack Hetzner, relayé en loopback.
+bash "$ROOT_DIR/scripts/ensure-supabase-hetzner.sh" ensure
+trap 'bash "$ROOT_DIR/scripts/ensure-supabase-hetzner.sh" stop' EXIT
 
 # 1. Up + migrations
 bash "$ROOT_DIR/scripts/test-db.sh" up

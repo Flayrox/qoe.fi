@@ -2,8 +2,9 @@
 // 🔑 e2e/auth.setup.ts — état d'authentification du projet `chromium`
 // =====================================================================
 // Deux issues, jamais d'entre-deux :
-//   • la stack locale répond → session GoTrue RÉELLE + ligne `User` en base,
-//     cookie écrit dans `playwright/.auth/user.json` ;
+//   • le stack Supabase de test/dev (Hetzner, relayé en loopback) répond →
+//     session GoTrue RÉELLE + ligne `User` en base, cookie écrit dans
+//     `playwright/.auth/user.json` ;
 //   • elle ne répond pas → état vide. Les specs qui exigent un écran connecté
 //     se sautent avec une raison explicite (cf. `e2e/lib/auth.ts`), au lieu
 //     d'asserter sur la page de login sans le dire.

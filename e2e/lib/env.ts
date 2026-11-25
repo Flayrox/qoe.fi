@@ -66,7 +66,8 @@ const b64url = (buf: Buffer) =>
 /**
  * 🔐 Interpolation d'un JWT HS256 signé avec JWT_SECRET (aucune dépendance).
  * Utilisé pour les parcours authentifiés E2E : l'API Go valide ce token via
- * son fallback HMAC (SUPABASE_JWT_SECRET) quand Supabase n'est pas joignable.
+ * son fallback HMAC (SUPABASE_JWT_SECRET) quand la stack Supabase de test/dev
+ * (Hetzner) n'est pas joignable.
  */
 export function mintJwt(sub: string, extra: Record<string, unknown> = {}): string {
   const header = b64url(Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));
@@ -96,9 +97,10 @@ export const SUPABASE_ANON_KEY = resolve(
 export const SUPABASE_SERVICE_ROLE_KEY = resolve('SUPABASE_SERVICE_ROLE_KEY');
 
 /**
- * 🍞 Crée une session GoTrue RÉELLE (signup ou sign-in) contre Supabase
- * local. Si la confirmation email est active, la fixture confirme le compte
- * via l'Admin API avant de rejouer le password grant.
+ * 🍞 Crée une session GoTrue RÉELLE (signup ou sign-in) contre le stack
+ * Supabase de test/dev (VPS Hetzner, exposé en loopback par `pnpm dev:vps`).
+ * Si la confirmation email est active, la fixture confirme le compte via
+ * l'Admin API avant de rejouer le password grant.
  */
 export async function createRealSession(
   email: string,

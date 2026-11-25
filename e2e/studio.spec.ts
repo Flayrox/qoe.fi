@@ -6,8 +6,8 @@
 //      vers /login — le périmètre authentifié est bien verrouillé.
 //   2. PARCOURS COMPLET (local full-stack, RUN_FULL_STACK=1) : un vrai
 //      utilisateur créateur est créé (JWT HS256 signé + ligne User role
-//      creator) et le dashboard studio se rend — nécessite Supabase local
-//      (getUser server-side), comme les specs de capture existants.
+//      creator) et le dashboard studio se rend — nécessite le stack Supabase
+//      de test/dev (Hetzner, relayé), comme les specs de capture existants.
 // =====================================================================
 
 import { test, expect } from '@playwright/test';
@@ -112,7 +112,10 @@ test.describe('Studio créateur', () => {
   });
 
   test('un créateur authentifié accède à son dashboard', async ({ browser }) => {
-    test.skip(!RUN_FULL_STACK, 'Parcours complet : nécessite RUN_FULL_STACK=1 + Supabase local');
+    test.skip(
+      !RUN_FULL_STACK,
+      'Parcours complet : nécessite RUN_FULL_STACK=1 + stack Supabase de test/dev (Hetzner, pnpm dev:vps)'
+    );
 
     expect(DATABASE_URL, 'DATABASE_URL requis').toBeTruthy();
     expect(JWT_SECRET, 'SUPABASE_JWT_SECRET requis').toBeTruthy();

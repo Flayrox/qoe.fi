@@ -13,12 +13,12 @@ import { supabaseReachable } from './lib/auth';
 
 test.describe('🛡️ E2E — Zéro-Crash Navigation Smoke Tests', () => {
   // 🚦 `/home` et `/` (feed personnalisé) exigent une session réelle : sans
-  // GoTrue local, la page rendue est celle du login. On saute explicitement
-  // plutôt que de valider une page qui n'est pas celle du test.
+  // stack Supabase de test/dev, la page rendue est celle du login. On saute
+  // explicitement plutôt que de valider une page qui n'est pas celle du test.
   test.beforeAll(async () => {
     test.skip(
       !(await supabaseReachable()),
-      'Supabase local requis (supabase start) : /home résout la session via GoTrue.'
+      'Stack Supabase de test/dev (Hetzner) injoignable : lancer pnpm dev:vps pour le relais 127.0.0.1:54321.'
     );
   });
 

@@ -4,12 +4,12 @@
 
 Ce repo tient sa mémoire dans des plans vivants versionnés. **Lis-les avant de coder, mets-les à jour après.**
 
-| Fichier                         | Contenu                                                                |
-| ------------------------------- | ---------------------------------------------------------------------- |
-| `apps/admin/ADMIN-PLAN.md`      | Plan vivant de la console admin                                        |
-| `apps/studio/EDITOR-PLAN.md`    | Plan vivant de l’éditeur studio                                        |
-| `apps/studio/ANALYTICS-PLAN.md` | Plan vivant des analytics (multi-auteurs/médias)                       |
-| `docs/AUDIT-CHECKLIST.md`       | Checklist d'audit : un lot par package, une ligne par fichier/fonction |
+| Fichier                         | Contenu                                                                                       |
+| ------------------------------- | --------------------------------------------------------------------------------------------- |
+| `apps/admin/ADMIN-PLAN.md`      | Plan vivant de la console admin                                                               |
+| `apps/studio/EDITOR-PLAN.md`    | Plan vivant de l’éditeur studio                                                               |
+| `apps/studio/ANALYTICS-PLAN.md` | Plan vivant des analytics (multi-auteurs/médias)                                              |
+| `docs/AUDIT-CHECKLIST.md`       | Checklist d'audit : un lot par package, une ligne par fichier/fonction                        |
 | `docs/CONTENT-GRAPH-PLAN.md`    | Plan vivant du graphe de contenu (post unifié, arêtes) et de la recommandation — lots L41→L43 |
 
 ## Rythme imposé — un commit par lot d'audit
@@ -58,6 +58,12 @@ d'environnement. Règle appliquée à chaque lot (axe 8 de la checklist).
 - **Aucun Docker en local.** L’infra (Postgres, Redis, etc.) tourne sur le VPS Hetzner et la base de dev principale y est hébergée. Ne pas lancer `docker compose` sur le poste.
 - `pnpm dev:vps` démarre la stack locale (Next.js + API Go via launchd + Caddy) branchée sur cette base distante (`DATABASE_URL` → `116.203.158.47:15409`).
 - Domaines locaux : `qoe.test` (core), `studio.qoe.test`, `admin.qoe.test`, `*.qoe.test` (tenants), API sur `api.qoe.test:15407`.
+- **Stack Supabase de test/dev = celui du VPS Hetzner** (self-hosted, `116.203.158.47:54321`).
+  Aucun `supabase start` local n'est requis : `pnpm dev:vps` (ou
+  `scripts/ensure-supabase-hetzner.sh ensure`) ouvre un tunnel SSH et l'expose sur
+  `127.0.0.1:54321`, l'origine que l'application et les e2e visent déjà. La règle
+  `resolveSupabaseUrl` reste en place : un build local ne peut toujours pas viser la
+  production, le relais garde une origine loopback.
 - Les données de test vivent dans cette base partagée : vérifier leur existence avant d’insérer.
 - **E-mails en local** : `pnpm mail:dev` lance un puits SMTP autonome (sans
   dépendance) sur `127.0.0.1:1025` qui écrit chaque message en `.eml` dans
