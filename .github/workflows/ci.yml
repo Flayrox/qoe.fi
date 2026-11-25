@@ -119,6 +119,12 @@ jobs:
       - name: Guard UI debt (ratchet)
         run: pnpm ui:audit
 
+      # Le catalogue du UI lab est le miroir des mêmes mesures : s'il n'est
+      # pas régénéré, le banc de revue affiche des chiffres faux et
+      # contredit le ratchet (mesuré : 297 boutons annoncés pour 265 réels).
+      - name: Guard UI catalog (inventaire à jour)
+        run: pnpm ui:catalog --check
+
       # Le guard était documenté dans AGENTS.md mais absent de la CI : il était
       # rouge sans que personne ne le voie (3 migrations sans CONCURRENTLY /
       # lock_timeout). Branché ici pour qu'il ne puisse plus pourrir.

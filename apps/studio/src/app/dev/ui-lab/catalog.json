@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-11-16T00:22:44.497Z",
-  "total": 454,
+  "generatedAt": "2026-11-25T18:41:29.055Z",
+  "total": 455,
   "signals": {
     "primitivesNeverImported": 5,
     "primitivesTotal": 28,
-    "rawButtons": 297,
-    "rawButtonFiles": 71,
+    "rawButtons": 0,
+    "rawButtonFiles": 0,
     "nativeSelectFiles": 0,
-    "rawInputFiles": 35,
+    "rawInputFiles": 0,
     "handRolledOverlays": 3
   },
   "families": [
@@ -69,7 +69,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 205,
           "source": "primitives",
-          "usages": 112
+          "usages": 180
         },
         {
           "name": "callout",
@@ -88,14 +88,14 @@
         {
           "name": "checkbox",
           "path": "packages/ui/src/primitives/checkbox/checkbox.tsx",
-          "lines": 242,
+          "lines": 288,
           "source": "primitives",
-          "usages": 10
+          "usages": 20
         },
         {
           "name": "color",
           "path": "packages/ui/src/primitives/color/color.tsx",
-          "lines": 355,
+          "lines": 359,
           "source": "primitives",
           "usages": 2
         },
@@ -118,7 +118,7 @@
           "path": "packages/ui/src/primitives/confirm-dialog/confirm-dialog.tsx",
           "lines": 110,
           "source": "primitives",
-          "usages": 3
+          "usages": 17
         },
         {
           "name": "copy-button",
@@ -137,7 +137,7 @@
         {
           "name": "date-picker",
           "path": "packages/ui/src/primitives/date/date-picker.tsx",
-          "lines": 214,
+          "lines": 232,
           "source": "primitives",
           "usages": 1
         },
@@ -153,7 +153,7 @@
           "path": "packages/ui/src/primitives/dialog/dialog.tsx",
           "lines": 361,
           "source": "primitives",
-          "usages": 35
+          "usages": 36
         },
         {
           "name": "drawer",
@@ -186,7 +186,7 @@
         {
           "name": "hold-to-delete-button",
           "path": "packages/ui/src/primitives/hold-to-delete/hold-to-delete-button.tsx",
-          "lines": 206,
+          "lines": 210,
           "source": "primitives",
           "usages": 0
         },
@@ -202,7 +202,7 @@
           "path": "packages/ui/src/primitives/input/input.tsx",
           "lines": 192,
           "source": "primitives",
-          "usages": 58
+          "usages": 101
         },
         {
           "name": "kbd",
@@ -235,7 +235,7 @@
         {
           "name": "radio-cards",
           "path": "packages/ui/src/primitives/radio-group/radio-cards.tsx",
-          "lines": 214,
+          "lines": 232,
           "source": "primitives",
           "usages": 2
         },
@@ -258,7 +258,7 @@
           "path": "packages/ui/src/primitives/select/select.tsx",
           "lines": 210,
           "source": "primitives",
-          "usages": 33
+          "usages": 34
         },
         {
           "name": "separator",
@@ -312,7 +312,7 @@
         {
           "name": "switch",
           "path": "packages/ui/src/primitives/switch/switch.tsx",
-          "lines": 100,
+          "lines": 120,
           "source": "primitives",
           "usages": 9
         },
@@ -340,7 +340,7 @@
         {
           "name": "tabs",
           "path": "packages/ui/src/primitives/tabs/tabs.tsx",
-          "lines": 252,
+          "lines": 256,
           "source": "primitives",
           "usages": 18
         },
@@ -354,7 +354,7 @@
         {
           "name": "timeline",
           "path": "packages/ui/src/primitives/timeline/timeline.tsx",
-          "lines": 107,
+          "lines": 115,
           "source": "primitives",
           "usages": 0
         },
@@ -397,12 +397,12 @@
           "path": "packages/ui/src/ui/AuthorAvatar.tsx",
           "lines": 6,
           "source": "ui",
-          "usages": 3
+          "usages": 5
         },
         {
           "name": "BentoPlateau",
           "path": "packages/ui/src/ui/BentoPlateau.tsx",
-          "lines": 96,
+          "lines": 93,
           "source": "ui",
           "usages": 1
         },
@@ -423,16 +423,16 @@
         {
           "name": "color-picker",
           "path": "packages/ui/src/ui/color-picker.tsx",
-          "lines": 479,
+          "lines": 556,
           "source": "ui",
           "usages": 2
         },
         {
           "name": "craft-sidebar-drawer",
           "path": "packages/ui/src/ui/craft-sidebar-drawer.tsx",
-          "lines": 440,
+          "lines": 456,
           "source": "ui",
-          "usages": 1
+          "usages": 2
         },
         {
           "name": "dropdown-menu",
@@ -444,9 +444,9 @@
         {
           "name": "exit-interstitial",
           "path": "packages/ui/src/ui/exit-interstitial.tsx",
-          "lines": 371,
+          "lines": 383,
           "source": "ui",
-          "usages": 3
+          "usages": 4
         },
         {
           "name": "feature-catalog",
@@ -472,16 +472,16 @@
         {
           "name": "hover-card",
           "path": "packages/ui/src/ui/hover-card.tsx",
-          "lines": 326,
+          "lines": 428,
           "source": "ui",
           "usages": 0
         },
         {
           "name": "ImageEditorDialog",
           "path": "packages/ui/src/ui/ImageEditorDialog.tsx",
-          "lines": 709,
+          "lines": 714,
           "source": "ui",
-          "usages": 5
+          "usages": 8
         },
         {
           "name": "ImageUploader",
@@ -495,19 +495,19 @@
           "path": "packages/ui/src/ui/input.tsx",
           "lines": 10,
           "source": "ui",
-          "usages": 8
+          "usages": 101
         },
         {
           "name": "popover",
           "path": "packages/ui/src/ui/popover.tsx",
-          "lines": 176,
+          "lines": 188,
           "source": "ui",
           "usages": 3
         },
         {
           "name": "PreviewableUserAvatar",
           "path": "packages/ui/src/ui/PreviewableUserAvatar.tsx",
-          "lines": 52,
+          "lines": 56,
           "source": "ui",
           "usages": 0
         },
@@ -516,7 +516,7 @@
           "path": "packages/ui/src/ui/progressive-blur.tsx",
           "lines": 96,
           "source": "ui",
-          "usages": 2
+          "usages": 3
         },
         {
           "name": "select",
@@ -528,7 +528,7 @@
         {
           "name": "sheet",
           "path": "packages/ui/src/ui/sheet.tsx",
-          "lines": 59,
+          "lines": 71,
           "source": "ui",
           "usages": 1
         },
@@ -549,14 +549,14 @@
         {
           "name": "ThemeToggle",
           "path": "packages/ui/src/ui/ThemeToggle.tsx",
-          "lines": 32,
+          "lines": 41,
           "source": "ui",
           "usages": 1
         },
         {
           "name": "time-picker-input",
           "path": "packages/ui/src/ui/time-picker-input.tsx",
-          "lines": 130,
+          "lines": 159,
           "source": "ui",
           "usages": 1
         },
@@ -572,12 +572,12 @@
           "path": "packages/ui/src/ui/toast.tsx",
           "lines": 77,
           "source": "ui",
-          "usages": 61
+          "usages": 73
         },
         {
           "name": "tooltip",
           "path": "packages/ui/src/ui/tooltip.tsx",
-          "lines": 80,
+          "lines": 128,
           "source": "ui",
           "usages": 4
         },
@@ -606,12 +606,12 @@
           "path": "packages/ui/src/auth/AuthModalContext.tsx",
           "lines": 142,
           "source": "ui",
-          "usages": 5
+          "usages": 7
         },
         {
           "name": "GlobalAuthModalProvider",
           "path": "packages/ui/src/auth/GlobalAuthModalProvider.tsx",
-          "lines": 34,
+          "lines": 40,
           "source": "ui",
           "usages": 2
         },
@@ -625,7 +625,7 @@
         {
           "name": "CommandPrimitives",
           "path": "packages/ui/src/cmdk/CommandPrimitives.tsx",
-          "lines": 173,
+          "lines": 164,
           "source": "ui",
           "usages": 1
         },
@@ -674,7 +674,7 @@
         {
           "name": "image-utils",
           "path": "packages/ui/src/image-utils.ts",
-          "lines": 41,
+          "lines": 37,
           "source": "ui",
           "usages": 0
         },
@@ -695,7 +695,7 @@
         {
           "name": "CookieConsentBanner",
           "path": "packages/ui/src/legal/CookieConsentBanner.tsx",
-          "lines": 516,
+          "lines": 535,
           "source": "ui",
           "usages": 3
         },
@@ -709,7 +709,7 @@
         {
           "name": "LegalConsentGate",
           "path": "packages/ui/src/legal/LegalConsentGate.tsx",
-          "lines": 203,
+          "lines": 223,
           "source": "ui",
           "usages": 2
         },
@@ -758,21 +758,21 @@
         {
           "name": "InvertedCurveBanner",
           "path": "packages/ui/src/notifications/InvertedCurveBanner.tsx",
-          "lines": 235,
+          "lines": 240,
           "source": "ui",
           "usages": 3
         },
         {
           "name": "NotificationItem",
           "path": "packages/ui/src/notifications/NotificationItem.tsx",
-          "lines": 477,
+          "lines": 482,
           "source": "ui",
           "usages": 0
         },
         {
           "name": "NotificationList",
           "path": "packages/ui/src/notifications/NotificationList.tsx",
-          "lines": 179,
+          "lines": 199,
           "source": "ui",
           "usages": 0
         },
@@ -800,7 +800,7 @@
         {
           "name": "OnboardingModal",
           "path": "packages/ui/src/onboarding/OnboardingModal.tsx",
-          "lines": 97,
+          "lines": 76,
           "source": "ui",
           "usages": 2
         },
@@ -858,7 +858,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 205,
           "source": "ui",
-          "usages": 112
+          "usages": 180
         },
         {
           "name": "callout",
@@ -877,14 +877,14 @@
         {
           "name": "checkbox",
           "path": "packages/ui/src/primitives/checkbox/checkbox.tsx",
-          "lines": 242,
+          "lines": 288,
           "source": "ui",
-          "usages": 10
+          "usages": 20
         },
         {
           "name": "color",
           "path": "packages/ui/src/primitives/color/color.tsx",
-          "lines": 355,
+          "lines": 359,
           "source": "ui",
           "usages": 2
         },
@@ -907,7 +907,7 @@
           "path": "packages/ui/src/primitives/confirm-dialog/confirm-dialog.tsx",
           "lines": 110,
           "source": "ui",
-          "usages": 3
+          "usages": 17
         },
         {
           "name": "copy-button",
@@ -926,7 +926,7 @@
         {
           "name": "date-picker",
           "path": "packages/ui/src/primitives/date/date-picker.tsx",
-          "lines": 214,
+          "lines": 232,
           "source": "ui",
           "usages": 1
         },
@@ -942,7 +942,7 @@
           "path": "packages/ui/src/primitives/dialog/dialog.tsx",
           "lines": 361,
           "source": "ui",
-          "usages": 35
+          "usages": 36
         },
         {
           "name": "drawer",
@@ -975,7 +975,7 @@
         {
           "name": "hold-to-delete-button",
           "path": "packages/ui/src/primitives/hold-to-delete/hold-to-delete-button.tsx",
-          "lines": 206,
+          "lines": 210,
           "source": "ui",
           "usages": 0
         },
@@ -991,7 +991,7 @@
           "path": "packages/ui/src/primitives/input/input.tsx",
           "lines": 192,
           "source": "ui",
-          "usages": 58
+          "usages": 101
         },
         {
           "name": "kbd",
@@ -1024,7 +1024,7 @@
         {
           "name": "radio-cards",
           "path": "packages/ui/src/primitives/radio-group/radio-cards.tsx",
-          "lines": 214,
+          "lines": 232,
           "source": "ui",
           "usages": 2
         },
@@ -1047,7 +1047,7 @@
           "path": "packages/ui/src/primitives/select/select.tsx",
           "lines": 210,
           "source": "ui",
-          "usages": 33
+          "usages": 34
         },
         {
           "name": "separator",
@@ -1101,7 +1101,7 @@
         {
           "name": "switch",
           "path": "packages/ui/src/primitives/switch/switch.tsx",
-          "lines": 100,
+          "lines": 120,
           "source": "ui",
           "usages": 9
         },
@@ -1129,7 +1129,7 @@
         {
           "name": "tabs",
           "path": "packages/ui/src/primitives/tabs/tabs.tsx",
-          "lines": 252,
+          "lines": 256,
           "source": "ui",
           "usages": 18
         },
@@ -1143,7 +1143,7 @@
         {
           "name": "timeline",
           "path": "packages/ui/src/primitives/timeline/timeline.tsx",
-          "lines": 107,
+          "lines": 115,
           "source": "ui",
           "usages": 0
         },
@@ -1185,23 +1185,37 @@
         {
           "name": "RecommendationModal",
           "path": "packages/ui/src/RecommendationModal.tsx",
-          "lines": 222,
+          "lines": 277,
           "source": "ui",
           "usages": 0
         },
         {
           "name": "SafeAvatar",
           "path": "packages/ui/src/SafeAvatar.tsx",
-          "lines": 154,
+          "lines": 161,
           "source": "ui",
-          "usages": 18
+          "usages": 20
         },
         {
           "name": "SafeImage",
           "path": "packages/ui/src/SafeImage.tsx",
-          "lines": 78,
+          "lines": 93,
           "source": "ui",
-          "usages": 5
+          "usages": 17
+        },
+        {
+          "name": "article-html",
+          "path": "packages/ui/src/security/article-html.ts",
+          "lines": 130,
+          "source": "ui",
+          "usages": 2
+        },
+        {
+          "name": "inline-svg",
+          "path": "packages/ui/src/security/inline-svg.ts",
+          "lines": 289,
+          "source": "ui",
+          "usages": 0
         },
         {
           "name": "pow-worker",
@@ -1213,7 +1227,7 @@
         {
           "name": "JsonLd",
           "path": "packages/ui/src/seo/JsonLd.tsx",
-          "lines": 151,
+          "lines": 159,
           "source": "ui",
           "usages": 8
         },
@@ -1234,7 +1248,7 @@
         {
           "name": "sidebar",
           "path": "packages/ui/src/sidebar.tsx",
-          "lines": 882,
+          "lines": 889,
           "source": "ui",
           "usages": 5
         },
@@ -1269,7 +1283,7 @@
         {
           "name": "LinkPreview",
           "path": "packages/ui/src/social/LinkPreview.tsx",
-          "lines": 191,
+          "lines": 200,
           "source": "ui",
           "usages": 0
         },
@@ -1290,7 +1304,7 @@
         {
           "name": "QuotedArticleCard",
           "path": "packages/ui/src/social/QuotedArticleCard.tsx",
-          "lines": 322,
+          "lines": 330,
           "source": "ui",
           "usages": 0
         },
@@ -1339,7 +1353,7 @@
         {
           "name": "ThoughtCard",
           "path": "packages/ui/src/social/ThoughtCard.tsx",
-          "lines": 569,
+          "lines": 632,
           "source": "ui",
           "usages": 2
         },
@@ -1362,14 +1376,14 @@
           "path": "packages/ui/src/SocialIcon.tsx",
           "lines": 7,
           "source": "ui",
-          "usages": 0
+          "usages": 3
         },
         {
           "name": "SubscribeForm",
           "path": "packages/ui/src/SubscribeForm.tsx",
-          "lines": 447,
+          "lines": 462,
           "source": "ui",
-          "usages": 2
+          "usages": 5
         },
         {
           "name": "TenantHeader",
@@ -1436,7 +1450,7 @@
         {
           "name": "AnnotationSideDrawer",
           "path": "packages/ui/src/annotations/AnnotationSideDrawer.tsx",
-          "lines": 776,
+          "lines": 799,
           "source": "ui",
           "usages": 0
         },
@@ -1534,21 +1548,21 @@
         {
           "name": "TextHighlighter",
           "path": "packages/ui/src/annotations/TextHighlighter.tsx",
-          "lines": 1502,
+          "lines": 1514,
           "source": "ui",
           "usages": 0
         },
         {
           "name": "TextSelectionPopover",
           "path": "packages/ui/src/annotations/TextSelectionPopover.tsx",
-          "lines": 325,
+          "lines": 340,
           "source": "ui",
           "usages": 0
         },
         {
           "name": "types",
           "path": "packages/ui/src/annotations/types.ts",
-          "lines": 288,
+          "lines": 296,
           "source": "ui",
           "usages": 0
         },
@@ -1562,14 +1576,14 @@
         {
           "name": "bionic",
           "path": "packages/ui/src/reader/bionic.ts",
-          "lines": 84,
+          "lines": 112,
           "source": "ui",
           "usages": 0
         },
         {
           "name": "FloatingAudioPlayer",
           "path": "packages/ui/src/reader/FloatingAudioPlayer.tsx",
-          "lines": 207,
+          "lines": 253,
           "source": "ui",
           "usages": 0
         },
@@ -1583,7 +1597,7 @@
         {
           "name": "ReadingProgressBar",
           "path": "packages/ui/src/reader/ReadingProgressBar.tsx",
-          "lines": 61,
+          "lines": 65,
           "source": "ui",
           "usages": 0
         },
@@ -1604,7 +1618,7 @@
         {
           "name": "TextToSpeechContext",
           "path": "packages/ui/src/reader/TextToSpeechContext.tsx",
-          "lines": 581,
+          "lines": 614,
           "source": "ui",
           "usages": 0
         },
@@ -1647,7 +1661,7 @@
           "path": "packages/ui/src/templates/archetypes/minimal/MinimalDock.tsx",
           "lines": 208,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "MinimalSidebarDrawer",
@@ -1659,7 +1673,7 @@
         {
           "name": "AboutPageContent",
           "path": "packages/ui/src/templates/blocks/AboutPageContent.tsx",
-          "lines": 298,
+          "lines": 299,
           "source": "ui",
           "usages": 1
         },
@@ -1668,147 +1682,147 @@
           "path": "packages/ui/src/templates/blocks/ArticleCard.tsx",
           "lines": 308,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "ArticleContentBlock",
           "path": "packages/ui/src/templates/blocks/ArticleContentBlock.tsx",
-          "lines": 305,
+          "lines": 252,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "ArticleEngagementBar",
           "path": "packages/ui/src/templates/blocks/ArticleEngagementBar.tsx",
           "lines": 641,
           "source": "ui",
-          "usages": 0
+          "usages": 2
         },
         {
           "name": "ArticleStreamBlock",
           "path": "packages/ui/src/templates/blocks/ArticleStreamBlock.tsx",
           "lines": 738,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "BentoGridBlock",
           "path": "packages/ui/src/templates/blocks/BentoGridBlock.tsx",
           "lines": 249,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "BlockWrapper",
           "path": "packages/ui/src/templates/blocks/BlockWrapper.tsx",
           "lines": 226,
           "source": "ui",
-          "usages": 0
+          "usages": 9
         },
         {
           "name": "CategorySpotlightBlock",
           "path": "packages/ui/src/templates/blocks/CategorySpotlightBlock.tsx",
           "lines": 169,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "EditableText",
           "path": "packages/ui/src/templates/blocks/EditableText.tsx",
           "lines": 68,
           "source": "ui",
-          "usages": 0
+          "usages": 6
         },
         {
           "name": "FooterBlock",
           "path": "packages/ui/src/templates/blocks/FooterBlock.tsx",
           "lines": 209,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "HeroBlock",
           "path": "packages/ui/src/templates/blocks/HeroBlock.tsx",
           "lines": 244,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "LeadStoryBlock",
           "path": "packages/ui/src/templates/blocks/LeadStoryBlock.tsx",
           "lines": 230,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "NavbarBlock",
           "path": "packages/ui/src/templates/blocks/NavbarBlock.tsx",
           "lines": 266,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "NewsletterWallBlock",
           "path": "packages/ui/src/templates/blocks/NewsletterWallBlock.tsx",
           "lines": 174,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "NodeRenderer",
           "path": "packages/ui/src/templates/blocks/NodeRenderer.tsx",
           "lines": 173,
           "source": "ui",
-          "usages": 0
+          "usages": 9
         },
         {
           "name": "PeopleSection",
           "path": "packages/ui/src/templates/blocks/PeopleSection.tsx",
           "lines": 90,
           "source": "ui",
-          "usages": 1
+          "usages": 2
         },
         {
           "name": "PersonCard",
           "path": "packages/ui/src/templates/blocks/PersonCard.tsx",
           "lines": 260,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "PublisherSidebar",
           "path": "packages/ui/src/templates/blocks/PublisherSidebar.tsx",
           "lines": 312,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "defaults",
           "path": "packages/ui/src/templates/defaults.ts",
           "lines": 903,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "minimal",
           "path": "packages/ui/src/templates/defaults/minimal.ts",
           "lines": 136,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "demo",
           "path": "packages/ui/src/templates/demo.ts",
           "lines": 44,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "navigation",
           "path": "packages/ui/src/templates/navigation.ts",
           "lines": 506,
           "source": "ui",
-          "usages": 0
+          "usages": 4
         },
         {
           "name": "parser",
@@ -1822,7 +1836,7 @@
           "path": "packages/ui/src/templates/placeholders.ts",
           "lines": 16,
           "source": "ui",
-          "usages": 0
+          "usages": 5
         },
         {
           "name": "types",
@@ -1836,14 +1850,14 @@
           "path": "packages/ui/src/templates/schema.ts",
           "lines": 452,
           "source": "ui",
-          "usages": 0
+          "usages": 25
         },
         {
           "name": "style",
           "path": "packages/ui/src/templates/style.ts",
           "lines": 145,
           "source": "ui",
-          "usages": 0
+          "usages": 2
         },
         {
           "name": "TemplateRenderer",
@@ -1889,14 +1903,14 @@
         {
           "name": "HeaderClient",
           "path": "apps/studio/src/features/dashboard/components/HeaderClient.tsx",
-          "lines": 78,
+          "lines": 86,
           "source": "studio",
           "usages": null
         },
         {
           "name": "HeaderWorkspaceSwitcher",
           "path": "apps/studio/src/features/dashboard/components/HeaderWorkspaceSwitcher.tsx",
-          "lines": 297,
+          "lines": 347,
           "source": "studio",
           "usages": null
         },
@@ -1917,35 +1931,35 @@
         {
           "name": "actions",
           "path": "apps/studio/src/features/developer/actions.ts",
-          "lines": 31,
+          "lines": 32,
           "source": "studio",
           "usages": null
         },
         {
           "name": "developer-access-state",
           "path": "apps/studio/src/features/developer/components/developer-access-state.tsx",
-          "lines": 219,
+          "lines": 224,
           "source": "studio",
           "usages": null
         },
         {
           "name": "developer-keys-client",
           "path": "apps/studio/src/features/developer/components/developer-keys-client.tsx",
-          "lines": 468,
+          "lines": 475,
           "source": "studio",
           "usages": null
         },
         {
           "name": "developer-nav",
           "path": "apps/studio/src/features/developer/components/developer-nav.tsx",
-          "lines": 66,
+          "lines": 67,
           "source": "studio",
           "usages": null
         },
         {
           "name": "developer-overview",
           "path": "apps/studio/src/features/developer/components/developer-overview.tsx",
-          "lines": 88,
+          "lines": 89,
           "source": "studio",
           "usages": null
         },
@@ -1959,63 +1973,63 @@
         {
           "name": "developer-shell",
           "path": "apps/studio/src/features/developer/components/developer-shell.tsx",
-          "lines": 28,
+          "lines": 29,
           "source": "studio",
           "usages": null
         },
         {
           "name": "developer-status-badge",
           "path": "apps/studio/src/features/developer/components/developer-status-badge.tsx",
-          "lines": 24,
+          "lines": 26,
           "source": "studio",
           "usages": null
         },
         {
           "name": "server",
           "path": "apps/studio/src/features/developer/server.ts",
-          "lines": 80,
+          "lines": 82,
           "source": "studio",
           "usages": null
         },
         {
           "name": "types",
           "path": "apps/studio/src/features/developer/types.ts",
-          "lines": 82,
+          "lines": 91,
           "source": "studio",
           "usages": null
         },
         {
           "name": "actions",
           "path": "apps/studio/src/features/devtools/actions.ts",
-          "lines": 57,
+          "lines": 58,
           "source": "studio",
           "usages": null
         },
         {
           "name": "ai-assist",
           "path": "apps/studio/src/features/editor/actions/ai-assist.ts",
-          "lines": 49,
+          "lines": 50,
           "source": "studio",
           "usages": null
         },
         {
           "name": "media-assets",
           "path": "apps/studio/src/features/editor/actions/media-assets.ts",
-          "lines": 70,
+          "lines": 71,
           "source": "studio",
           "usages": null
         },
         {
           "name": "AiSuggestionDialog",
           "path": "apps/studio/src/features/editor/components/AiSuggestionDialog.tsx",
-          "lines": 108,
+          "lines": 109,
           "source": "studio",
           "usages": null
         },
         {
           "name": "AnnotationNotePanel",
           "path": "apps/studio/src/features/editor/components/AnnotationNotePanel.tsx",
-          "lines": 185,
+          "lines": 186,
           "source": "studio",
           "usages": null
         },
@@ -2029,14 +2043,14 @@
         {
           "name": "ArticleDiffModal",
           "path": "apps/studio/src/features/editor/components/ArticleDiffModal.tsx",
-          "lines": 415,
+          "lines": 434,
           "source": "studio",
           "usages": null
         },
         {
           "name": "ArticleHistoryModal",
           "path": "apps/studio/src/features/editor/components/ArticleHistoryModal.tsx",
-          "lines": 432,
+          "lines": 447,
           "source": "studio",
           "usages": null
         },
@@ -2050,35 +2064,35 @@
         {
           "name": "CollaborationInviteLinks",
           "path": "apps/studio/src/features/editor/components/CollaborationInviteLinks.tsx",
-          "lines": 308,
+          "lines": 338,
           "source": "studio",
           "usages": null
         },
         {
           "name": "CoverUploader",
           "path": "apps/studio/src/features/editor/components/CoverUploader.tsx",
-          "lines": 283,
+          "lines": 284,
           "source": "studio",
           "usages": null
         },
         {
           "name": "Editor",
           "path": "apps/studio/src/features/editor/components/Editor.tsx",
-          "lines": 2808,
+          "lines": 2809,
           "source": "studio",
           "usages": null
         },
         {
           "name": "EditorHeader",
           "path": "apps/studio/src/features/editor/components/EditorHeader.tsx",
-          "lines": 449,
+          "lines": 451,
           "source": "studio",
           "usages": null
         },
         {
           "name": "EditorSettingsDrawer",
           "path": "apps/studio/src/features/editor/components/EditorSettingsDrawer.tsx",
-          "lines": 729,
+          "lines": 763,
           "source": "studio",
           "usages": null
         },
@@ -2092,14 +2106,14 @@
         {
           "name": "EditorStatusBar",
           "path": "apps/studio/src/features/editor/components/EditorStatusBar.tsx",
-          "lines": 132,
+          "lines": 138,
           "source": "studio",
           "usages": null
         },
         {
           "name": "EditorToolbar",
           "path": "apps/studio/src/features/editor/components/EditorToolbar.tsx",
-          "lines": 602,
+          "lines": 604,
           "source": "studio",
           "usages": null
         },
@@ -2113,56 +2127,56 @@
         {
           "name": "LinkEditorPanel",
           "path": "apps/studio/src/features/editor/components/LinkEditorPanel.tsx",
-          "lines": 206,
+          "lines": 209,
           "source": "studio",
           "usages": null
         },
         {
           "name": "MediaAssetPickerDialog",
           "path": "apps/studio/src/features/editor/components/MediaAssetPickerDialog.tsx",
-          "lines": 199,
+          "lines": 209,
           "source": "studio",
           "usages": null
         },
         {
           "name": "PastedAnnotationsDialog",
           "path": "apps/studio/src/features/editor/components/PastedAnnotationsDialog.tsx",
-          "lines": 194,
+          "lines": 195,
           "source": "studio",
           "usages": null
         },
         {
           "name": "PublishModal",
           "path": "apps/studio/src/features/editor/components/PublishModal.tsx",
-          "lines": 596,
+          "lines": 607,
           "source": "studio",
           "usages": null
         },
         {
           "name": "PublishReadinessDialog",
           "path": "apps/studio/src/features/editor/components/PublishReadinessDialog.tsx",
-          "lines": 229,
+          "lines": 235,
           "source": "studio",
           "usages": null
         },
         {
           "name": "ReaderPreviewDialog",
           "path": "apps/studio/src/features/editor/components/ReaderPreviewDialog.tsx",
-          "lines": 186,
+          "lines": 193,
           "source": "studio",
           "usages": null
         },
         {
           "name": "RecoverArticleModal",
           "path": "apps/studio/src/features/editor/components/RecoverArticleModal.tsx",
-          "lines": 438,
+          "lines": 445,
           "source": "studio",
           "usages": null
         },
         {
           "name": "SelectionToolbar",
           "path": "apps/studio/src/features/editor/components/SelectionToolbar.tsx",
-          "lines": 168,
+          "lines": 170,
           "source": "studio",
           "usages": null
         },
@@ -2197,7 +2211,7 @@
         {
           "name": "ImageGallery",
           "path": "apps/studio/src/features/editor/extensions/ImageGallery.ts",
-          "lines": 159,
+          "lines": 158,
           "source": "studio",
           "usages": null
         },
@@ -2225,7 +2239,7 @@
         {
           "name": "PaywallDividerComponent",
           "path": "apps/studio/src/features/editor/extensions/PaywallDividerComponent.tsx",
-          "lines": 33,
+          "lines": 34,
           "source": "studio",
           "usages": null
         },
@@ -2239,7 +2253,7 @@
         {
           "name": "useCollaborationSession",
           "path": "apps/studio/src/features/editor/hooks/useCollaborationSession.ts",
-          "lines": 202,
+          "lines": 229,
           "source": "studio",
           "usages": null
         },
@@ -2247,6 +2261,13 @@
           "name": "useModKey",
           "path": "apps/studio/src/features/editor/hooks/useModKey.ts",
           "lines": 39,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "useTransientMessage",
+          "path": "apps/studio/src/features/editor/hooks/useTransientMessage.ts",
+          "lines": 54,
           "source": "studio",
           "usages": null
         },
@@ -2309,7 +2330,7 @@
         {
           "name": "preflight",
           "path": "apps/studio/src/features/editor/lib/preflight.ts",
-          "lines": 256,
+          "lines": 257,
           "source": "studio",
           "usages": null
         },
@@ -2337,21 +2358,28 @@
         {
           "name": "wizard",
           "path": "apps/studio/src/features/onboarding/components/wizard.tsx",
-          "lines": 526,
+          "lines": 511,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "reserved-subdomains",
+          "path": "apps/studio/src/features/onboarding/lib/reserved-subdomains.ts",
+          "lines": 21,
           "source": "studio",
           "usages": null
         },
         {
           "name": "step-up",
           "path": "apps/studio/src/features/security/step-up.tsx",
-          "lines": 297,
+          "lines": 323,
           "source": "studio",
           "usages": null
         },
         {
           "name": "totp-enrollment",
           "path": "apps/studio/src/features/security/totp-enrollment.tsx",
-          "lines": 236,
+          "lines": 241,
           "source": "studio",
           "usages": null
         },
@@ -2365,14 +2393,14 @@
         {
           "name": "collaboration-actions",
           "path": "apps/studio/src/features/settings/collaboration-actions.ts",
-          "lines": 76,
+          "lines": 77,
           "source": "studio",
           "usages": null
         },
         {
           "name": "account-security",
           "path": "apps/studio/src/features/settings/components/account-security.tsx",
-          "lines": 390,
+          "lines": 389,
           "source": "studio",
           "usages": null
         },
@@ -2386,28 +2414,14 @@
         {
           "name": "MediaProfilePreviewEditor",
           "path": "apps/studio/src/features/settings/components/MediaProfilePreviewEditor.tsx",
-          "lines": 479,
+          "lines": 505,
           "source": "studio",
           "usages": null
         },
         {
           "name": "mfa-panel",
           "path": "apps/studio/src/features/settings/components/mfa-panel.tsx",
-          "lines": 177,
-          "source": "studio",
-          "usages": null
-        },
-        {
-          "name": "publisher-live-preview",
-          "path": "apps/studio/src/features/settings/components/publisher-live-preview.tsx",
-          "lines": 14,
-          "source": "studio",
-          "usages": null
-        },
-        {
-          "name": "publisher-settings",
-          "path": "apps/studio/src/features/settings/components/publisher-settings.tsx",
-          "lines": 12,
+          "lines": 192,
           "source": "studio",
           "usages": null
         },
@@ -2426,58 +2440,65 @@
           "usages": null
         },
         {
-          "name": "preview",
-          "path": "apps/studio/src/features/settings/preview.tsx",
-          "lines": 357,
+          "name": "canonical-profile",
+          "path": "apps/studio/src/features/settings/lib/canonical-profile.ts",
+          "lines": 95,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "client-link-id",
+          "path": "apps/studio/src/features/settings/lib/client-link-id.ts",
+          "lines": 31,
           "source": "studio",
           "usages": null
         },
         {
           "name": "settings",
           "path": "apps/studio/src/features/settings/settings.tsx",
-          "lines": 629,
+          "lines": 601,
           "source": "studio",
           "usages": null
         },
         {
           "name": "collaboration",
           "path": "apps/studio/src/features/settings/tabs/collaboration.tsx",
-          "lines": 241,
+          "lines": 257,
           "source": "studio",
           "usages": null
         },
         {
           "name": "domain",
           "path": "apps/studio/src/features/settings/tabs/domain.tsx",
-          "lines": 122,
+          "lines": 124,
           "source": "studio",
           "usages": null
         },
         {
           "name": "general",
           "path": "apps/studio/src/features/settings/tabs/general.tsx",
-          "lines": 450,
+          "lines": 449,
           "source": "studio",
           "usages": null
         },
         {
           "name": "import",
           "path": "apps/studio/src/features/settings/tabs/import.tsx",
-          "lines": 405,
+          "lines": 429,
           "source": "studio",
           "usages": null
         },
         {
           "name": "navigation",
           "path": "apps/studio/src/features/settings/tabs/navigation.tsx",
-          "lines": 797,
+          "lines": 812,
           "source": "studio",
           "usages": null
         },
         {
           "name": "recommendations",
           "path": "apps/studio/src/features/settings/tabs/recommendations.tsx",
-          "lines": 436,
+          "lines": 441,
           "source": "studio",
           "usages": null
         },
@@ -2491,21 +2512,21 @@
         {
           "name": "types",
           "path": "apps/studio/src/features/settings/types.ts",
-          "lines": 167,
+          "lines": 169,
           "source": "studio",
           "usages": null
         },
         {
           "name": "BottomBar",
           "path": "apps/studio/src/features/stage/bottom-bar/BottomBar.tsx",
-          "lines": 114,
+          "lines": 125,
           "source": "studio",
           "usages": null
         },
         {
           "name": "DevicePill",
           "path": "apps/studio/src/features/stage/canvas/DevicePill.tsx",
-          "lines": 39,
+          "lines": 42,
           "source": "studio",
           "usages": null
         },
@@ -2517,51 +2538,58 @@
           "usages": null
         },
         {
+          "name": "resize-math",
+          "path": "apps/studio/src/features/stage/canvas/resize-math.ts",
+          "lines": 46,
+          "source": "studio",
+          "usages": null
+        },
+        {
           "name": "StageCanvas",
           "path": "apps/studio/src/features/stage/canvas/StageCanvas.tsx",
-          "lines": 548,
+          "lines": 535,
           "source": "studio",
           "usages": null
         },
         {
           "name": "useStageHotkeys",
           "path": "apps/studio/src/features/stage/canvas/useStageHotkeys.ts",
-          "lines": 76,
+          "lines": 83,
           "source": "studio",
           "usages": null
         },
         {
           "name": "StageEngineContext",
           "path": "apps/studio/src/features/stage/context/StageEngineContext.tsx",
-          "lines": 1020,
+          "lines": 1066,
           "source": "studio",
           "usages": null
         },
         {
           "name": "ContextualEditorBar",
           "path": "apps/studio/src/features/stage/editor-bar/ContextualEditorBar.tsx",
-          "lines": 247,
+          "lines": 263,
           "source": "studio",
           "usages": null
         },
         {
           "name": "dropdowns",
           "path": "apps/studio/src/features/stage/editor-bar/controls/dropdowns.tsx",
-          "lines": 268,
+          "lines": 272,
           "source": "studio",
           "usages": null
         },
         {
           "name": "inputs",
           "path": "apps/studio/src/features/stage/editor-bar/controls/inputs.tsx",
-          "lines": 197,
+          "lines": 205,
           "source": "studio",
           "usages": null
         },
         {
           "name": "text-controls",
           "path": "apps/studio/src/features/stage/editor-bar/controls/text-controls.tsx",
-          "lines": 114,
+          "lines": 115,
           "source": "studio",
           "usages": null
         },
@@ -2569,13 +2597,6 @@
           "name": "useQoefiStyle",
           "path": "apps/studio/src/features/stage/editor-bar/useQoefiStyle.ts",
           "lines": 52,
-          "source": "studio",
-          "usages": null
-        },
-        {
-          "name": "canvas-manager",
-          "path": "apps/studio/src/features/stage/engine/canvas-manager.ts",
-          "lines": 79,
           "source": "studio",
           "usages": null
         },
@@ -2594,37 +2615,16 @@
           "usages": null
         },
         {
-          "name": "history-manager",
-          "path": "apps/studio/src/features/stage/engine/history-manager.ts",
-          "lines": 85,
-          "source": "studio",
-          "usages": null
-        },
-        {
           "name": "models",
           "path": "apps/studio/src/features/stage/engine/models.ts",
-          "lines": 25,
-          "source": "studio",
-          "usages": null
-        },
-        {
-          "name": "overlay-managers",
-          "path": "apps/studio/src/features/stage/engine/overlay-managers.ts",
-          "lines": 51,
-          "source": "studio",
-          "usages": null
-        },
-        {
-          "name": "selection-utils",
-          "path": "apps/studio/src/features/stage/engine/selection-utils.ts",
-          "lines": 15,
+          "lines": 19,
           "source": "studio",
           "usages": null
         },
         {
           "name": "stage-editor-engine",
           "path": "apps/studio/src/features/stage/engine/stage-editor-engine.ts",
-          "lines": 44,
+          "lines": 29,
           "source": "studio",
           "usages": null
         },
@@ -2638,56 +2638,63 @@
         {
           "name": "LeftPanelFull",
           "path": "apps/studio/src/features/stage/left-panel/LeftPanelFull.tsx",
-          "lines": 920,
+          "lines": 973,
           "source": "studio",
           "usages": null
         },
         {
           "name": "RightPanel",
           "path": "apps/studio/src/features/stage/right-panel/RightPanel.tsx",
-          "lines": 826,
+          "lines": 856,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "scope-label",
+          "path": "apps/studio/src/features/stage/scope-label.ts",
+          "lines": 20,
           "source": "studio",
           "usages": null
         },
         {
           "name": "SidebarDrawer",
           "path": "apps/studio/src/features/stage/sidebar-drawer/SidebarDrawer.tsx",
-          "lines": 63,
+          "lines": 111,
           "source": "studio",
           "usages": null
         },
         {
           "name": "StageClient",
           "path": "apps/studio/src/features/stage/StageClient.tsx",
-          "lines": 138,
+          "lines": 139,
           "source": "studio",
           "usages": null
         },
         {
           "name": "TopBar",
           "path": "apps/studio/src/features/stage/top-bar/TopBar.tsx",
-          "lines": 235,
+          "lines": 250,
           "source": "studio",
           "usages": null
         },
         {
           "name": "types",
           "path": "apps/studio/src/features/stage/types.ts",
-          "lines": 46,
+          "lines": 35,
           "source": "studio",
           "usages": null
         },
         {
           "name": "actions",
           "path": "apps/studio/src/features/upcoming/actions.ts",
-          "lines": 126,
+          "lines": 127,
           "source": "studio",
           "usages": null
         },
         {
           "name": "provider",
           "path": "apps/studio/src/features/upcoming/provider.tsx",
-          "lines": 95,
+          "lines": 106,
           "source": "studio",
           "usages": null
         }
@@ -2707,7 +2714,7 @@
         {
           "name": "ArticleOverlayProvider",
           "path": "apps/core/src/components/article-overlay/ArticleOverlayProvider.tsx",
-          "lines": 466,
+          "lines": 528,
           "source": "core",
           "usages": null
         },
@@ -2728,42 +2735,42 @@
         {
           "name": "DossierThread",
           "path": "apps/core/src/components/dossiers/DossierThread.tsx",
-          "lines": 82,
+          "lines": 90,
           "source": "core",
           "usages": null
         },
         {
           "name": "RealtimeFeedPill",
           "path": "apps/core/src/components/feed/RealtimeFeedPill.tsx",
-          "lines": 36,
+          "lines": 42,
           "source": "core",
           "usages": null
         },
         {
           "name": "VirtualizedFeedList",
           "path": "apps/core/src/components/feed/VirtualizedFeedList.tsx",
-          "lines": 99,
+          "lines": 122,
           "source": "core",
           "usages": null
         },
         {
           "name": "AppSidebar",
           "path": "apps/core/src/components/layout/AppSidebar.tsx",
-          "lines": 100,
+          "lines": 131,
           "source": "core",
           "usages": null
         },
         {
           "name": "MainContentWrapper",
           "path": "apps/core/src/components/layout/MainContentWrapper.tsx",
-          "lines": 13,
+          "lines": 36,
           "source": "core",
           "usages": null
         },
         {
           "name": "ReaderNavOverlay",
           "path": "apps/core/src/components/layout/ReaderNavOverlay.tsx",
-          "lines": 133,
+          "lines": 135,
           "source": "core",
           "usages": null
         },
@@ -2777,14 +2784,14 @@
         {
           "name": "MessagesApp",
           "path": "apps/core/src/components/messages/MessagesApp.tsx",
-          "lines": 495,
+          "lines": 562,
           "source": "core",
           "usages": null
         },
         {
           "name": "NotificationSettingsForm",
           "path": "apps/core/src/components/notifications/NotificationSettingsForm.tsx",
-          "lines": 162,
+          "lines": 180,
           "source": "core",
           "usages": null
         },
@@ -2798,21 +2805,21 @@
         {
           "name": "InAppPlacement",
           "path": "apps/core/src/components/placements/InAppPlacement.tsx",
-          "lines": 180,
+          "lines": 190,
           "source": "core",
           "usages": null
         },
         {
           "name": "EditProfileModal",
           "path": "apps/core/src/components/profile/EditProfileModal.tsx",
-          "lines": 427,
+          "lines": 478,
           "source": "core",
           "usages": null
         },
         {
           "name": "profile-edit-actions",
           "path": "apps/core/src/components/profile/profile-edit-actions.ts",
-          "lines": 52,
+          "lines": 58,
           "source": "core",
           "usages": null
         },
@@ -2831,51 +2838,58 @@
           "usages": null
         },
         {
+          "name": "article-byline",
+          "path": "apps/core/src/components/social/article-byline.ts",
+          "lines": 164,
+          "source": "core",
+          "usages": null
+        },
+        {
           "name": "ArticleAnnotatorView",
           "path": "apps/core/src/components/social/ArticleAnnotatorView.tsx",
-          "lines": 1100,
+          "lines": 1107,
           "source": "core",
           "usages": null
         },
         {
           "name": "ArticleComments",
           "path": "apps/core/src/components/social/ArticleComments.tsx",
-          "lines": 271,
+          "lines": 524,
           "source": "core",
           "usages": null
         },
         {
           "name": "ArticleReaderDrawer",
           "path": "apps/core/src/components/social/ArticleReaderDrawer.tsx",
-          "lines": 260,
+          "lines": 255,
           "source": "core",
           "usages": null
         },
         {
           "name": "ArticleSummary",
           "path": "apps/core/src/components/social/ArticleSummary.tsx",
-          "lines": 108,
+          "lines": 120,
           "source": "core",
           "usages": null
         },
         {
           "name": "DockedReaderToolbar",
           "path": "apps/core/src/components/social/DockedReaderToolbar.tsx",
-          "lines": 140,
+          "lines": 148,
           "source": "core",
           "usages": null
         },
         {
           "name": "HiddenReplyNotice",
           "path": "apps/core/src/components/social/HiddenReplyNotice.tsx",
-          "lines": 111,
+          "lines": 119,
           "source": "core",
           "usages": null
         },
         {
           "name": "ModerationReportModal",
           "path": "apps/core/src/components/social/ModerationReportModal.tsx",
-          "lines": 154,
+          "lines": 181,
           "source": "core",
           "usages": null
         },
@@ -2896,42 +2910,28 @@
         {
           "name": "ReaderToolbarContext",
           "path": "apps/core/src/components/social/ReaderToolbarContext.tsx",
-          "lines": 95,
-          "source": "core",
-          "usages": null
-        },
-        {
-          "name": "search-results 2",
-          "path": "apps/core/src/components/social/search-results 2.ts",
-          "lines": 90,
-          "source": "core",
-          "usages": null
-        },
-        {
-          "name": "search-results.test 2",
-          "path": "apps/core/src/components/social/search-results.test 2.ts",
-          "lines": 92,
+          "lines": 121,
           "source": "core",
           "usages": null
         },
         {
           "name": "search-results",
           "path": "apps/core/src/components/social/search-results.ts",
-          "lines": 90,
+          "lines": 107,
           "source": "core",
           "usages": null
         },
         {
           "name": "SearchFeed",
           "path": "apps/core/src/components/social/SearchFeed.tsx",
-          "lines": 535,
+          "lines": 560,
           "source": "core",
           "usages": null
         },
         {
           "name": "SimilarArticlesSection",
           "path": "apps/core/src/components/social/SimilarArticlesSection.tsx",
-          "lines": 101,
+          "lines": 106,
           "source": "core",
           "usages": null
         },
@@ -2966,14 +2966,14 @@
         {
           "name": "TrendingWidget",
           "path": "apps/core/src/components/social/TrendingWidget.tsx",
-          "lines": 64,
+          "lines": 65,
           "source": "core",
           "usages": null
         },
         {
           "name": "StaleServerActionBanner",
           "path": "apps/core/src/components/StaleServerActionBanner.tsx",
-          "lines": 64,
+          "lines": 65,
           "source": "core",
           "usages": null
         },
@@ -2987,7 +2987,7 @@
         {
           "name": "ThoughtOverlayProvider",
           "path": "apps/core/src/components/thought-overlay/ThoughtOverlayProvider.tsx",
-          "lines": 259,
+          "lines": 261,
           "source": "core",
           "usages": null
         }
@@ -3021,7 +3021,7 @@
         {
           "name": "RecommendedSection",
           "path": "apps/tenants/src/components/RecommendedSection.tsx",
-          "lines": 204,
+          "lines": 218,
           "source": "tenants",
           "usages": null
         },
@@ -3045,20 +3045,6 @@
       "id": "admin",
       "label": "Patterns Admin",
       "items": [
-        {
-          "name": "AdminHeader",
-          "path": "apps/admin/src/components/admin/AdminHeader.tsx",
-          "lines": 3,
-          "source": "admin",
-          "usages": null
-        },
-        {
-          "name": "Footer",
-          "path": "apps/admin/src/components/layout/Footer.tsx",
-          "lines": 143,
-          "source": "admin",
-          "usages": null
-        },
         {
           "name": "QueueEmpty",
           "path": "apps/admin/src/components/queue/QueueEmpty.tsx",
@@ -3090,42 +3076,49 @@
         {
           "name": "step-up",
           "path": "apps/admin/src/components/security/step-up.tsx",
-          "lines": 471,
+          "lines": 494,
           "source": "admin",
           "usages": null
         },
         {
           "name": "CopyableId",
           "path": "apps/admin/src/components/shell/CopyableId.tsx",
-          "lines": 68,
+          "lines": 70,
           "source": "admin",
           "usages": null
         },
         {
           "name": "DataGrid",
           "path": "apps/admin/src/components/shell/DataGrid.tsx",
-          "lines": 466,
+          "lines": 476,
+          "source": "admin",
+          "usages": null
+        },
+        {
+          "name": "feedback-form",
+          "path": "apps/admin/src/components/shell/feedback-form.tsx",
+          "lines": 71,
           "source": "admin",
           "usages": null
         },
         {
           "name": "grid-view",
           "path": "apps/admin/src/components/shell/grid-view.ts",
-          "lines": 298,
+          "lines": 309,
           "source": "admin",
           "usages": null
         },
         {
           "name": "GridView",
           "path": "apps/admin/src/components/shell/GridView.tsx",
-          "lines": 225,
+          "lines": 240,
           "source": "admin",
           "usages": null
         },
         {
           "name": "InlineScalar",
           "path": "apps/admin/src/components/shell/InlineScalar.tsx",
-          "lines": 340,
+          "lines": 347,
           "source": "admin",
           "usages": null
         },
@@ -3133,6 +3126,13 @@
           "name": "MetricChips",
           "path": "apps/admin/src/components/shell/MetricChips.tsx",
           "lines": 70,
+          "source": "admin",
+          "usages": null
+        },
+        {
+          "name": "prompt-dialog",
+          "path": "apps/admin/src/components/shell/prompt-dialog.tsx",
+          "lines": 139,
           "source": "admin",
           "usages": null
         },
@@ -3146,7 +3146,14 @@
         {
           "name": "tokens",
           "path": "apps/admin/src/components/shell/tokens.ts",
-          "lines": 47,
+          "lines": 40,
+          "source": "admin",
+          "usages": null
+        },
+        {
+          "name": "UnavailableNotice",
+          "path": "apps/admin/src/components/shell/UnavailableNotice.tsx",
+          "lines": 29,
           "source": "admin",
           "usages": null
         }
@@ -3180,14 +3187,14 @@
         {
           "name": "ComparisonTable",
           "path": "apps/hi/src/components/landing/ComparisonTable.tsx",
-          "lines": 170,
+          "lines": 172,
           "source": "hi",
           "usages": null
         },
         {
           "name": "CreatorHub",
           "path": "apps/hi/src/components/landing/CreatorHub.tsx",
-          "lines": 342,
+          "lines": 358,
           "source": "hi",
           "usages": null
         },
@@ -3208,28 +3215,28 @@
         {
           "name": "FormatPreview",
           "path": "apps/hi/src/components/landing/FormatPreview.tsx",
-          "lines": 185,
+          "lines": 188,
           "source": "hi",
           "usages": null
         },
         {
           "name": "Hero",
           "path": "apps/hi/src/components/landing/Hero.tsx",
-          "lines": 944,
+          "lines": 949,
           "source": "hi",
           "usages": null
         },
         {
           "name": "Marquee",
           "path": "apps/hi/src/components/landing/Marquee.tsx",
-          "lines": 39,
+          "lines": 54,
           "source": "hi",
           "usages": null
         },
         {
           "name": "ProductPreview",
           "path": "apps/hi/src/components/landing/ProductPreview.tsx",
-          "lines": 177,
+          "lines": 178,
           "source": "hi",
           "usages": null
         },
@@ -3243,7 +3250,7 @@
         {
           "name": "Footer",
           "path": "apps/hi/src/components/layout/Footer.tsx",
-          "lines": 214,
+          "lines": 182,
           "source": "hi",
           "usages": null
         }

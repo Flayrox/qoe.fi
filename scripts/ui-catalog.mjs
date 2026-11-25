@@ -12,7 +12,13 @@
 //      qu'on utilise nos composants ? ». Il se calcule, il ne se
 //      déclare pas.
 //
-// 🔧 Usage : pnpm ui:catalog
+// ⚠️ Le catalogue est le seul miroir du lab : s'il n'est pas régénéré,
+//    le banc de revue affiche des chiffres faux et contredit `ui:audit`.
+//    D'où `--check`, branché dans `verify` et la CI.
+//
+// 🔧 Usage :
+//    pnpm ui:catalog          # régénère l'inventaire
+//    pnpm ui:catalog --check  # échoue si le fichier diverge du scan
 // =====================================================================
 
 import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
@@ -111,19 +117,61 @@ const signals = {
   handRolledOverlays: raw.handRolledOverlays,
 };
 
-mkdirSync(dirname(OUT), { recursive: true });
-// ♻️ Idempotence : le timestamp n'avance que si le catalogue change réellement.
-// Sans cela, `pnpm ui:catalog` produisait un diff à chaque exécution.
 const payload = { total, signals, families };
 const previous = existsSync(OUT) ? JSON.parse(readFileSync(OUT, 'utf8')) : null;
-const unchanged =
-  previous &&
+
+// Les `generatedAt` ne comptent pas dans la comparaison : seul le contenu
+// mesure la fraîcheur. Sinon le catalogue se croirait périmé à chaque run.
+const sameAsScan =
+  previous !== null &&
   JSON.stringify({
     total: previous.total,
     signals: previous.signals,
     families: previous.families,
   }) === JSON.stringify(payload);
-const generatedAt = unchanged ? previous.generatedAt : new Date().toISOString();
+
+// ─── Mode vérification (CI) ──────────────────────────────────────────
+// Sans ce mode, le lab affiche un inventaire périmé sans que personne ne
+// le voie : c'est exactement ce qui s'était produit (catalogue du
+// 2026-11-16 annonçant 297 boutons quand l'audit en comptait 265).
+if (process.argv.includes('--check')) {
+  if (previous === null) {
+    console.error('✖ catalog.json absent — génère-le avec : pnpm ui:catalog');
+    process.exit(1);
+  }
+
+  if (!sameAsScan) {
+    console.error('✖ catalog.json diverge du scan : le lab afficherait un inventaire faux.');
+    for (const key of new Set([...Object.keys(signals), ...Object.keys(previous.signals ?? {})])) {
+      const before = previous.signals?.[key];
+      const after = signals[key];
+      if (before !== after) console.error(`  · ${key}: ${before ?? '—'} → ${after ?? '—'}`);
+    }
+    if (previous.total !== total) console.error(`  · composants: ${previous.total} → ${total}`);
+    const beforeFamilies = new Map(
+      (previous.families ?? []).map((family) => [family.id, family.items.length])
+    );
+    for (const family of families) {
+      const before = beforeFamilies.get(family.id) ?? 0;
+      if (before !== family.items.length) {
+        console.error(`  · ${family.id}: ${before} → ${family.items.length}`);
+      }
+    }
+    console.error('\n  régénère l’inventaire : pnpm ui:catalog');
+    process.exit(1);
+  }
+
+  console.log(
+    `✔ catalog.json à jour — ${total} composants dans ${families.length} familles, signaux identiques au scan`
+  );
+  process.exit(0);
+}
+
+// ─── Écriture ────────────────────────────────────────────────────────
+mkdirSync(dirname(OUT), { recursive: true });
+// ♻️ Idempotence : le timestamp n'avance que si le catalogue change réellement.
+// Sans cela, `pnpm ui:catalog` produisait un diff à chaque exécution.
+const generatedAt = sameAsScan ? previous.generatedAt : new Date().toISOString();
 writeFileSync(OUT, JSON.stringify({ generatedAt, ...payload }, null, 2) + '\n');
 
 console.log(`✔ catalog.json — ${total} composants dans ${families.length} familles`);
