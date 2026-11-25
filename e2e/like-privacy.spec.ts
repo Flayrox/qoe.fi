@@ -13,6 +13,7 @@ import {
   COOKIE_NAME,
   DATABASE_URL,
   GO_API_URL,
+  SUPABASE_ANON_KEY,
   SUPABASE_SERVICE_ROLE_KEY,
   SUPABASE_URL,
   createRealSession,
@@ -91,7 +92,9 @@ test.describe('Confidentialité des likes (Core)', () => {
     // première requête échouait sur un `TypeError: fetch failed` opaque ; on
     // saute désormais avec une raison visible. Lever la limite : `pnpm dev:vps`.
     const supabaseReady = await fetch(`${SUPABASE_URL}/auth/v1/health`, {
-      headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '' },
+      // La clé vient du résolveur e2e (process.env puis apps/api/.env) : lire
+      // `process.env` seul rendait la sonde 401 et sautait le test à tort.
+      headers: { apikey: SUPABASE_ANON_KEY },
     })
       .then((response) => response.ok)
       .catch(() => false);

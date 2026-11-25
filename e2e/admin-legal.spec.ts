@@ -195,8 +195,14 @@ test.describe('Console admin — contenu juridique', () => {
     ).toBeLessThan(300);
 
     // ── 4. Publication (double confirmation acceptée) ───────────────────
+    // Le CMS n'utilise plus `window.confirm` : la confirmation est un
+    // `alertdialog` React Aria, que `page.on('dialog')` ne voit pas. La
+    // cliquer explicitement, sinon la version reste en BROUILLON.
     const draftRow = page.locator('li', { hasText: 'Brouillon' }).first();
     await draftRow.getByRole('button', { name: 'Publier', exact: true }).click();
+    const publishDialog = page.getByRole('alertdialog', { name: /Publier la version/ });
+    await expect(publishDialog).toBeVisible({ timeout: 15_000 });
+    await publishDialog.getByRole('button', { name: 'Publier', exact: true }).click();
     await expect(page.locator('li', { hasText: 'Publiée' }).first()).toBeVisible({
       timeout: 30_000,
     });

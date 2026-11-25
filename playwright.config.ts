@@ -79,6 +79,26 @@ export default defineConfig({
         REDIS_URL: process.env.REDIS_URL ?? '',
       },
     },
+    // La vitrine `hi` sert la page publique `/legal/:slug` vérifiée par le
+    // parcours admin-legal complet (`RUN_FULL_STACK=1`). Elle n'est montée que
+    // dans ce régime : les jobs CI sans stack complète n'ont pas de build hi.
+    ...(process.env.RUN_FULL_STACK === '1'
+      ? [
+          {
+            command:
+              "pnpm --filter @qoe/hi exec sh -c 'rm -f .next/dev/lock && exec next start -p 15401 -H 127.0.0.1'",
+            url: 'http://127.0.0.1:15401/',
+            reuseExistingServer: !process.env.CI,
+            timeout: 120_000,
+            env: {
+              NEXT_TELEMETRY_DISABLED: '1',
+              SKIP_ENV_VALIDATION: 'true',
+              HOSTNAME: '127.0.0.1',
+              QOE_API_URL: GO_API_URL,
+            },
+          },
+        ]
+      : []),
     {
       // `next dev` SANS -p : le flag du script dev (apps/core: "-p 15402")
       // écraserait PORT env et le readiness check attendrait le mauvais port.

@@ -10241,3 +10241,36 @@ pnpm --filter @qoe/sdk typecheck → exit 0
 Total : **13 cas verts**, dont les 10 qui se sautaient faute de GoTrue (5 `smoke`, 2 `smoke-zero-crash`, 3 `connected-feed-capture`).
 
 **Bug révélé et corrigé par cette exécution** : `packages/sdk/src/actions/feed/index.ts` est un fichier `"use server"` et faisait `export * from './eligibility'`, qui réexporte des fonctions synchrones et une constante. Next refuse (« Only async functions are allowed to be exported in a "use server" file ») et les cinq routes du smoke tombaient en erreur de compilation à l'exécution. La réexportation n'avait aucun consommateur (`ELIGIBILITY_SURFACES`/`parseEligibilitySurface`… ne sont importés que par leur test, depuis `./eligibility`) : supprimée, le type reste importé localement. Les 237 tests SDK restent verts.
+
+### Suite e2e complète contre Supabase Hetzner — résultat mesuré (2026-11-25)
+
+**Périmètre.** `pnpm e2e:isolated` (`scripts/e2e.sh`) joue désormais **toute** la suite e2e du dépôt en 6 vagues, dans l'ordre que la CI impose : `api-access-control` seul, `oauth-consent` seul, parcours publics/sécurité/contrats/chromium/like-privacy/admin-legal, matrice de routes + hydratation, apps (`tenants`, `studio`, `admin`, `hi`), puis matrices de routes des apps. Les builds de production des cinq apps sont produits par le script (réutilisables avec `QOE_E2E_SKIP_BUILD=1`).
+
+**Résultat, deux exécutions consécutives** (Postgres 16 local `qoe_test:55432`, GoTrue/Kong Hetzner relayé sur `127.0.0.1:54321`, zéro `supabase start`) :
+
+| Vague                                                                     | Run 1         | Run 2         |
+| ------------------------------------------------------------------------- | ------------- | ------------- |
+| 1. `api-access-control` (isolée)                                          | 2             | 2             |
+| 2. `oauth-consent` (isolée)                                               | 2             | 2             |
+| 3. parcours + sécurité + contrats + chromium + like-privacy + admin-legal | 38            | 38            |
+| 4. `routes` + `hydration`                                                 | 125           | 125           |
+| 5. apps (`tenants`, `studio`, `admin`, `hi`)                              | 29            | 29            |
+| 6. matrices de routes des apps                                            | 56            | 56            |
+| **Total cas**                                                             | **252**       | **252**       |
+| Setup d'authentification                                                  | 1             | 1             |
+| Échecs / skips / flaky                                                    | **0 / 0 / 0** | **0 / 0 / 0** |
+
+`pnpm e2e:visual` (suite visuelle séparée, sans DB ni Supabase) : **26 passed**.
+
+**Corrections révélées par la suite complète**
+
+- `e2e/like-privacy.spec.ts` : la sonde GoTrue utilisait `process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY` (absente hors CI) → 401 → test sauté à tort. Elle utilise `SUPABASE_ANON_KEY` du résolveur e2e (process.env puis `apps/api/.env`).
+- `e2e/admin-legal.spec.ts` : le CMS ne passe plus par `window.confirm` ; la confirmation est un `alertdialog` React Aria que `page.on('dialog')` ne voit pas. Le spec clique explicitement « Publier » dans le dialogue avant d'attendre le statut.
+- `playwright.config.ts` : sous `RUN_FULL_STACK=1`, monte la vitrine `hi` (`:15401`, build `next start`) car `/legal/:slug` y vit ; sans elle le parcours admin-legal échouait en `ERR_CONNECTION_REFUSED`.
+- `scripts/e2e.sh` : orchestre les 6 vagues (et non un seul `pnpm e2e`), produit les builds, et accepte `QOE_E2E_SKIP_BUILD=1`.
+- `oauth-consent` : isolé dans sa propre vague. Il est stable 3/3 seul mais échoue par intermittence en parallèle (compte et client OAuth fixes + action serveur) ; l'isolation supprime la contention, elle ne masque aucun retry (0 retry local).
+
+**Hors de portée, explicitement**
+
+- `pnpm e2e:studio-auth` (`scripts/e2e-studio-auth.mjs`) monte une pile **jetable** Postgres/Redis/GoTrue via Docker et garde son spec `studio-auth-journey` derrière `STUDIO_AUTH_JOURNEY=1`. Docker est interdit sur ce poste et le script est le chemin CI : il reste hors de la suite locale, avec sa raison écrite dans `playwright.apps.config.ts` et dans le script.
+- La CI distante ne peut pas joindre le VPS Hetzner (pas d'accès SSH depuis le runner) : elle conserve ses propres services et ses skips visibles. Aucune pile jetable n'a été substituée côté CI.
