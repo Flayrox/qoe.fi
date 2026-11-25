@@ -12,6 +12,7 @@ import { toggleFeatureFlagAction } from '@/lib/admin-aux-actions';
 import type { FeatureFlagItem } from '@/lib/admin-data';
 import { cn } from '@qoe/utils';
 import { Button } from '@qoe/ui/button';
+import { Switch } from '@qoe/ui/switch';
 
 type FlagCategory = 'all' | 'monetization' | 'reader' | 'safety';
 
@@ -214,25 +215,13 @@ export function FeatureFlagsToggles({ initialFlags }: { initialFlags: FeatureFla
                   </span>
                 </div>
 
-                <Button
-                  role="switch"
-                  aria-checked={flag.is_enabled}
-                  disabled={isCurrentPending}
-                  onClick={() => handleToggle(flag.key, flag.is_enabled)}
-                  className={cn(
-                    'relative h-6! w-11! shrink-0 rounded-full border-2 border-transparent p-0 duration-200 ease-in-out [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! ',
-                    flag.is_enabled
-                      ? 'bg-primary hover:bg-primary'
-                      : 'bg-muted hover:bg-muted [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block '
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out',
-                      flag.is_enabled ? 'translate-x-5' : 'translate-x-0'
-                    )}
-                  />
-                </Button>
+                <Switch
+                  isSelected={flag.is_enabled}
+                  isDisabled={isCurrentPending}
+                  onChange={() => handleToggle(flag.key, flag.is_enabled)}
+                  aria-label={flag.key}
+                  className="shrink-0"
+                />
               </div>
             </div>
           );

@@ -22,6 +22,7 @@ import { cn } from '@qoe/utils';
 import { ConfirmDialog, type ConfirmAction } from '@qoe/ui/confirm-dialog';
 import { Button } from '@qoe/ui/button';
 import { Input } from '@qoe/ui/input';
+import { Switch } from '@qoe/ui/switch';
 
 export function RegistrationsControl({
   initialOpen,
@@ -146,25 +147,13 @@ export function RegistrationsControl({
               : 'Seuls les emails invités peuvent s’inscrire.'}
           </p>
         </div>
-        <Button
-          role="switch"
-          aria-checked={open}
-          disabled={isPending}
-          onClick={handleToggle}
-          className={cn(
-            'relative h-6! w-11! shrink-0 rounded-full border-2 border-transparent p-0 duration-200 ease-in-out [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! ',
-            open
-              ? 'bg-primary hover:bg-primary'
-              : 'bg-muted hover:bg-muted [font-size:inherit]! leading-[inherit]! [font-weight:inherit]! whitespace-normal! justify-normal inline-block '
-          )}
-        >
-          <span
-            className={cn(
-              'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out',
-              open ? 'translate-x-5' : 'translate-x-0'
-            )}
-          />
-        </Button>
+        <Switch
+          isSelected={open}
+          isDisabled={isPending}
+          onChange={handleToggle}
+          aria-label="Autoriser les nouvelles inscriptions"
+          className="shrink-0"
+        />
       </div>
 
       <div className="space-y-4">
