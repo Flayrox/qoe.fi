@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-11-25T20:01:38.836Z",
-  "total": 455,
+  "generatedAt": "2026-11-26T15:39:38.963Z",
+  "total": 454,
   "signals": {
-    "primitivesNeverImported": 1,
-    "primitivesTotal": 28,
+    "primitivesNeverImported": 0,
+    "primitivesTotal": 27,
     "rawButtons": 0,
     "rawButtonFiles": 0,
     "nativeSelectFiles": 0,
@@ -517,13 +517,6 @@
           "lines": 96,
           "source": "ui",
           "usages": 4
-        },
-        {
-          "name": "select",
-          "path": "packages/ui/src/ui/select.tsx",
-          "lines": 253,
-          "source": "ui",
-          "usages": 0
         },
         {
           "name": "sheet",
@@ -3007,7 +3000,7 @@
         {
           "name": "LegalFooterLinks",
           "path": "apps/tenants/src/components/legal/LegalFooterLinks.tsx",
-          "lines": 55,
+          "lines": 56,
           "source": "tenants",
           "usages": null
         },
@@ -3035,7 +3028,7 @@
         {
           "name": "TenantPageShell",
           "path": "apps/tenants/src/components/TenantPageShell.tsx",
-          "lines": 113,
+          "lines": 115,
           "source": "tenants",
           "usages": null
         }

@@ -51,8 +51,8 @@ const SPECIMENS = [
     index: '02',
     title: 'Select',
     question:
-      'La primitive existe mais n’est utilisée nulle part dans les apps. Quelle hauteur, quels rayons, avec ou sans icône ?',
-    sources: ['packages/ui/src/ui/select.tsx'],
+      'Primitive react-aria unifiée (@qoe/ui/select) utilisée dans toutes les apps pour remplacer les <select> natifs.',
+    sources: ['packages/ui/src/primitives/select/select.tsx'],
     Component: SelectSpecimen,
   },
   {
