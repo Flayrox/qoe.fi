@@ -10,6 +10,8 @@ import (
 	"database/sql"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -132,13 +134,23 @@ func TestGooseUpFreshDatabase(t *testing.T) {
 		t.Fatalf("lire migrations: %v", readErr)
 	}
 	sqlCount := 0
+	var maxVersion int64
 	for _, e := range entries {
-		if filepath.Ext(e.Name()) == ".sql" {
-			sqlCount++
+		name := e.Name()
+		if filepath.Ext(name) != ".sql" {
+			continue
+		}
+		sqlCount++
+		prefix, _, _ := strings.Cut(name, "_")
+		if v, parseErr := strconv.ParseInt(prefix, 10, 64); parseErr == nil && v > maxVersion {
+			maxVersion = v
 		}
 	}
-	if version != int64(sqlCount) {
-		t.Fatalf("version goose = %d, attendu %d (%d migrations)", version, sqlCount, sqlCount)
+	if sqlCount == 0 {
+		t.Fatal("aucun fichier .sql trouvé dans sql/migrations")
+	}
+	if version != maxVersion {
+		t.Fatalf("version goose = %d, attendu %d (%d migrations)", version, maxVersion, sqlCount)
 	}
 }
 
