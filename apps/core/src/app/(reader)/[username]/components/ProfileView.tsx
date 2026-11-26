@@ -31,7 +31,11 @@ import { Button } from '@qoe/ui/button';
 import { Tabs, TabList, Tab } from '@qoe/ui/tabs';
 import { EditProfileModal } from '@/components/profile/EditProfileModal';
 import { FollowList } from './FollowList';
-import { toggleFollowCreatorHomeAction as toggleFollowCreator } from '@qoe/sdk/actions/feed';
+import {
+  toggleFollowCreatorHomeAction as toggleFollowCreator,
+  toggleLikePostAction,
+  toggleRepostPostAction,
+} from '@qoe/sdk/actions/feed';
 // Le type vit dans les mappers purs : un module 'use server' ne réexporte pas de type.
 import type { ProfilePostPayload } from '@qoe/sdk';
 import {
@@ -753,6 +757,20 @@ export function ProfileView({
                     disableAuthorOverride={true}
                     handleFollowToggle={handleFollowToggle}
                     handleBookmarkToggle={() => {}}
+                    onLikeToggle={async (art) => {
+                      const res = await toggleLikePostAction(art.id);
+                      if (!res.ok) {
+                        toast.error(res.error.message || t`Impossible de liker cet article`);
+                        throw new Error(res.error.message || 'Like failed');
+                      }
+                    }}
+                    onRepostToggle={async (art) => {
+                      const res = await toggleRepostPostAction(art.id);
+                      if (!res.ok) {
+                        toast.error(res.error.message || t`Impossible de reposter cet article`);
+                        throw new Error(res.error.message || 'Repost failed');
+                      }
+                    }}
                     onOpenArticle={(art) => handleOpenArticle(art || article)}
                   />
                 ))

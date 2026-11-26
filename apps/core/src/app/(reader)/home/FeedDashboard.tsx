@@ -8,6 +8,8 @@ import { BookMarked, AlertCircle } from 'lucide-react';
 import {
   toggleFollowCreatorHomeAction as toggleFollowCreatorHome,
   toggleBookmarkArticleHomeAction as toggleBookmarkArticleHome,
+  toggleLikePostAction,
+  toggleRepostPostAction,
 } from '@qoe/sdk/actions/feed';
 import { toast } from '@qoe/ui/toast';
 
@@ -965,6 +967,24 @@ export function FeedDashboard({
                                       }
                                     : undefined
                                 }
+                                onLikeToggle={async (art) => {
+                                  const res = await toggleLikePostAction(art.id);
+                                  if (!res.ok) {
+                                    toast.error(
+                                      res.error.message || t`Impossible de liker cet article`
+                                    );
+                                    throw new Error(res.error.message || 'Like failed');
+                                  }
+                                }}
+                                onRepostToggle={async (art) => {
+                                  const res = await toggleRepostPostAction(art.id);
+                                  if (!res.ok) {
+                                    toast.error(
+                                      res.error.message || t`Impossible de reposter cet article`
+                                    );
+                                    throw new Error(res.error.message || 'Repost failed');
+                                  }
+                                }}
                                 onOpenArticle={(art) => {
                                   void handleOpenArticle(art as never as Partial<Article>);
                                 }}
